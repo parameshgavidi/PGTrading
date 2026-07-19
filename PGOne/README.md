@@ -131,12 +131,10 @@ If you see **"Partial declarations of 'App' must not specify different base clas
 
 If the app crashes with `TypeInitializationException` for `WinRT.ActivationFactory` in `App.g.i.cs`:
 
-1. Pull latest — project uses **MSIX packaging** (default MAUI mode for Visual Studio)
+1. Pull latest — project runs **unpackaged** (plain `.exe`, no MSIX)
 2. Close Visual Studio completely
-3. Run `.\clean.ps1`
-4. Reopen `PGTrading.sln`
-5. If VS shows a yellow **"reload project"** banner, right-click the project → **Reload Project**
-6. Ensure startup profile is **Windows Machine** (uses `MsixPackage`) and press **F5**
+3. Run `.\clean.ps1`, delete `.vs`
+4. Reopen `PGTrading.sln` and press **F5**
 
 If it still fails, install **Windows App Runtime** from the Microsoft Store, then rebuild.
 
@@ -156,21 +154,7 @@ Then close and reopen Visual Studio, reload the project if prompted, and rebuild
 
 ### Troubleshooting: Blank / black screen after launch
 
-**WebView2 already installed?** Good — that is not the problem. The blank screen is usually caused by the app not deploying Blazor UI files correctly.
-
-#### Step 1 — Enable Developer Mode (one-time, required for MSIX debug)
-
-Press **Win + R**, type this, press Enter:
-
-```
-ms-settings:developers
-```
-
-Turn **ON** "Developer Mode".
-
-Or right-click `enable-developer-mode.bat` → **Run as administrator**.
-
-#### Step 2 — Pull, clean, rebuild
+The app runs **unpackaged** — no Developer Mode, no Deploy checkbox needed. Just:
 
 ```powershell
 cd D:\PGOne\parameshgavidi\PGTrading
@@ -179,32 +163,20 @@ cd PGOne
 .\clean.ps1
 ```
 
-Delete the `.vs` folder in the solution directory, reopen Visual Studio.
+Delete `bin`, `obj`, and `.vs`, reopen Visual Studio, press **F5**.
 
-#### Step 3 — Deploy and run
+Two specific issues were fixed for this exact symptom:
 
-1. In Visual Studio, right-click **PGOne** project → **Deploy**
-2. Ensure startup profile is **Windows Machine** (MSIX)
-3. Press **F5**
-
-You should see a blue "Starting PG One..." banner, then the full trading UI.
-
-#### Step 4 — Verify build output
-
-```powershell
-.\verify-build.ps1
-```
-
-If `blazor.webview.js` is missing, run `.\clean.ps1` and rebuild.
+- **BlazorWebView loads but shows an empty rectangle** — a known WebView2/WinAppSDK regression around the internal host address. Fixed via `AppContext.SetSwitch("BlazorWebView.AppHostAddressAlways0000", true)` in `MauiProgram.cs`.
+- **WebView2 loads content but the window stays solid black** — a GPU/DirectComposition compositing issue common on VMs, remote desktop sessions, and some graphics drivers. Fixed by disabling GPU acceleration for the WebView2 process in `Platforms/Windows/App.xaml.cs`.
 
 #### What you should see
 
 | Screen | Meaning |
 |--------|---------|
 | Blue "Starting PG One..." then full UI | Working |
-| Blue banner stays, black below | WebView issue — run Deploy, then F5 |
-| Red error panel | Read the message shown |
-| Solid black, no banner | Old code — `git pull origin main` |
+| Red error panel / red diagnostic bar at bottom | Read the message — it names the actual failure |
+| Solid black, no banner at all | Old code — confirm `git pull origin main` picked up the latest commit |
 
 ## Zerodha Connection
 
