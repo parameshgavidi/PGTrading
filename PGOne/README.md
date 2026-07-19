@@ -127,9 +127,22 @@ If you see **"Partial declarations of 'App' must not specify different base clas
 - Do **not** set Windows App.xaml to `x:Class="PGOne.App"` — that causes this error
 - Pull latest, delete `bin`/`obj`, rebuild
 
+### Troubleshooting: WinRT ActivationFactory crash at startup
+
+If the app crashes with `TypeInitializationException` for `WinRT.ActivationFactory` in `App.g.i.cs`:
+
+1. Pull latest — project uses **MSIX packaging** (default MAUI mode for Visual Studio)
+2. Close Visual Studio completely
+3. Run `.\clean.ps1`
+4. Reopen `PGTrading.sln`
+5. If VS shows a yellow **"reload project"** banner, right-click the project → **Reload Project**
+6. Ensure startup profile is **Windows Machine** (uses `MsixPackage`) and press **F5**
+
+If it still fails, install **Windows App Runtime** from the Microsoft Store, then rebuild.
+
 ### Troubleshooting: `GenerateAppManifestFromAppx` / `AppxManifest.xml` error
 
-If the error path shows **`net8.0-windows...`** you have **stale build cache** from an old version. Run:
+If you see an AppxManifest build error:
 
 ```powershell
 cd D:\PGOne\parameshgavidi\PGTrading\PGOne
@@ -139,12 +152,7 @@ dotnet workload restore
 dotnet build -f net8.0-windows10.0.19041.0
 ```
 
-This project is an **unpackaged** Windows app (`WindowsPackageType=None`). The build uses `Directory.Build.targets` to skip MSIX tasks. If you still see the error:
-
-1. Close Visual Studio completely
-2. Run `.\clean.ps1` (deletes `bin`, `obj`, `.vs`)
-3. Reopen `PGTrading.sln` and rebuild
-4. Do not pass `-p:WindowsAppSDKSelfContained=true` on the CLI — it is already set in the project
+Then close and reopen Visual Studio, reload the project if prompted, and rebuild.
 
 ## Zerodha Connection
 
