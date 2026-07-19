@@ -1,0 +1,66 @@
+@page "/orders"
+@inject IZerodhaService ZerodhaService
+
+<div class="page-container">
+    <div class="card">
+        <div class="card-header">
+            <h2>Orders</h2>
+            <button class="btn btn-secondary" @onclick="LoadOrders">Refresh</button>
+        </div>
+
+        @if (!_connected)
+        {
+            <div class="empty-state">
+                <p>Connect to Zerodha in Settings to view orders.</p>
+                <a href="settings" class="btn btn-primary">Go to Settings</a>
+            </div>
+        }
+        else if (_orders.Count == 0)
+        {
+            <div class="empty-state">No orders today.</div>
+        }
+        else
+        {
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Symbol</th>
+                        <th>Type</th>
+                        <th>Qty</th>
+                        <th>Price</th>
+                        <th>Status</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var order in _orders)
+                    {
+                        <tr>
+                            <td>@order.OrderId</td>
+                            <td><strong>@order.Symbol</strong></td>
+                            <td class="@(order.TransactionType == "BUY" ? "buy" : "sell")">@order.TransactionType</td>
+                            <td>@order.Quantity</td>
+                            <td>@order.Price.ToString("N2")</td>
+                            <td><span class="status-badge">@order.Status</span></td>
+                            <td>@order.OrderTime.ToString("HH:mm:ss")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@code {
+  private List<Order> _orders = new();
+  private bool _connected;
+
+  protected override async Task OnInitializedAsync() => await LoadOrders();
+
+  private async Task LoadOrders()
+  {
+    _connected = ZerodhaService.IsConnected;
+    _orders = await ZerodhaService.GetOrdersAsync();
+  }
+}

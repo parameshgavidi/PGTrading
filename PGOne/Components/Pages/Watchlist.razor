@@ -1,0 +1,54 @@
+@page "/watchlist"
+@inject WatchlistViewModel ViewModel
+
+<div class="page-container">
+    <div class="card">
+        <div class="card-header">
+            <h2>Watchlist</h2>
+            <button class="btn btn-secondary" @onclick="Refresh">Refresh</button>
+        </div>
+
+        <table class="data-table watchlist-table">
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Last Price</th>
+                    <th>Change</th>
+                    <th>Trend</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in ViewModel.Items)
+                {
+                    <tr>
+                        <td>
+                            <strong>@(item.IsFavorite ? "★ " : "")@item.Symbol</strong>
+                        </td>
+                        <td>@item.LastPrice.ToString("N2")</td>
+                        <td class="@(item.Change >= 0 ? "buy" : "sell")">
+                            @(item.Change >= 0 ? "+" : "")@item.Change.ToString("N2") (@item.ChangePercent%)
+                        </td>
+                        <td class="@GetTrendClass(item.Trend)">@item.Trend</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+  protected override async Task OnInitializedAsync()
+  {
+    await ViewModel.RefreshAsync();
+    ViewModel.PropertyChanged += (_, _) => InvokeAsync(StateHasChanged);
+  }
+
+  private async Task Refresh() => await ViewModel.RefreshAsync();
+
+  private static string GetTrendClass(TrendDirection trend) => trend switch
+  {
+    TrendDirection.Buy => "buy",
+    TrendDirection.Sell => "sell",
+    _ => "neutral"
+  };
+}

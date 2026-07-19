@@ -1,0 +1,45 @@
+@page "/chart"
+@inject DashboardViewModel ViewModel
+
+<div class="page-container">
+    <div class="card chart-full">
+        <div class="chart-header">
+            <h2>NIFTY 50 — Live Chart</h2>
+            <div class="price-row">
+                <span class="price">@ViewModel.NiftyPrice.ToString("N2")</span>
+                <span class="trend-badge @GetTrendClass(ViewModel.NiftyTrend)">@ViewModel.NiftyTrend</span>
+            </div>
+        </div>
+        <div class="chart-area large">
+            <canvas id="liveChart" width="1200" height="500"></canvas>
+        </div>
+        <div class="timeframe-buttons">
+            @foreach (var tf in new[] { "5m", "15m", "1H", "1D" })
+            {
+                <button class="tf-btn @(ViewModel.SelectedTimeframe == tf ? "active" : "")"
+                        @onclick="() => ViewModel.ChangeTimeframeAsync(tf)">@tf</button>
+            }
+        </div>
+        <div class="chart-legend">
+            <span class="legend-item"><span class="legend-color buy"></span> SuperTrend BUY</span>
+            <span class="legend-item"><span class="legend-color sell"></span> SuperTrend SELL</span>
+            <span class="legend-item"><span class="legend-color candle-up"></span> Bullish Candle</span>
+            <span class="legend-item"><span class="legend-color candle-down"></span> Bearish Candle</span>
+        </div>
+    </div>
+</div>
+
+@code {
+  protected override async Task OnInitializedAsync()
+  {
+    await ViewModel.InitializeAsync();
+    ViewModel.PropertyChanged += (_, _) => InvokeAsync(StateHasChanged);
+  }
+
+  private static string GetTrendClass(TrendDirection trend) => trend switch
+  {
+    TrendDirection.Buy => "buy",
+    TrendDirection.Sell => "sell",
+    _ => "neutral"
+  };
+}

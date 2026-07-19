@@ -1,0 +1,79 @@
+@page "/signals"
+@inject SignalViewModel ViewModel
+
+<div class="page-container">
+    <div class="card signal-card">
+        <div class="card-header">
+            <h2>Live Trade Signal</h2>
+            <button class="btn btn-secondary" @onclick="() => ViewModel.RefreshAsync()">Refresh</button>
+        </div>
+
+        <div class="signal-details">
+            <div class="signal-row">
+                <span class="label">Instrument</span>
+                <span class="value">@ViewModel.CurrentSignal.Instrument</span>
+            </div>
+            <div class="signal-row">
+                <span class="label">Trend</span>
+                <span class="value @GetTrendClass(ViewModel.CurrentSignal.Trend)">
+                    @GetTrendIcon(ViewModel.CurrentSignal.Trend) @ViewModel.CurrentSignal.Trend
+                </span>
+            </div>
+            <div class="signal-row">
+                <span class="label">Entry</span>
+                <span class="value highlight">@ViewModel.CurrentSignal.Entry</span>
+            </div>
+            <div class="signal-row">
+                <span class="label">Strategy</span>
+                <span class="value">@ViewModel.CurrentSignal.Strategy</span>
+            </div>
+            <div class="signal-row">
+                <span class="label">Stop Loss</span>
+                <span class="value">@ViewModel.CurrentSignal.StopLoss</span>
+            </div>
+            <div class="signal-row">
+                <span class="label">Target</span>
+                <span class="value">@ViewModel.CurrentSignal.Target</span>
+            </div>
+            <div class="signal-row">
+                <span class="label">Confidence</span>
+                <span class="value confidence">@ViewModel.CurrentSignal.Confidence%</span>
+            </div>
+        </div>
+
+        <div class="signal-reasons">
+            <h3>Reason</h3>
+            @foreach (var reason in ViewModel.CurrentSignal.Reasons)
+            {
+                <div class="reason-item">@reason</div>
+            }
+        </div>
+
+        <button class="btn btn-primary btn-large" @onclick="PlaceTrade">Place Trade</button>
+
+        @if (!string.IsNullOrEmpty(ViewModel.PlaceOrderMessage))
+        {
+            <div class="status-message">@ViewModel.PlaceOrderMessage</div>
+        }
+    </div>
+</div>
+
+@code {
+  protected override async Task OnInitializedAsync() => await ViewModel.RefreshAsync();
+
+  private async Task PlaceTrade() => await ViewModel.PlaceTradeAsync();
+
+  private static string GetTrendClass(TrendDirection trend) => trend switch
+  {
+    TrendDirection.Buy => "buy",
+    TrendDirection.Sell => "sell",
+    _ => "neutral"
+  };
+
+  private static string GetTrendIcon(TrendDirection trend) => trend switch
+  {
+    TrendDirection.Buy => "🟢",
+    TrendDirection.Sell => "🔴",
+    _ => "⚪"
+  };
+}

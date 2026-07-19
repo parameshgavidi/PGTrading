@@ -1,0 +1,122 @@
+@page "/"
+@inject DashboardViewModel ViewModel
+@implements IDisposable
+
+<div class="dashboard">
+    <div class="dashboard-top">
+        <div class="watchlist-panel card">
+            <div class="card-header">Watchlist</div>
+            <div class="watchlist-items">
+                @foreach (var item in ViewModel.Watchlist)
+                {
+                    <div class="watchlist-row @(item.IsFavorite ? "favorite" : "")">
+                        <span class="symbol">@(item.IsFavorite ? "★ " : "")@item.Symbol</span>
+                        <span class="trend @GetTrendClass(item.Trend)">@item.Trend</span>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="chart-panel card">
+            <div class="chart-header">
+                <div class="instrument-info">
+                    <h2>NIFTY 50</h2>
+                    <div class="price-row">
+                        <span class="price">@ViewModel.NiftyPrice.ToString("N2")</span>
+                        <span class="change positive">▲ +@ViewModel.NiftyChange.ToString("N2") (+@ViewModel.NiftyChangePercent%)</span>
+                        <span class="trend-badge @GetTrendClass(ViewModel.NiftyTrend)">Trend: @ViewModel.NiftyTrend</span>
+                    </div>
+                </div>
+            </div>
+            <div class="chart-area">
+                <canvas id="priceChart" width="800" height="350"></canvas>
+            </div>
+            <div class="timeframe-buttons">
+                @foreach (var tf in new[] { "5m", "15m", "1H" })
+                {
+                    <button class="tf-btn @(ViewModel.SelectedTimeframe == tf ? "active" : "")"
+                            @onclick="() => ViewModel.ChangeTimeframeAsync(tf)">@tf</button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-bottom">
+        <div class="analysis-panel card">
+            <div class="card-header">Multi Timeframe Analysis</div>
+            <table class="analysis-table">
+                <tr>
+                    <td>1 Hour Trend</td>
+                    <td class="@GetTrendClass(ViewModel.Analysis.Trend1H)">@GetTrendIcon(ViewModel.Analysis.Trend1H) @ViewModel.Analysis.Trend1H</td>
+                </tr>
+                <tr>
+                    <td>15 Min Trend</td>
+                    <td class="@GetTrendClass(ViewModel.Analysis.Trend15M)">@GetTrendIcon(ViewModel.Analysis.Trend15M) @ViewModel.Analysis.Trend15M</td>
+                </tr>
+                <tr>
+                    <td>5 Min Trend</td>
+                    <td class="@GetTrendClass(ViewModel.Analysis.Trend5M)">@GetTrendIcon(ViewModel.Analysis.Trend5M) @ViewModel.Analysis.Trend5M</td>
+                </tr>
+                <tr>
+                    <td>RSI(14)</td>
+                    <td>@ViewModel.Analysis.Rsi</td>
+                </tr>
+                <tr>
+                    <td>ADX(14)</td>
+                    <td>@ViewModel.Analysis.Adx</td>
+                </tr>
+                <tr>
+                    <td>CPR</td>
+                    <td>@ViewModel.Analysis.Cpr</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="score-panel card">
+            <div class="card-header">Overall Score</div>
+            <div class="score-value">@ViewModel.Analysis.OverallScore%</div>
+            <div class="score-strength">@ViewModel.Analysis.Strength</div>
+        </div>
+
+        <div class="signal-panel card">
+            <div class="card-header">Current Signal</div>
+            <div class="signal-checks">
+                <div class="signal-check">✔ Trend Alignment : @(ViewModel.Analysis.Trend1H == ViewModel.Analysis.Trend15M && ViewModel.Analysis.Trend15M == ViewModel.Analysis.Trend5M ? "YES" : "NO")</div>
+                <div class="signal-check">✔ RSI > 55 : @(ViewModel.Analysis.Rsi > 55 ? "YES" : "NO")</div>
+                <div class="signal-check">✔ ADX > 25 : @(ViewModel.Analysis.Adx > 25 ? "YES" : "NO")</div>
+                <div class="signal-check">✔ Entry : @ViewModel.CurrentSignal.Entry @ViewModel.CurrentSignal.Strategy</div>
+                <div class="signal-check">✔ Confidence : @ViewModel.CurrentSignal.Confidence%</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+  private System.Timers.Timer? _refreshTimer;
+
+  protected override async Task OnInitializedAsync()
+  {
+    await ViewModel.InitializeAsync();
+    ViewModel.PropertyChanged += (_, _) => InvokeAsync(StateHasChanged);
+
+    _refreshTimer = new System.Timers.Timer(30000);
+    _refreshTimer.Elapsed += async (_, _) => await ViewModel.RefreshAsync();
+    _refreshTimer.Start();
+  }
+
+  private static string GetTrendClass(TrendDirection trend) => trend switch
+  {
+    TrendDirection.Buy => "buy",
+    TrendDirection.Sell => "sell",
+    _ => "neutral"
+  };
+
+  private static string GetTrendIcon(TrendDirection trend) => trend switch
+  {
+    TrendDirection.Buy => "🟢",
+    TrendDirection.Sell => "🔴",
+    _ => "⚪"
+  };
+
+  public void Dispose() => _refreshTimer?.Dispose();
+}
