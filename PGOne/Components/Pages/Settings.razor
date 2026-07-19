@@ -1,6 +1,7 @@
 @page "/settings"
 @inject SettingsViewModel ViewModel
 @inject IJSRuntime JS
+@implements IDisposable
 
 <div class="page-container">
     <div class="card settings-card">
@@ -95,23 +96,41 @@
 
         <button class="btn btn-primary btn-large" @onclick="Save">Save Settings</button>
 
-        @if (!string.IsNullOrEmpty(ViewModel.StatusMessage))
+        @if (!string.IsNullOrEmpty(_statusMessage))
         {
-            <div class="status-message">@ViewModel.StatusMessage</div>
+            <div class="status-message">@_statusMessage</div>
         }
     </div>
 </div>
 
 @code {
-  protected override async Task OnInitializedAsync() => await ViewModel.LoadAsync();
+    private string _statusMessage = string.Empty;
 
-  private async Task Save() => await ViewModel.SaveAsync();
-  private async Task Connect() => await ViewModel.ConnectAsync();
-  private void Disconnect() => ViewModel.Disconnect();
+    protected override async Task OnInitializedAsync()
+    {
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        await ViewModel.LoadAsync();
+        _statusMessage = ViewModel.StatusMessage;
+    }
 
-  private async Task OpenLogin()
-  {
-    if (ViewModel.TryGetLoginUrl(out var url))
-      await JS.InvokeVoidAsync("open", url, "_blank");
-  }
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SettingsViewModel.StatusMessage))
+        {
+            _statusMessage = ViewModel.StatusMessage;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task Save() => await ViewModel.SaveAsync();
+    private async Task Connect() => await ViewModel.ConnectAsync();
+    private void Disconnect() => ViewModel.Disconnect();
+
+    private async Task OpenLogin()
+    {
+        if (ViewModel.TryGetLoginUrl(out var url))
+            await JS.InvokeVoidAsync("open", url, "_blank");
+    }
+
+    public void Dispose() => ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
 }
