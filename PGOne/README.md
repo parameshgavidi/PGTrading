@@ -163,7 +163,14 @@ If the window opens but shows only a black screen:
 3. Press **F5** again — you should see the sidebar, dashboard, and PG One logo
 
 If you still see a blank screen, install **WebView2 Runtime** from Microsoft:
-https://developer.microsoft.com/microsoft-edge/webview2/
+
+```powershell
+.\install-webview2.ps1
+```
+
+Or manually: https://go.microsoft.com/fwlink/p/?LinkId=2124703
+
+> **Yes, WebView2 is required.** PG One is a Blazor Hybrid app — the entire UI runs inside WebView2 on Windows. Windows 11 usually has it pre-installed; Windows 10 often needs a separate install.
 
 ## Zerodha Connection
 

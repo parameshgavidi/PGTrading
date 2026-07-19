@@ -1,4 +1,8 @@
+using Microsoft.AspNetCore.Components.WebView.Maui;
 using Microsoft.Extensions.Logging;
+using Microsoft.Maui.Handlers;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.Web.WebView2.Core;
 using PGOne.Services;
 using PGOne.ViewModels;
 
@@ -16,6 +20,8 @@ public static class MauiProgram
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
+
+        ConfigureWebView2();
 
         builder.Services.AddMauiBlazorWebView();
 
@@ -40,5 +46,31 @@ public static class MauiProgram
         builder.Services.AddSingleton<SettingsViewModel>();
 
         return builder.Build();
+    }
+
+    private static void ConfigureWebView2()
+    {
+        BlazorWebViewHandler.BlazorWebViewMapper.AppendToMapping("PGOneWebView2", (handler, _) =>
+        {
+            if (handler.PlatformView is not WebView2 webView)
+                return;
+
+            webView.CoreWebView2InitializationCompleted += (_, args) =>
+            {
+                if (args.IsSuccess)
+                    return;
+
+                var message = args.InitializationException?.Message
+                    ?? "WebView2 failed to initialize. Install the WebView2 Runtime and restart.";
+
+                System.Diagnostics.Debug.WriteLine($"WebView2 init failed: {message}");
+
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    if (Application.Current?.Windows.FirstOrDefault()?.Page is MainPage mainPage)
+                        mainPage.ShowWebViewError(message);
+                });
+            };
+        });
     }
 }
