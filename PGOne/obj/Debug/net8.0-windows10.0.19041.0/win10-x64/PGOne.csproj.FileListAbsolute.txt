@@ -1,0 +1,14 @@
+/workspace/PGOne/obj/Debug/net8.0-windows10.0.19041.0/win10-x64/PGOne.csproj.AssemblyReference.cache
+/workspace/PGOne/obj/Debug/net8.0-windows10.0.19041.0/win10-x64/staticwebassets.build.json
+/workspace/PGOne/obj/Debug/net8.0-windows10.0.19041.0/win10-x64/staticwebassets.development.json
+/workspace/PGOne/obj/Debug/net8.0-windows10.0.19041.0/win10-x64/staticwebassets/msbuild.PGOne.Microsoft.AspNetCore.StaticWebAssets.props
+/workspace/PGOne/obj/Debug/net8.0-windows10.0.19041.0/win10-x64/staticwebassets/msbuild.build.PGOne.props
+/workspace/PGOne/obj/Debug/net8.0-windows10.0.19041.0/win10-x64/staticwebassets/msbuild.buildMultiTargeting.PGOne.props
+/workspace/PGOne/obj/Debug/net8.0-windows10.0.19041.0/win10-x64/staticwebassets/msbuild.buildTransitive.PGOne.props
+/workspace/PGOne/obj/Debug/net8.0-windows10.0.19041.0/win10-x64/staticwebassets.pack.json
+/workspace/PGOne/obj/Debug/net8.0-windows10.0.19041.0/win10-x64/scopedcss/bundle/PGOne.styles.css
+/workspace/PGOne/obj/Debug/net8.0-windows10.0.19041.0/win10-x64/staticwebassets.publish.json
+/workspace/PGOne/obj/Debug/net8.0-windows10.0.19041.0/win10-x64/mauiimage.inputs
+/workspace/PGOne/obj/Debug/net8.0-windows10.0.19041.0/win10-x64/mauifont.inputs
+/workspace/PGOne/obj/Debug/net8.0-windows10.0.19041.0/win10-x64/mauisplash.inputs
+/workspace/PGOne/obj/Debug/net8.0-windows10.0.19041.0/win10-x64/mauimanifest.stamp
