@@ -19,11 +19,19 @@
     <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
   </PropertyGroup>
 
-  <!-- MSIX packaged — reliable Blazor WebView deploy from Visual Studio F5 -->
+  <!-- Unpackaged Windows app — runs as .exe. Avoids MSIX-only issues
+       (Developer Mode requirement, Deploy checkbox, Resizetizer splash
+       screen race condition / DEP0700). -->
   <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
-    <WindowsPackageType>MSIX</WindowsPackageType>
-    <EnableMsixTooling>true</EnableMsixTooling>
-    <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
+    <WindowsPackageType>None</WindowsPackageType>
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <GenerateAppxPackageOnBuild>false</GenerateAppxPackageOnBuild>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <RuntimeIdentifierOverride>win-x64</RuntimeIdentifierOverride>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- Prevents WindowsAppSDK's MrtCore.PriGen.targets from defaulting to a
+         multi-arch RuntimeIdentifiers list (incl. ARM) that fails to restore. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <PlatformTarget>x64</PlatformTarget>
     <Platforms>x64;AnyCPU</Platforms>
   </PropertyGroup>
@@ -34,6 +42,13 @@
     <MauiImage Include="Resources\Images\*" />
     <MauiFont Include="Resources\Fonts\*" />
     <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- Unpackaged Windows builds double-glob wwwroot as default Content items
+       (NETSDK1022). Force a single, deterministic inclusion. -->
+  <ItemGroup>
+    <Content Remove="wwwroot\**" />
+    <Content Include="wwwroot\**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

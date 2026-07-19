@@ -1,0 +1,12 @@
+<Project>
+  <!-- Skip MSIX-only tasks when running unpackaged (WindowsPackageType=None).
+       Without this, MSBuild still tries to generate an AppxManifest and fails
+       with "MsixContent\AppxManifest.xml not found" even though no package
+       is being produced. -->
+  <Target Name="GenerateAppManifestFromAppx"
+          Condition="'$(WindowsPackageType)' == 'None'" />
+  <Target Name="_GenerateAppxPackage"
+          Condition="'$(WindowsPackageType)' == 'None'" />
+  <Target Name="_GenerateAppxPackageRecipe"
+          Condition="'$(WindowsPackageType)' == 'None'" />
+</Project>
