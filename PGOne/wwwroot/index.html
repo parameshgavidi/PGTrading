@@ -9,7 +9,9 @@
     <link rel="icon" href="images/pgone_logo.png" type="image/png" />
 </head>
 <body>
-    <div id="app">Loading PG One...</div>
+    <div id="app">
+        <div style="color:#fff;font-family:'Segoe UI',sans-serif;padding:24px;">Loading PG One…</div>
+    </div>
 
     <div id="blazor-error-ui">
         An unhandled error has occurred.
@@ -17,6 +19,37 @@
         <a class="dismiss">🗙</a>
     </div>
 
+    <div id="pg-diag"></div>
+
+    <script>
+        (function () {
+            function diag(msg) {
+                var d = document.getElementById('pg-diag');
+                if (!d) return;
+                d.style.display = 'block';
+                d.textContent += msg + "\n";
+            }
+            // Capture=true also catches failed resource loads (e.g. blazor.webview.js 404).
+            window.addEventListener('error', function (e) {
+                if (e && e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK' || e.target.tagName === 'IMG')) {
+                    diag('Failed to load: ' + (e.target.src || e.target.href));
+                } else {
+                    diag('JS error: ' + (e.message || (e.error && e.error.message) || e) +
+                        (e.filename ? ('  @ ' + e.filename + ':' + e.lineno) : ''));
+                }
+            }, true);
+            window.addEventListener('unhandledrejection', function (e) {
+                diag('Promise error: ' + (e.reason && (e.reason.message || e.reason)));
+            });
+            // Watchdog: report if the Blazor layout never renders.
+            setTimeout(function () {
+                if (!document.querySelector('.app-shell')) {
+                    diag('Blazor did not render within 7s. The host page loaded, but no Razor component mounted. ' +
+                        'This usually means _framework/blazor.webview.js failed to load or start.');
+                }
+            }, 7000);
+        })();
+    </script>
     <script src="js/chart.js"></script>
     <script src="_framework/blazor.webview.js" autostart="false"></script>
 </body>
