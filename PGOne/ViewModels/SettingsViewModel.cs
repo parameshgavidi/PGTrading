@@ -12,8 +12,8 @@ public class SettingsViewModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public AppSettings Settings { get; private set; } = new();
-    public string StatusMessage { get; private set; } = string.Empty;
+    public AppSettings Settings { get; set; } = new();
+    public string StatusMessage { get; set; } = string.Empty;
     public string RequestToken { get; set; } = string.Empty;
     public bool IsConnected => _zerodha.IsConnected;
 
