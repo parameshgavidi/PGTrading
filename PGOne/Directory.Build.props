@@ -2,14 +2,4 @@
   <PropertyGroup>
     <MauiVersion Condition="'$(MauiVersion)' == ''">8.0.100</MauiVersion>
   </PropertyGroup>
-
-  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
-    <WindowsPackageType>None</WindowsPackageType>
-    <EnableMsixTooling>false</EnableMsixTooling>
-    <GenerateAppxPackageOnBuild>false</GenerateAppxPackageOnBuild>
-    <GenerateAppxManifest>false</GenerateAppxManifest>
-    <AppxPackage>false</AppxPackage>
-    <AppxBundle>Never</AppxBundle>
-    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
-  </PropertyGroup>
 </Project>
