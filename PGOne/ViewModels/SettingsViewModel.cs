@@ -65,6 +65,22 @@ public class SettingsViewModel : INotifyPropertyChanged
         Notify(nameof(IsConnected));
     }
 
+    public void SetStatusMessage(string message)
+    {
+        StatusMessage = message;
+        Notify(nameof(StatusMessage));
+    }
+
+    public bool TryGetLoginUrl(out string url)
+    {
+        url = GetLoginUrl();
+        if (!string.IsNullOrEmpty(url) && url.Contains("api_key=") && !url.EndsWith("api_key="))
+            return true;
+
+        SetStatusMessage("Please enter your API Key and save settings first.");
+        return false;
+    }
+
     private void Notify([CallerMemberName] string? property = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
 }

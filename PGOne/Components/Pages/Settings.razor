@@ -111,10 +111,7 @@
 
   private async Task OpenLogin()
   {
-    var url = ViewModel.GetLoginUrl();
-    if (!string.IsNullOrEmpty(url) && url.Contains("api_key=") && !url.EndsWith("api_key="))
+    if (ViewModel.TryGetLoginUrl(out var url))
       await JS.InvokeVoidAsync("open", url, "_blank");
-    else
-      ViewModel.StatusMessage = "Please enter your API Key and save settings first.";
   }
 }
