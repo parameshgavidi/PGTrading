@@ -76,6 +76,15 @@ If Visual Studio shows **"You are using a preview version of .NET"**:
    ```
 5. Clean and rebuild: delete `bin` and `obj`, then rebuild in VS
 
+### Troubleshooting: CS0263 App base class conflict
+
+If you see **"Partial declarations of 'App' must not specify different base classes"**:
+
+- Root `App.xaml` must be `x:Class="PGOne.App"` inheriting from MAUI `Application`
+- Windows `Platforms/Windows/App.xaml` must be `x:Class="PGOne.WinUI.App"` inheriting from `MauiWinUIApplication`
+- Do **not** set Windows App.xaml to `x:Class="PGOne.App"` — that causes this error
+- Pull latest, delete `bin`/`obj`, rebuild
+
 ### Troubleshooting: `GenerateAppManifestFromAppx` / `AppxManifest.xml` error
 
 This project is configured as an **unpackaged** Windows app (`WindowsPackageType=None`). If you see:
