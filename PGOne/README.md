@@ -154,6 +154,17 @@ dotnet build -f net8.0-windows10.0.19041.0
 
 Then close and reopen Visual Studio, reload the project if prompted, and rebuild.
 
+### Troubleshooting: Blank / black screen after launch
+
+If the window opens but shows only a black screen:
+
+1. Pull latest — `wwwroot/index.html` must include `_framework/blazor.webview.js`
+2. Run `.\clean.ps1`, delete the `.vs` folder, then rebuild
+3. Press **F5** again — you should see the sidebar, dashboard, and PG One logo
+
+If you still see a blank screen, install **WebView2 Runtime** from Microsoft:
+https://developer.microsoft.com/microsoft-edge/webview2/
+
 ## Zerodha Connection
 
 1. Register at [Kite Connect Developer Portal](https://developers.kite.trade)
