@@ -62,6 +62,54 @@ Or open `PGOne.csproj` in **Visual Studio 2026 Community** and press **F5**.
 3. Click **Modify** and wait for install to complete
 4. Open the project and let VS restore NuGet packages
 
+### Troubleshooting: `dotnet --version` shows 6.x or 8.x (need .NET 10)
+
+This project requires **.NET 10 SDK**. If you see `6.0.400` or similar, your terminal is using an old SDK — not the one from VS 2026.
+
+**Step 1 — Check all installed SDKs:**
+```powershell
+dotnet --list-sdks
+```
+
+You need a line like `10.0.xxx` in the list.
+
+**Step 2 — Install .NET 10 via Visual Studio Installer:**
+1. Open **Visual Studio Installer**
+2. Click **Modify** on **VS 2026 Community**
+3. Under **Workloads**, check:
+   - **.NET Multi-platform App UI development**
+   - **.NET desktop development**
+4. Under **Individual components**, search and check:
+   - **.NET 10.0 Runtime**
+   - **.NET 10.0 SDK**
+5. Click **Modify** and wait for install to finish
+
+**Step 3 — Use the correct dotnet (PATH fix):**
+
+VS 2026 installs the SDK here:
+```
+C:\Program Files\dotnet\dotnet.exe
+```
+
+Run this in PowerShell to verify:
+```powershell
+& "C:\Program Files\dotnet\dotnet.exe" --version
+```
+
+If that shows `10.0.x` but `dotnet --version` shows `6.0.400`, your PATH points to an old SDK. Fix:
+
+1. Open **System Properties → Environment Variables**
+2. In **Path**, move `C:\Program Files\dotnet` **above** any older .NET paths (e.g. `C:\Program Files (x86)\dotnet` or old SDK folders)
+3. Remove obsolete .NET 6 SDK entries if you no longer need them
+4. **Close and reopen** PowerShell / Visual Studio
+
+**Step 4 — Build from VS 2026 (easiest):**
+
+You do not need the command line if PATH is wrong — just open `PGTrading.sln` in **VS 2026 Community** and press **F5**. Visual Studio uses its own bundled SDK automatically.
+
+**Optional — Download .NET 10 SDK directly:**
+https://dotnet.microsoft.com/download/dotnet/10.0
+
 ### Troubleshooting: Preview .NET warning
 
 If Visual Studio shows **"You are using a preview version of .NET"**:
