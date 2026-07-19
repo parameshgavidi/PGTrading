@@ -1,0 +1,15 @@
+<Project>
+  <!--
+    Override WindowsAppSDK SelfContained targets that still run
+    GenerateAppManifestFromAppx even when EnableMsixTooling=false.
+    Required for unpackaged MAUI Windows apps (WindowsPackageType=None).
+  -->
+  <Target Name="GenerateAppManifestFromAppx"
+          Condition="'$(WindowsPackageType)' == 'None'" />
+
+  <Target Name="_GenerateAppxPackage"
+          Condition="'$(WindowsPackageType)' == 'None'" />
+
+  <Target Name="_GenerateAppxPackageRecipe"
+          Condition="'$(WindowsPackageType)' == 'None'" />
+</Project>

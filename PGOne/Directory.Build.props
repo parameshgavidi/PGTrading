@@ -3,4 +3,15 @@
     <!-- Fallback if $(MauiVersion) is not set by the MAUI workload -->
     <MauiVersion Condition="'$(MauiVersion)' == ''">10.0.80</MauiVersion>
   </PropertyGroup>
+
+  <!-- Unpackaged Windows: disable all MSIX/Appx pipeline -->
+  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+    <WindowsPackageType>None</WindowsPackageType>
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <GenerateAppxPackageOnBuild>false</GenerateAppxPackageOnBuild>
+    <GenerateAppxManifest>false</GenerateAppxManifest>
+    <AppxPackage>false</AppxPackage>
+    <AppxBundle>Never</AppxBundle>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+  </PropertyGroup>
 </Project>

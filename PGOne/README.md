@@ -87,16 +87,22 @@ If you see **"Partial declarations of 'App' must not specify different base clas
 
 ### Troubleshooting: `GenerateAppManifestFromAppx` / `AppxManifest.xml` error
 
-This project is configured as an **unpackaged** Windows app (`WindowsPackageType=None`). If you see:
+If the error path shows **`net8.0-windows...`** you have **stale build cache** from an old version. Run:
 
-```
-The "GenerateAppManifestFromAppx" task failed unexpectedly.
-Could not find ... MsixContent\AppxManifest.xml
+```powershell
+cd D:\PGOne\parameshgavidi\PGTrading\PGOne
+git pull origin main
+.\clean.ps1
+dotnet workload restore
+dotnet build -f net10.0-windows10.0.19041.0
 ```
 
-1. Delete the `bin` and `obj` folders inside `PGOne`
-2. Rebuild from the **PGOne project only** (not the whole solution)
-3. Do not pass `-p:WindowsAppSDKSelfContained=true` globally on the CLI — it is already set in the `.csproj`
+This project is an **unpackaged** Windows app (`WindowsPackageType=None`). The build uses `Directory.Build.targets` to skip MSIX tasks. If you still see the error:
+
+1. Close Visual Studio completely
+2. Run `.\clean.ps1` (deletes `bin`, `obj`, `.vs`)
+3. Reopen `PGTrading.sln` and rebuild
+4. Do not pass `-p:WindowsAppSDKSelfContained=true` on the CLI — it is already set in the project
 
 ## Zerodha Connection
 
