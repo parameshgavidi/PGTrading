@@ -42,16 +42,72 @@ Copy the entire `PGOne` project folder to `D:\PGOne`.
 ```powershell
 cd D:\PGOne\PGOne
 
-# Clean stale MSIX artifacts (required if you hit AppxManifest errors)
-Remove-Item -Recurse -Force bin, obj -ErrorAction SilentlyContinue
+# 1. Check SDK (must show .NET 8.x)
+.\check-sdk.ps1
 
+# 2. Install MAUI workload (one-time)
+dotnet workload install maui
+
+# 3. Clean and build
+.\clean.ps1
 dotnet restore
-dotnet workload restore
-dotnet build -f net10.0-windows10.0.19041.0
-dotnet run -f net10.0-windows10.0.19041.0
+dotnet build -f net8.0-windows10.0.19041.0
+dotnet run -f net8.0-windows10.0.19041.0
 ```
 
-Or open `PGOne.csproj` in **Visual Studio 2026 Community** and press **F5**.
+Or open `PGTrading.sln` in **Visual Studio 2026 Community** and press **F5**.
+
+### Install .NET 8 SDK (required if you have .NET 6)
+
+Your machine shows `dotnet version: 6.0.400` — you need **.NET 8 SDK**.
+
+#### Easiest: Run the install script
+```powershell
+cd D:\PGOne\parameshgavidi\PGTrading\PGOne
+.\install-dotnet8.ps1
+```
+Choose option **1** (winget) or **3** (direct download).
+
+#### Option A — winget (one command)
+Open **PowerShell** and run:
+```powershell
+winget install Microsoft.DotNet.SDK.8
+```
+Restart PowerShell, then verify: `dotnet --list-sdks` (should show `8.0.xxx`).
+
+#### Option B — Direct download link
+Click this link to download the installer directly:
+
+**https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-8.0.423-windows-x64-installer**
+
+Run the downloaded `.exe` file, then restart PowerShell.
+
+#### Option C — Manual from Microsoft page
+1. Go to: **https://dotnet.microsoft.com/download/dotnet/8.0**
+2. Find the section **"Build apps - SDK"** (not Runtime)
+3. Click the latest version (e.g. **8.0.423**)
+4. Under **Windows**, click **x64** (not x86)
+5. Run the installer
+
+#### Option D — Via Visual Studio Installer
+1. Open **Visual Studio Installer**
+2. Click **Modify** on VS 2026 Community
+3. Go to **Individual components** tab
+4. Search for **".NET 8"**
+5. Check:
+   - **.NET 8.0 Runtime**
+   - **.NET 8.0 SDK**
+6. Also check workload: **.NET Multi-platform App UI development**
+7. Click **Modify**
+
+#### After installing .NET 8
+```powershell
+dotnet --list-sdks          # must show 8.0.xxx
+dotnet workload install maui
+.\check-sdk.ps1
+.\clean.ps1
+dotnet build -f net8.0-windows10.0.19041.0
+```
 
 ### VS 2026 Community setup
 
@@ -61,68 +117,6 @@ Or open `PGOne.csproj` in **Visual Studio 2026 Community** and press **F5**.
    - **.NET desktop development** (recommended for Windows)
 3. Click **Modify** and wait for install to complete
 4. Open the project and let VS restore NuGet packages
-
-### Troubleshooting: `dotnet --version` shows 6.x or 8.x (need .NET 10)
-
-This project requires **.NET 10 SDK**. If you see `6.0.400` or similar, your terminal is using an old SDK — not the one from VS 2026.
-
-**Step 1 — Check all installed SDKs:**
-```powershell
-dotnet --list-sdks
-```
-
-You need a line like `10.0.xxx` in the list.
-
-**Step 2 — Install .NET 10 via Visual Studio Installer:**
-1. Open **Visual Studio Installer**
-2. Click **Modify** on **VS 2026 Community**
-3. Under **Workloads**, check:
-   - **.NET Multi-platform App UI development**
-   - **.NET desktop development**
-4. Under **Individual components**, search and check:
-   - **.NET 10.0 Runtime**
-   - **.NET 10.0 SDK**
-5. Click **Modify** and wait for install to finish
-
-**Step 3 — Use the correct dotnet (PATH fix):**
-
-VS 2026 installs the SDK here:
-```
-C:\Program Files\dotnet\dotnet.exe
-```
-
-Run this in PowerShell to verify:
-```powershell
-& "C:\Program Files\dotnet\dotnet.exe" --version
-```
-
-If that shows `10.0.x` but `dotnet --version` shows `6.0.400`, your PATH points to an old SDK. Fix:
-
-1. Open **System Properties → Environment Variables**
-2. In **Path**, move `C:\Program Files\dotnet` **above** any older .NET paths (e.g. `C:\Program Files (x86)\dotnet` or old SDK folders)
-3. Remove obsolete .NET 6 SDK entries if you no longer need them
-4. **Close and reopen** PowerShell / Visual Studio
-
-**Step 4 — Build from VS 2026 (easiest):**
-
-You do not need the command line if PATH is wrong — just open `PGTrading.sln` in **VS 2026 Community** and press **F5**. Visual Studio uses its own bundled SDK automatically.
-
-**Optional — Download .NET 10 SDK directly:**
-https://dotnet.microsoft.com/download/dotnet/10.0
-
-### Troubleshooting: Preview .NET warning
-
-If Visual Studio shows **"You are using a preview version of .NET"**:
-
-1. Check SDK: `dotnet --version` — should be `10.0.x` (not `11.0.0-preview.x`)
-2. VS 2026 ships with **.NET 10 stable** — do not install .NET 11 preview unless testing it
-3. The repo `global.json` blocks preview SDKs (`allowPrerelease: false`) but does not pin a specific SDK version — any stable .NET 10 SDK from VS 2026 will work
-4. Run from the project folder:
-   ```powershell
-   dotnet workload restore
-   dotnet workload update
-   ```
-5. Clean and rebuild: delete `bin` and `obj`, then rebuild in VS
 
 ### Troubleshooting: CS0263 App base class conflict
 
@@ -142,7 +136,7 @@ cd D:\PGOne\parameshgavidi\PGTrading\PGOne
 git pull origin main
 .\clean.ps1
 dotnet workload restore
-dotnet build -f net10.0-windows10.0.19041.0
+dotnet build -f net8.0-windows10.0.19041.0
 ```
 
 This project is an **unpackaged** Windows app (`WindowsPackageType=None`). The build uses `Directory.Build.targets` to skip MSIX tasks. If you still see the error:
