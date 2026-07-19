@@ -8,6 +8,12 @@ public static class MauiProgram
 {
     public static MauiApp CreateMauiApp()
     {
+        // Fixes BlazorWebView rendering as a blank/empty rectangle on Windows.
+        // Newer WebView2/WinAppSDK builds broke the default 0.0.0.0 host address
+        // used to serve Blazor content; this restores the working behavior.
+        // https://learn.microsoft.com/en-us/dotnet/maui/user-interface/controls/blazorwebview
+        AppContext.SetSwitch("BlazorWebView.AppHostAddressAlways0000", true);
+
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
