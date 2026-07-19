@@ -1,0 +1,71 @@
+@page "/positions"
+@inject IZerodhaService ZerodhaService
+
+<div class="page-container">
+    <div class="card">
+        <div class="card-header">
+            <h2>Positions</h2>
+            <button class="btn btn-secondary" @onclick="LoadPositions">Refresh</button>
+        </div>
+
+        @if (!_connected)
+        {
+            <div class="empty-state">
+                <p>Connect to Zerodha in Settings to view live positions.</p>
+                <a href="settings" class="btn btn-primary">Go to Settings</a>
+            </div>
+        }
+        else if (_positions.Count == 0)
+        {
+            <div class="empty-state">No open positions.</div>
+        }
+        else
+        {
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Qty</th>
+                        <th>Avg Price</th>
+                        <th>LTP</th>
+                        <th>P&L</th>
+                        <th>Side</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var pos in _positions)
+                    {
+                        <tr>
+                            <td><strong>@pos.Symbol</strong></td>
+                            <td>@pos.Quantity</td>
+                            <td>@pos.AveragePrice.ToString("N2")</td>
+                            <td>@pos.LastPrice.ToString("N2")</td>
+                            <td class="@(pos.PnL >= 0 ? "buy" : "sell")">@pos.PnL.ToString("N2")</td>
+                            <td class="@GetTrendClass(pos.Side)">@pos.Side</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@code {
+  private List<Position> _positions = new();
+  private bool _connected;
+
+  protected override async Task OnInitializedAsync() => await LoadPositions();
+
+  private async Task LoadPositions()
+  {
+    _connected = ZerodhaService.IsConnected;
+    _positions = await ZerodhaService.GetPositionsAsync();
+  }
+
+  private static string GetTrendClass(TrendDirection trend) => trend switch
+  {
+    TrendDirection.Buy => "buy",
+    TrendDirection.Sell => "sell",
+    _ => "neutral"
+  };
+}

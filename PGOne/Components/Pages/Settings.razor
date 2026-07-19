@@ -1,0 +1,120 @@
+@page "/settings"
+@inject SettingsViewModel ViewModel
+@inject IJSRuntime JS
+
+<div class="page-container">
+    <div class="card settings-card">
+        <div class="card-header">
+            <h2>Settings</h2>
+            <span class="connection-badge @(ViewModel.IsConnected ? "connected" : "disconnected")">
+                @(ViewModel.IsConnected ? "🟢 Connected to Zerodha" : "🔴 Not Connected")
+            </span>
+        </div>
+
+        <div class="settings-section">
+            <h3>Broker — Zerodha</h3>
+            <div class="form-row">
+                <label>Broker</label>
+                <input type="text" value="Zerodha" class="form-input" disabled />
+            </div>
+            <div class="form-row">
+                <label>API Key</label>
+                <input type="text" @bind="ViewModel.Settings.ApiKey" class="form-input" placeholder="Your Kite Connect API Key" />
+            </div>
+            <div class="form-row">
+                <label>API Secret</label>
+                <input type="password" @bind="ViewModel.Settings.ApiSecret" class="form-input" placeholder="Your Kite Connect API Secret" />
+            </div>
+
+            <div class="zerodha-connect">
+                <h4>Connect to Zerodha</h4>
+                <p class="text-secondary">
+                    1. Save your API Key and Secret below.<br />
+                    2. Click "Open Zerodha Login" and authorize the app.<br />
+                    3. Copy the <code>request_token</code> from the redirect URL.<br />
+                    4. Paste it below and click Connect.
+                </p>
+                <button class="btn btn-secondary" @onclick="OpenLogin">Open Zerodha Login</button>
+                <div class="form-row">
+                    <label>Request Token</label>
+                    <input type="text" @bind="ViewModel.RequestToken" class="form-input" placeholder="Paste request_token here" />
+                </div>
+                <div class="button-row">
+                    <button class="btn btn-primary" @onclick="Connect">Connect</button>
+                    @if (ViewModel.IsConnected)
+                    {
+                        <button class="btn btn-danger" @onclick="Disconnect">Disconnect</button>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h3>Trading</h3>
+            <div class="form-row">
+                <label>Lot Size</label>
+                <input type="number" @bind="ViewModel.Settings.LotSize" class="form-input" />
+            </div>
+            <div class="form-row">
+                <label>Risk %</label>
+                <input type="number" step="0.1" @bind="ViewModel.Settings.RiskPercent" class="form-input" />
+            </div>
+            <div class="form-row checkbox-row">
+                <label>Auto Trading</label>
+                <input type="checkbox" @bind="ViewModel.Settings.AutoTradingEnabled" />
+                <span>@(ViewModel.Settings.AutoTradingEnabled ? "Enabled" : "Disabled")</span>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h3>Notifications</h3>
+            <div class="form-row checkbox-row">
+                <label>Desktop</label>
+                <input type="checkbox" @bind="ViewModel.Settings.DesktopNotifications" />
+            </div>
+            <div class="form-row checkbox-row">
+                <label>Telegram</label>
+                <input type="checkbox" @bind="ViewModel.Settings.TelegramNotifications" />
+            </div>
+            @if (ViewModel.Settings.TelegramNotifications)
+            {
+                <div class="form-row">
+                    <label>Bot Token</label>
+                    <input type="password" @bind="ViewModel.Settings.TelegramBotToken" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>Chat ID</label>
+                    <input type="text" @bind="ViewModel.Settings.TelegramChatId" class="form-input" />
+                </div>
+            }
+            <div class="form-row checkbox-row">
+                <label>Sound</label>
+                <input type="checkbox" @bind="ViewModel.Settings.SoundNotifications" />
+            </div>
+        </div>
+
+        <button class="btn btn-primary btn-large" @onclick="Save">Save Settings</button>
+
+        @if (!string.IsNullOrEmpty(ViewModel.StatusMessage))
+        {
+            <div class="status-message">@ViewModel.StatusMessage</div>
+        }
+    </div>
+</div>
+
+@code {
+  protected override async Task OnInitializedAsync() => await ViewModel.LoadAsync();
+
+  private async Task Save() => await ViewModel.SaveAsync();
+  private async Task Connect() => await ViewModel.ConnectAsync();
+  private void Disconnect() => ViewModel.Disconnect();
+
+  private async Task OpenLogin()
+  {
+    var url = ViewModel.GetLoginUrl();
+    if (!string.IsNullOrEmpty(url) && url.Contains("api_key=") && !url.EndsWith("api_key="))
+      await JS.InvokeVoidAsync("open", url, "_blank");
+    else
+      ViewModel.StatusMessage = "Please enter your API Key and save settings first.";
+  }
+}

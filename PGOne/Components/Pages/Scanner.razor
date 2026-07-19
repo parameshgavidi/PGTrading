@@ -1,0 +1,107 @@
+@page "/scanner"
+@inject IWatchlistService WatchlistService
+@inject ISignalService SignalService
+
+<div class="page-container">
+    <div class="card">
+        <div class="card-header">
+            <h2>Market Scanner — Nifty 50 Alignment</h2>
+            <button class="btn btn-primary" @onclick="ScanAsync">Scan Now</button>
+        </div>
+        <p class="text-secondary">Scans all watchlist instruments for 1H + 15m + 5m SuperTrend alignment.</p>
+
+        @if (_scanning)
+        {
+            <div class="scanning">Scanning...</div>
+        }
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Price</th>
+                    <th>1H</th>
+                    <th>15m</th>
+                    <th>5m</th>
+                    <th>RSI</th>
+                    <th>ADX</th>
+                    <th>Score</th>
+                    <th>Signal</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var result in _results)
+                {
+                    <tr class="@(result.Aligned ? "aligned-row" : "")">
+                        <td><strong>@result.Symbol</strong></td>
+                        <td>@result.Price.ToString("N2")</td>
+                        <td class="@GetTrendClass(result.Trend1H)">@result.Trend1H</td>
+                        <td class="@GetTrendClass(result.Trend15M)">@result.Trend15M</td>
+                        <td class="@GetTrendClass(result.Trend5M)">@result.Trend5M</td>
+                        <td>@result.Rsi</td>
+                        <td>@result.Adx</td>
+                        <td><span class="score-badge">@result.Score%</span></td>
+                        <td class="@GetTrendClass(result.Signal)">@(result.Aligned ? result.Signal.ToString() : "—")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+  private bool _scanning;
+  private List<ScanResult> _results = new();
+
+  protected override async Task OnInitializedAsync() => await ScanAsync();
+
+  private async Task ScanAsync()
+  {
+    _scanning = true;
+    StateHasChanged();
+    await WatchlistService.RefreshAsync();
+
+    _results = new List<ScanResult>();
+    foreach (var item in WatchlistService.Items)
+    {
+      var analysis = await SignalService.AnalyzeAsync(item.Symbol);
+      _results.Add(new ScanResult
+      {
+        Symbol = item.Symbol,
+        Price = item.LastPrice,
+        Trend1H = analysis.Trend1H,
+        Trend15M = analysis.Trend15M,
+        Trend5M = analysis.Trend5M,
+        Rsi = analysis.Rsi,
+        Adx = analysis.Adx,
+        Score = analysis.OverallScore,
+        Signal = analysis.Trend5M,
+        Aligned = analysis.Trend1H == analysis.Trend15M && analysis.Trend15M == analysis.Trend5M && analysis.Trend5M != TrendDirection.Neutral
+      });
+    }
+
+    _results = _results.OrderByDescending(r => r.Score).ToList();
+    _scanning = false;
+  }
+
+  private static string GetTrendClass(TrendDirection trend) => trend switch
+  {
+    TrendDirection.Buy => "buy",
+    TrendDirection.Sell => "sell",
+    _ => "neutral"
+  };
+
+  private class ScanResult
+  {
+    public string Symbol { get; set; } = "";
+    public decimal Price { get; set; }
+    public TrendDirection Trend1H { get; set; }
+    public TrendDirection Trend15M { get; set; }
+    public TrendDirection Trend5M { get; set; }
+    public decimal Rsi { get; set; }
+    public decimal Adx { get; set; }
+    public int Score { get; set; }
+    public TrendDirection Signal { get; set; }
+    public bool Aligned { get; set; }
+  }
+}

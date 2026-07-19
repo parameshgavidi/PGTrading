@@ -1,0 +1,72 @@
+@namespace PGOne.Components.Layout
+@using PGOne.Services
+@inherits LayoutComponentBase
+@inject IZerodhaService ZerodhaService
+@implements IDisposable
+
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <img src="images/pgone_logo.png" alt="PG One" class="sidebar-logo" />
+            <div class="sidebar-brand">
+                <span class="brand-pg">PG</span><span class="brand-one">one</span>
+            </div>
+            <div class="sidebar-tagline">TRADE SMART. STAY AHEAD.</div>
+        </div>
+        <NavMenu />
+        <div class="sidebar-footer">
+            <div class="connection-status @(_isConnected ? "connected" : "disconnected")">
+                <span class="status-dot"></span>
+                @(_isConnected ? "Connected" : "Disconnected")
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-bar">
+            <h1 class="page-title">@_pageTitle</h1>
+            <div class="top-bar-right">
+                <span class="connection-badge @(_isConnected ? "connected" : "disconnected")">
+                    @(_isConnected ? "🟢 Connected" : "🔴 Disconnected")
+                </span>
+                <span class="clock">@_currentTime</span>
+            </div>
+        </header>
+        <article class="content-area">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code {
+    private bool _isConnected;
+    private string _currentTime = DateTime.Now.ToString("hh:mm tt");
+    private string _pageTitle = "Dashboard";
+    private System.Timers.Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        _isConnected = ZerodhaService.IsConnected;
+        ZerodhaService.ConnectionChanged += OnConnectionChanged;
+
+        _timer = new System.Timers.Timer(1000);
+        _timer.Elapsed += (_, _) =>
+        {
+            _currentTime = DateTime.Now.ToString("hh:mm tt");
+            InvokeAsync(StateHasChanged);
+        };
+        _timer.Start();
+    }
+
+    private void OnConnectionChanged(bool connected)
+    {
+        _isConnected = connected;
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        ZerodhaService.ConnectionChanged -= OnConnectionChanged;
+        _timer?.Dispose();
+    }
+}
