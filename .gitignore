@@ -1,0 +1,15 @@
+## .NET / MAUI build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+.vs/
+
+## Rider / VS
+.idea/
+
+## OS
+.DS_Store
+Thumbs.db
