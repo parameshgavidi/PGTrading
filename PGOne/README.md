@@ -68,7 +68,7 @@ If Visual Studio shows **"You are using a preview version of .NET"**:
 
 1. Check SDK: `dotnet --version` — should be `10.0.x` (not `11.0.0-preview.x`)
 2. VS 2026 ships with **.NET 10 stable** — do not install .NET 11 preview unless testing it
-3. The repo `global.json` sets `"allowPrerelease": false` to force stable .NET 10 SDK
+3. The repo `global.json` blocks preview SDKs (`allowPrerelease: false`) but does not pin a specific SDK version — any stable .NET 10 SDK from VS 2026 will work
 4. Run from the project folder:
    ```powershell
    dotnet workload restore
