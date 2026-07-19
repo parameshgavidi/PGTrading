@@ -5,13 +5,42 @@
              x:Class="PGOne.MainPage"
              BackgroundColor="#121212">
 
-    <BlazorWebView x:Name="blazorWebView"
-                   HostPage="wwwroot/index.html"
-                   HorizontalOptions="Fill"
-                   VerticalOptions="Fill">
-        <BlazorWebView.RootComponents>
-            <RootComponent Selector="#app" ComponentType="{x:Type components:Routes}" />
-        </BlazorWebView.RootComponents>
-    </BlazorWebView>
+    <Grid>
+        <BlazorWebView x:Name="blazorWebView"
+                       HostPage="wwwroot/index.html"
+                       HorizontalOptions="Fill"
+                       VerticalOptions="Fill"
+                       BlazorWebViewInitialized="OnBlazorWebViewInitialized">
+            <BlazorWebView.RootComponents>
+                <RootComponent Selector="#app" ComponentType="{x:Type components:Routes}" />
+            </BlazorWebView.RootComponents>
+        </BlazorWebView>
+
+        <Border x:Name="errorPanel"
+                IsVisible="False"
+                BackgroundColor="#1E1E1E"
+                Stroke="#FF1744"
+                StrokeThickness="1"
+                Padding="24"
+                Margin="24"
+                VerticalOptions="Center"
+                HorizontalOptions="Center">
+            <VerticalStackLayout Spacing="12" MaximumWidthRequest="520">
+                <Label Text="PG One could not load the UI"
+                       FontSize="20"
+                       FontAttributes="Bold"
+                       TextColor="White" />
+                <Label x:Name="errorMessage"
+                       TextColor="#B0B0B0"
+                       LineBreakMode="WordWrap" />
+                <Label Text="WebView2 is required on Windows. Install the Evergreen runtime, then restart the app."
+                       TextColor="#B0B0B0"
+                       LineBreakMode="WordWrap" />
+                <Label Text="Download: https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+                       TextColor="#2196F3"
+                       LineBreakMode="WordWrap" />
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
 
 </ContentPage>
