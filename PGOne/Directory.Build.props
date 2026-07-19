@@ -1,5 +1,0 @@
-<Project>
-  <PropertyGroup>
-    <MauiVersion Condition="'$(MauiVersion)' == ''">8.0.100</MauiVersion>
-  </PropertyGroup>
-</Project>

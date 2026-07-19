@@ -1,8 +1,4 @@
-using Microsoft.AspNetCore.Components.WebView.Maui;
 using Microsoft.Extensions.Logging;
-using Microsoft.Maui.Handlers;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.Web.WebView2.Core;
 using PGOne.Services;
 using PGOne.ViewModels;
 
@@ -20,8 +16,6 @@ public static class MauiProgram
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
-
-        ConfigureWebView2();
 
         builder.Services.AddMauiBlazorWebView();
 
@@ -46,43 +40,5 @@ public static class MauiProgram
         builder.Services.AddSingleton<SettingsViewModel>();
 
         return builder.Build();
-    }
-
-    private static void ConfigureWebView2()
-    {
-        // UserDataFolder is set safely via the WEBVIEW2_USER_DATA_FOLDER env var
-        // in Platforms/Windows/App.xaml.cs. Here we only surface init failures.
-        BlazorWebViewHandler.BlazorWebViewMapper.AppendToMapping("PGOneWebView2", (handler, _) =>
-        {
-            if (handler.PlatformView is not WebView2 webView)
-                return;
-
-            webView.CoreWebView2InitializationCompleted += (_, args) =>
-            {
-                if (args.IsSuccess)
-                {
-#if DEBUG
-                    try
-                    {
-                        webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
-                        webView.CoreWebView2.OpenDevToolsWindow();
-                    }
-                    catch { /* ignore */ }
-#endif
-                    return;
-                }
-
-                var message = args.InitializationException?.Message
-                    ?? "WebView2 failed to initialize.";
-
-                System.Diagnostics.Debug.WriteLine($"WebView2 init failed: {message}");
-
-                MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    if (Application.Current?.Windows.FirstOrDefault()?.Page is MainPage mainPage)
-                        mainPage.ShowWebViewError(message);
-                });
-            };
-        });
     }
 }
