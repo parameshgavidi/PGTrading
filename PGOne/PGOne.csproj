@@ -20,9 +20,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <MauiIcon Include="Resources\Images\pgone_logo.png" Color="#121212" />
-    <MauiSplashScreen Include="Resources\Images\pgone_logo.png" Color="#121212" BaseSize="128,128" />
-    <MauiImage Include="Resources\Images\pgone_logo.png" />
+    <MauiIcon Include="Resources\AppIcon\pgone_appicon.png" Color="#121212" />
+    <MauiSplashScreen Include="Resources\Splash\pgone_splash.png" Color="#121212" BaseSize="128,128" />
+    <MauiImage Include="Resources\Images\*" />
     <MauiFont Include="Resources\Fonts\*" />
     <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
