@@ -18,9 +18,11 @@ A **.NET MAUI Blazor Hybrid (Windows)** desktop application for SuperTrend-based
 ## Prerequisites
 
 - Windows 10/11 (version 1809 or later)
-- Visual Studio 2022 17.8+ with **.NET MAUI** workload
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- Visual Studio 2022 17.12+ (**stable**, not Preview) with **.NET MAUI** workload
+- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) — **stable release only** (not preview)
 - Zerodha Kite Connect API credentials ([developers.kite.trade](https://developers.kite.trade))
+
+> **"You are using a preview version of .NET"** — This means a preview SDK or Visual Studio Preview is active. Install the stable .NET 9 SDK and use stable Visual Studio 2022. The repo includes a `global.json` that blocks preview SDKs.
 
 ## Setup on D:\PGOne
 
@@ -44,11 +46,21 @@ cd D:\PGOne\PGOne
 Remove-Item -Recurse -Force bin, obj -ErrorAction SilentlyContinue
 
 dotnet restore
-dotnet build -f net8.0-windows10.0.19041.0
-dotnet run -f net8.0-windows10.0.19041.0
+dotnet build -f net9.0-windows10.0.19041.0
+dotnet run -f net9.0-windows10.0.19041.0
 ```
 
 Or open `PGOne.csproj` in Visual Studio 2022 and press F5.
+
+### Troubleshooting: Preview .NET warning
+
+If Visual Studio shows **"You are using a preview version of .NET"**:
+
+1. Check your SDK: `dotnet --version` — should be `9.0.x` without `-preview`
+2. Install stable [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) (x64)
+3. Use **Visual Studio 2022 stable** (not Preview edition)
+4. The repo `global.json` sets `"allowPrerelease": false` to force stable SDK
+5. Run `dotnet workload update` after installing the stable SDK
 
 ### Troubleshooting: `GenerateAppManifestFromAppx` / `AppxManifest.xml` error
 
