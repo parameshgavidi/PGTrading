@@ -18,11 +18,11 @@ A **.NET MAUI Blazor Hybrid (Windows)** desktop application for SuperTrend-based
 ## Prerequisites
 
 - Windows 10/11 (version 1809 or later)
-- **Visual Studio 2026 Community** with the **.NET Multi-platform App UI development** workload
-- **.NET 10 SDK** (bundled with VS 2026 — stable, not .NET 11 preview)
+- **.NET 8 SDK** (x64) — [Download here](https://dotnet.microsoft.com/download/dotnet/8.0)
+- **Visual Studio 2026 Community** (or VS 2022 17.8+) with **.NET Multi-platform App UI development** workload
 - Zerodha Kite Connect API credentials ([developers.kite.trade](https://developers.kite.trade))
 
-> This project targets **.NET 10** to match VS 2026 Community's bundled MAUI SDK (10.0.x). If you see a preview warning, you likely have .NET 11 preview SDK installed — the repo `global.json` blocks preview SDKs.
+> **You have .NET 6.0.400?** That is too old. You must install **.NET 8 SDK**. Run `.\check-sdk.ps1` to verify.
 
 ## Setup on D:\PGOne
 

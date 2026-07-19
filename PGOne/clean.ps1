@@ -23,4 +23,4 @@ if (Test-Path "..\.vs") {
 Write-Host ""
 Write-Host "Done. Now run:" -ForegroundColor Yellow
 Write-Host "  dotnet workload restore" -ForegroundColor White
-Write-Host "  dotnet build -f net10.0-windows10.0.19041.0" -ForegroundColor White
+Write-Host "  dotnet build -f net8.0-windows10.0.19041.0" -ForegroundColor White

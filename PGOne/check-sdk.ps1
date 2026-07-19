@@ -1,56 +1,42 @@
-# Check .NET SDK setup for PG One (requires .NET 10)
+# Check .NET SDK setup for PG One (requires .NET 8 SDK minimum)
 Write-Host "PG One - .NET SDK Check" -ForegroundColor Cyan
 Write-Host "=========================" -ForegroundColor Cyan
 Write-Host ""
 
-$dotnetDefault = Get-Command dotnet -ErrorAction SilentlyContinue
 $dotnetX64 = "C:\Program Files\dotnet\dotnet.exe"
+$dotnet = if (Test-Path $dotnetX64) { $dotnetX64 } else { (Get-Command dotnet -ErrorAction SilentlyContinue).Source }
 
-Write-Host "Default dotnet:" -ForegroundColor Yellow
-if ($dotnetDefault) {
-    Write-Host "  Path: $($dotnetDefault.Source)"
-    $ver = & $dotnetDefault.Source --version 2>$null
-    Write-Host "  Version: $ver"
-} else {
-    Write-Host "  NOT FOUND in PATH" -ForegroundColor Red
+if (-not $dotnet) {
+    Write-Host "ERROR: dotnet not found. Install .NET 8 SDK." -ForegroundColor Red
+    Write-Host "https://dotnet.microsoft.com/download/dotnet/8.0"
+    exit 1
 }
 
+Write-Host "Using: $dotnet" -ForegroundColor Yellow
+Write-Host "Version: $(& $dotnet --version)"
 Write-Host ""
-Write-Host "x64 dotnet (VS 2026):" -ForegroundColor Yellow
-if (Test-Path $dotnetX64) {
-    $verX64 = & $dotnetX64 --version 2>$null
-    Write-Host "  Path: $dotnetX64"
-    Write-Host "  Version: $verX64"
-} else {
-    Write-Host "  NOT FOUND at $dotnetX64" -ForegroundColor Red
-}
+Write-Host "Installed SDKs:" -ForegroundColor Yellow
+& $dotnet --list-sdks
+
+$sdks = & $dotnet --list-sdks
+$hasNet8 = $sdks | Where-Object { $_ -match "^8\.0\." }
 
 Write-Host ""
-Write-Host "All installed SDKs:" -ForegroundColor Yellow
-if ($dotnetDefault) {
-    & $dotnetDefault.Source --list-sdks
-} elseif (Test-Path $dotnetX64) {
-    & $dotnetX64 --list-sdks
-}
-
-Write-Host ""
-$targetVer = "10.0"
-$sdks = if (Test-Path $dotnetX64) { & $dotnetX64 --list-sdks } else { @() }
-$hasNet10 = $sdks | Where-Object { $_ -match "^10\.0\." }
-
-if ($hasNet10) {
-    Write-Host "OK: .NET 10 SDK is installed." -ForegroundColor Green
+if ($hasNet8) {
+    Write-Host "OK: .NET 8 SDK found." -ForegroundColor Green
     Write-Host "Build with:" -ForegroundColor Yellow
-    Write-Host '  & "C:\Program Files\dotnet\dotnet.exe" build -f net10.0-windows10.0.19041.0' -ForegroundColor White
+    Write-Host "  dotnet workload install maui" -ForegroundColor White
+    Write-Host "  dotnet build -f net8.0-windows10.0.19041.0" -ForegroundColor White
 } else {
-    Write-Host "ERROR: .NET 10 SDK is NOT installed." -ForegroundColor Red
+    Write-Host "ERROR: .NET 8 SDK is NOT installed (you have .NET 6 or older)." -ForegroundColor Red
     Write-Host ""
-    Write-Host "Install via Visual Studio Installer:" -ForegroundColor Yellow
-    Write-Host "  1. Modify VS 2026 Community"
-    Write-Host "  2. Check: .NET Multi-platform App UI development"
-    Write-Host "  3. Check: .NET 10.0 SDK (Individual components)"
+    Write-Host "Install .NET 8 SDK:" -ForegroundColor Yellow
+    Write-Host "  1. Download: https://dotnet.microsoft.com/download/dotnet/8.0"
+    Write-Host "  2. Install the x64 SDK (8.0.x)"
+    Write-Host "  3. In Visual Studio Installer, check:"
+    Write-Host "     - .NET Multi-platform App UI development"
+    Write-Host "     - .NET 8.0 SDK"
+    Write-Host "  4. Run: dotnet workload install maui"
     Write-Host ""
-    Write-Host "Or download: https://dotnet.microsoft.com/download/dotnet/10.0"
-    Write-Host ""
-    Write-Host "Easiest: Open PGTrading.sln in VS 2026 and press F5." -ForegroundColor Cyan
+    Write-Host "Then run this script again." -ForegroundColor Cyan
 }

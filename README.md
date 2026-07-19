@@ -2,17 +2,20 @@
 
 .NET MAUI Blazor Hybrid desktop app for SuperTrend-based Nifty trading with Zerodha integration.
 
-**Target:** .NET 10 + Visual Studio 2026 Community
+**Requires:** .NET 8 SDK + MAUI workload
 
 See [PGOne/README.md](PGOne/README.md) for full setup instructions.
 
-## Quick Start (Windows + VS 2026)
+## Quick Start (Windows)
 
 ```powershell
 cd D:\PGOne\PGOne
-dotnet workload restore
+.\check-sdk.ps1
+dotnet workload install maui
 dotnet restore
-dotnet run -f net10.0-windows10.0.19041.0
+dotnet build -f net8.0-windows10.0.19041.0
 ```
 
-Or open `PGOne.csproj` in Visual Studio 2026 Community and press F5.
+Or open `PGTrading.sln` in Visual Studio 2026 and press F5.
+
+**Don't have .NET 8?** Download: https://dotnet.microsoft.com/download/dotnet/8.0
