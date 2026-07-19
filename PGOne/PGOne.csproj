@@ -19,11 +19,12 @@
     <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
   </PropertyGroup>
 
-  <!-- Windows: use MSIX packaging (default MAUI) — fixes WinRT ActivationFactory crash in VS -->
+  <!-- Windows: MSIX packaging + portable RID (NET 8 does not support win10-x64) -->
   <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
     <WindowsPackageType>MSIX</WindowsPackageType>
     <EnableMsixTooling>true</EnableMsixTooling>
     <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
+    <RuntimeIdentifierOverride>win-x64</RuntimeIdentifierOverride>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PlatformTarget>x64</PlatformTarget>
     <Platforms>x64</Platforms>
