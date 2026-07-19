@@ -156,21 +156,55 @@ Then close and reopen Visual Studio, reload the project if prompted, and rebuild
 
 ### Troubleshooting: Blank / black screen after launch
 
-If the window opens but shows only a black screen:
+**WebView2 already installed?** Good — that is not the problem. The blank screen is usually caused by the app not deploying Blazor UI files correctly.
 
-1. Pull latest — `wwwroot/index.html` must include `_framework/blazor.webview.js`
-2. Run `.\clean.ps1`, delete the `.vs` folder, then rebuild
-3. Press **F5** again — you should see the sidebar, dashboard, and PG One logo
+#### Step 1 — Enable Developer Mode (one-time, required for MSIX debug)
 
-If you still see a blank screen, install **WebView2 Runtime** from Microsoft:
+Press **Win + R**, type this, press Enter:
 
-```powershell
-.\install-webview2.ps1
+```
+ms-settings:developers
 ```
 
-Or manually: https://go.microsoft.com/fwlink/p/?LinkId=2124703
+Turn **ON** "Developer Mode".
 
-> **Yes, WebView2 is required.** PG One is a Blazor Hybrid app — the entire UI runs inside WebView2 on Windows. Windows 11 usually has it pre-installed; Windows 10 often needs a separate install.
+Or right-click `enable-developer-mode.bat` → **Run as administrator**.
+
+#### Step 2 — Pull, clean, rebuild
+
+```powershell
+cd D:\PGOne\parameshgavidi\PGTrading
+git pull origin main
+cd PGOne
+.\clean.ps1
+```
+
+Delete the `.vs` folder in the solution directory, reopen Visual Studio.
+
+#### Step 3 — Deploy and run
+
+1. In Visual Studio, right-click **PGOne** project → **Deploy**
+2. Ensure startup profile is **Windows Machine** (MSIX)
+3. Press **F5**
+
+You should see a blue "Starting PG One..." banner, then the full trading UI.
+
+#### Step 4 — Verify build output
+
+```powershell
+.\verify-build.ps1
+```
+
+If `blazor.webview.js` is missing, run `.\clean.ps1` and rebuild.
+
+#### What you should see
+
+| Screen | Meaning |
+|--------|---------|
+| Blue "Starting PG One..." then full UI | Working |
+| Blue banner stays, black below | WebView issue — run Deploy, then F5 |
+| Red error panel | Read the message shown |
+| Solid black, no banner | Old code — `git pull origin main` |
 
 ## Zerodha Connection
 

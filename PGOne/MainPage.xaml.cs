@@ -9,6 +9,7 @@ public partial class MainPage : ContentPage
 
     private void OnBlazorWebViewInitialized(object? sender, EventArgs e)
     {
+        statusBanner.IsVisible = false;
         errorPanel.IsVisible = false;
     }
 

@@ -5,8 +5,17 @@
              x:Class="PGOne.MainPage"
              BackgroundColor="#121212">
 
-    <Grid>
+    <Grid RowDefinitions="Auto,*">
+        <Label x:Name="statusBanner"
+               Grid.Row="0"
+               Text="Starting PG One..."
+               TextColor="White"
+               BackgroundColor="#2196F3"
+               Padding="10"
+               HorizontalTextAlignment="Center" />
+
         <BlazorWebView x:Name="blazorWebView"
+                       Grid.Row="1"
                        HostPage="wwwroot/index.html"
                        HorizontalOptions="Fill"
                        VerticalOptions="Fill"
@@ -17,6 +26,7 @@
         </BlazorWebView>
 
         <Border x:Name="errorPanel"
+                Grid.Row="1"
                 IsVisible="False"
                 BackgroundColor="#1E1E1E"
                 Stroke="#FF1744"
@@ -33,10 +43,10 @@
                 <Label x:Name="errorMessage"
                        TextColor="#B0B0B0"
                        LineBreakMode="WordWrap" />
-                <Label Text="WebView2 is required on Windows. Install the Evergreen runtime, then restart the app."
+                <Label Text="Check that Developer Mode is enabled and rebuild the app."
                        TextColor="#B0B0B0"
                        LineBreakMode="WordWrap" />
-                <Label Text="Download: https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+                <Label Text="Enable: Win+R → ms-settings:developers"
                        TextColor="#2196F3"
                        LineBreakMode="WordWrap" />
             </VerticalStackLayout>

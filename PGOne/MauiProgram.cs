@@ -50,18 +50,34 @@ public static class MauiProgram
 
     private static void ConfigureWebView2()
     {
+        var userDataFolder = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "PGOne",
+            "WebView2");
+        Directory.CreateDirectory(userDataFolder);
+
         BlazorWebViewHandler.BlazorWebViewMapper.AppendToMapping("PGOneWebView2", (handler, _) =>
         {
             if (handler.PlatformView is not WebView2 webView)
                 return;
 
+            webView.CreationProperties = new Microsoft.UI.Xaml.Controls.CoreWebView2CreationProperties
+            {
+                UserDataFolder = userDataFolder
+            };
+
             webView.CoreWebView2InitializationCompleted += (_, args) =>
             {
                 if (args.IsSuccess)
+                {
+#if DEBUG
+                    webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
+#endif
                     return;
+                }
 
                 var message = args.InitializationException?.Message
-                    ?? "WebView2 failed to initialize. Install the WebView2 Runtime and restart.";
+                    ?? "WebView2 failed to initialize.";
 
                 System.Diagnostics.Debug.WriteLine($"WebView2 init failed: {message}");
 
