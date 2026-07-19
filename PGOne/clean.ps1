@@ -4,7 +4,8 @@ Write-Host "Cleaning PGOne build artifacts..." -ForegroundColor Cyan
 $paths = @(
     "bin",
     "obj",
-    ".vs"
+    ".vs",
+    "Properties\PublishProfiles\*.user"
 )
 
 foreach ($p in $paths) {
