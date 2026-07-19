@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <!-- Fallback if $(MauiVersion) is not set by the MAUI workload -->
+    <MauiVersion Condition="'$(MauiVersion)' == ''">10.0.80</MauiVersion>
+  </PropertyGroup>
+</Project>
