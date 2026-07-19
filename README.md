@@ -2,12 +2,17 @@
 
 .NET MAUI Blazor Hybrid desktop app for SuperTrend-based Nifty trading with Zerodha integration.
 
-See [PGOne/README.md](PGOne/README.md) for setup instructions.
+**Target:** .NET 10 + Visual Studio 2026 Community
 
-## Quick Start (Windows)
+See [PGOne/README.md](PGOne/README.md) for full setup instructions.
+
+## Quick Start (Windows + VS 2026)
 
 ```powershell
 cd D:\PGOne\PGOne
+dotnet workload restore
 dotnet restore
-dotnet run -f net9.0-windows10.0.19041.0
+dotnet run -f net10.0-windows10.0.19041.0
 ```
+
+Or open `PGOne.csproj` in Visual Studio 2026 Community and press F5.
