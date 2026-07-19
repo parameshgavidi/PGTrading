@@ -18,11 +18,11 @@ A **.NET MAUI Blazor Hybrid (Windows)** desktop application for SuperTrend-based
 ## Prerequisites
 
 - Windows 10/11 (version 1809 or later)
-- Visual Studio 2022 17.12+ (**stable**, not Preview) with **.NET MAUI** workload
-- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) — **stable release only** (not preview)
+- **Visual Studio 2026 Community** with the **.NET Multi-platform App UI development** workload
+- **.NET 10 SDK** (bundled with VS 2026 — stable, not .NET 11 preview)
 - Zerodha Kite Connect API credentials ([developers.kite.trade](https://developers.kite.trade))
 
-> **"You are using a preview version of .NET"** — This means a preview SDK or Visual Studio Preview is active. Install the stable .NET 9 SDK and use stable Visual Studio 2022. The repo includes a `global.json` that blocks preview SDKs.
+> This project targets **.NET 10** to match VS 2026 Community's bundled MAUI SDK (10.0.x). If you see a preview warning, you likely have .NET 11 preview SDK installed — the repo `global.json` blocks preview SDKs.
 
 ## Setup on D:\PGOne
 
@@ -46,21 +46,35 @@ cd D:\PGOne\PGOne
 Remove-Item -Recurse -Force bin, obj -ErrorAction SilentlyContinue
 
 dotnet restore
-dotnet build -f net9.0-windows10.0.19041.0
-dotnet run -f net9.0-windows10.0.19041.0
+dotnet workload restore
+dotnet build -f net10.0-windows10.0.19041.0
+dotnet run -f net10.0-windows10.0.19041.0
 ```
 
-Or open `PGOne.csproj` in Visual Studio 2022 and press F5.
+Or open `PGOne.csproj` in **Visual Studio 2026 Community** and press **F5**.
+
+### VS 2026 Community setup
+
+1. Open **Visual Studio Installer** → Modify VS 2026 Community
+2. Ensure these workloads are checked:
+   - **.NET Multi-platform App UI development**
+   - **.NET desktop development** (recommended for Windows)
+3. Click **Modify** and wait for install to complete
+4. Open the project and let VS restore NuGet packages
 
 ### Troubleshooting: Preview .NET warning
 
 If Visual Studio shows **"You are using a preview version of .NET"**:
 
-1. Check your SDK: `dotnet --version` — should be `9.0.x` without `-preview`
-2. Install stable [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) (x64)
-3. Use **Visual Studio 2022 stable** (not Preview edition)
-4. The repo `global.json` sets `"allowPrerelease": false` to force stable SDK
-5. Run `dotnet workload update` after installing the stable SDK
+1. Check SDK: `dotnet --version` — should be `10.0.x` (not `11.0.0-preview.x`)
+2. VS 2026 ships with **.NET 10 stable** — do not install .NET 11 preview unless testing it
+3. The repo `global.json` sets `"allowPrerelease": false` to force stable .NET 10 SDK
+4. Run from the project folder:
+   ```powershell
+   dotnet workload restore
+   dotnet workload update
+   ```
+5. Clean and rebuild: delete `bin` and `obj`, then rebuild in VS
 
 ### Troubleshooting: `GenerateAppManifestFromAppx` / `AppxManifest.xml` error
 
