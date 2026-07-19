@@ -39,12 +39,29 @@ Copy the entire `PGOne` project folder to `D:\PGOne`.
 
 ```powershell
 cd D:\PGOne\PGOne
+
+# Clean stale MSIX artifacts (required if you hit AppxManifest errors)
+Remove-Item -Recurse -Force bin, obj -ErrorAction SilentlyContinue
+
 dotnet restore
 dotnet build -f net8.0-windows10.0.19041.0
 dotnet run -f net8.0-windows10.0.19041.0
 ```
 
 Or open `PGOne.csproj` in Visual Studio 2022 and press F5.
+
+### Troubleshooting: `GenerateAppManifestFromAppx` / `AppxManifest.xml` error
+
+This project is configured as an **unpackaged** Windows app (`WindowsPackageType=None`). If you see:
+
+```
+The "GenerateAppManifestFromAppx" task failed unexpectedly.
+Could not find ... MsixContent\AppxManifest.xml
+```
+
+1. Delete the `bin` and `obj` folders inside `PGOne`
+2. Rebuild from the **PGOne project only** (not the whole solution)
+3. Do not pass `-p:WindowsAppSDKSelfContained=true` globally on the CLI — it is already set in the `.csproj`
 
 ## Zerodha Connection
 
