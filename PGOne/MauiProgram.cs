@@ -60,7 +60,17 @@ public static class MauiProgram
             webView.CoreWebView2InitializationCompleted += (_, args) =>
             {
                 if (args.IsSuccess)
+                {
+#if DEBUG
+                    try
+                    {
+                        webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
+                        webView.CoreWebView2.OpenDevToolsWindow();
+                    }
+                    catch { /* ignore */ }
+#endif
                     return;
+                }
 
                 var message = args.InitializationException?.Message
                     ?? "WebView2 failed to initialize.";
