@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
@@ -16,6 +17,7 @@ public interface IZerodhaService
     Task<decimal> GetLtpAsync(string instrument);
     Task<InstrumentQuote?> GetQuoteAsync(string instrument);
     Task<List<Candle>> GetHistoricalCandlesAsync(string instrument, string interval, int count = 100);
+    Task<CandleSeriesResult> GetHistoricalCandlesResultAsync(string instrument, string interval, int count = 100);
     Task<Dictionary<string, decimal>> GetQuotesAsync(string[] instruments);
     Task<List<Position>> GetPositionsAsync();
     Task<List<Order>> GetOrdersAsync();
@@ -167,34 +169,48 @@ public class ZerodhaService : IZerodhaService
 
     public async Task<List<Candle>> GetHistoricalCandlesAsync(string instrument, string interval, int count = 100)
     {
+        var result = await GetHistoricalCandlesResultAsync(instrument, interval, count);
+        return result.Candles;
+    }
+
+    public async Task<CandleSeriesResult> GetHistoricalCandlesResultAsync(string instrument, string interval, int count = 100)
+    {
         if (!IsConnected)
-            return new List<Candle>();
+            return new CandleSeriesResult { Error = "Not connected to Zerodha." };
 
         if (!InstrumentTokens.TryGetValue(instrument, out var token))
-            return new List<Candle>();
+            return new CandleSeriesResult { Error = $"Unknown instrument: {instrument}" };
 
         try
         {
             var kiteInterval = MapKiteInterval(interval);
             var (from, to) = GetHistoricalRange(interval, count);
-            var fromParam = Uri.EscapeDataString(from.ToString("yyyy-MM-dd HH:mm:ss"));
-            var toParam = Uri.EscapeDataString(to.ToString("yyyy-MM-dd HH:mm:ss"));
+            var fromParam = Uri.EscapeDataString(from.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
+            var toParam = Uri.EscapeDataString(to.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
             var request = CreateRequest(HttpMethod.Get,
                 $"/instruments/historical/{token}/{kiteInterval}?from={fromParam}&to={toParam}&continuous=0&oi=0");
             var response = await _http.SendAsync(request);
             var json = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-                return new List<Candle>();
+            {
+                var error = TryReadKiteError(json)
+                    ?? $"Zerodha historical API failed (HTTP {(int)response.StatusCode}).";
+                return new CandleSeriesResult { Error = error };
+            }
 
             using var doc = JsonDocument.Parse(json);
             var candles = new List<Candle>();
 
             foreach (var row in doc.RootElement.GetProperty("data").GetProperty("candles").EnumerateArray())
             {
+                var timestampText = row[0].GetString();
+                if (string.IsNullOrEmpty(timestampText))
+                    continue;
+
                 candles.Add(new Candle
                 {
-                    Timestamp = DateTime.Parse(row[0].GetString() ?? DateTime.Now.ToString()),
+                    Timestamp = DateTimeOffset.Parse(timestampText, CultureInfo.InvariantCulture).DateTime,
                     Open = row[1].GetDecimal(),
                     High = row[2].GetDecimal(),
                     Low = row[3].GetDecimal(),
@@ -203,11 +219,17 @@ public class ZerodhaService : IZerodhaService
                 });
             }
 
-            return candles.Count > count ? candles[^count..] : candles;
+            if (candles.Count == 0)
+                return new CandleSeriesResult { Error = "Zerodha returned no candles for this range." };
+
+            if (candles.Count > count)
+                candles = candles[^count..];
+
+            return new CandleSeriesResult { Candles = candles, IsFromZerodha = true };
         }
-        catch
+        catch (Exception ex)
         {
-            return new List<Candle>();
+            return new CandleSeriesResult { Error = $"Failed to load Zerodha candles: {ex.Message}" };
         }
     }
 
@@ -401,6 +423,10 @@ public class ZerodhaService : IZerodhaService
 
         while (from.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
             from = from.AddDays(-1);
+
+        from = from.Date.Add(MarketHours.OpenTime);
+        if (to.TimeOfDay > MarketHours.CloseTime || !MarketHours.IsOpen(to))
+            to = to.Date.Add(MarketHours.CloseTime);
 
         return (from, to);
     }

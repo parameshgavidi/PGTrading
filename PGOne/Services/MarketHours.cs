@@ -2,8 +2,8 @@ namespace PGOne.Services;
 
 public static class MarketHours
 {
-    private static readonly TimeSpan OpenTime = new(9, 15, 0);
-    private static readonly TimeSpan CloseTime = new(15, 30, 0);
+    public static readonly TimeSpan OpenTime = new(9, 15, 0);
+    public static readonly TimeSpan CloseTime = new(15, 30, 0);
 
     public static DateTime GetIstNow()
     {
