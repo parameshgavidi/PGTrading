@@ -20,6 +20,7 @@ public interface IZerodhaService
     Task<CandleSeriesResult> GetHistoricalCandlesResultAsync(string instrument, string interval, int count = 100);
     Task<Dictionary<string, decimal>> GetQuotesAsync(string[] instruments);
     Task<List<Position>> GetPositionsAsync();
+    Task<List<Holding>> GetHoldingsAsync();
     Task<List<Order>> GetOrdersAsync();
     Task<string?> PlaceOrderAsync(string exchange, string tradingsymbol, string transactionType, int quantity, string orderType, decimal? price = null);
     void Disconnect();
@@ -305,6 +306,55 @@ public class ZerodhaService : IZerodhaService
         }
     }
 
+    public async Task<List<Holding>> GetHoldingsAsync()
+    {
+        if (!IsConnected)
+            return GetDemoHoldings();
+
+        try
+        {
+            var request = CreateRequest(HttpMethod.Get, "/portfolio/holdings");
+            var response = await _http.SendAsync(request);
+            var json = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                return GetDemoHoldings();
+
+            using var doc = JsonDocument.Parse(json);
+            var holdings = new List<Holding>();
+
+            foreach (var item in doc.RootElement.GetProperty("data").EnumerateArray())
+            {
+                var quantity = item.GetProperty("quantity").GetInt32();
+                if (quantity == 0)
+                    continue;
+
+                var averagePrice = item.GetProperty("average_price").GetDecimal();
+                var lastPrice = item.GetProperty("last_price").GetDecimal();
+                var dayChangePercent = item.TryGetProperty("day_change_percentage", out var dayChangePct)
+                    ? dayChangePct.GetDecimal()
+                    : 0m;
+
+                holdings.Add(new Holding
+                {
+                    Symbol = item.GetProperty("tradingsymbol").GetString() ?? "",
+                    Exchange = item.GetProperty("exchange").GetString() ?? "NSE",
+                    Quantity = quantity,
+                    AveragePrice = averagePrice,
+                    LastPrice = lastPrice,
+                    DayChangePercent = dayChangePercent,
+                    PnL = item.TryGetProperty("pnl", out var pnl) ? pnl.GetDecimal() : 0m
+                });
+            }
+
+            return holdings.Count > 0 ? holdings : GetDemoHoldings();
+        }
+        catch
+        {
+            return GetDemoHoldings();
+        }
+    }
+
     public async Task<List<Order>> GetOrdersAsync()
     {
         if (!IsConnected)
@@ -458,6 +508,15 @@ public class ZerodhaService : IZerodhaService
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
         return Convert.ToHexString(bytes).ToLowerInvariant();
     }
+
+    private static List<Holding> GetDemoHoldings() =>
+    [
+        new Holding { Symbol = "RELIANCE", Exchange = "NSE", Quantity = 10, AveragePrice = 2700m, LastPrice = 2845.50m, DayChangePercent = 1.24m, PnL = 1455m },
+        new Holding { Symbol = "INFY", Exchange = "NSE", Quantity = 25, AveragePrice = 1750m, LastPrice = 1820.30m, DayChangePercent = -0.52m, PnL = 1757.50m },
+        new Holding { Symbol = "HDFCBANK", Exchange = "NSE", Quantity = 15, AveragePrice = 1720m, LastPrice = 1680.45m, DayChangePercent = -0.81m, PnL = -593.25m },
+        new Holding { Symbol = "TCS", Exchange = "NSE", Quantity = 5, AveragePrice = 4200m, LastPrice = 4125.80m, DayChangePercent = 0.31m, PnL = -371m },
+        new Holding { Symbol = "SBIN", Exchange = "NSE", Quantity = 20, AveragePrice = 760m, LastPrice = 785.20m, DayChangePercent = 0.95m, PnL = 504m }
+    ];
 
     private static Dictionary<string, decimal> GetDemoQuotes(string[] instruments)
     {
