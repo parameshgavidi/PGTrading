@@ -37,17 +37,29 @@ public class MarketDataService : IMarketDataService
         return result.Candles;
     }
 
+    // Extra history fed to indicators so SuperTrend/ATR converge to the same
+    // state as TradingView (which computes over full history) before we trim
+    // to the visible window. SuperTrend is path-dependent, so warmup matters.
+    private const int WarmupBars = 300;
+
     public async Task<CandleSeriesResult> GetCandlesResultAsync(string instrument, string interval, int count = 100)
     {
         if (_zerodha.IsConnected)
         {
-            var result = await _zerodha.GetHistoricalCandlesResultAsync(instrument, interval, count);
+            var result = await _zerodha.GetHistoricalCandlesResultAsync(instrument, interval, count + WarmupBars);
             if (result.IsFromZerodha && result.Candles.Count > 0)
+            {
+                var withSt = AttachSuperTrend(result.Candles);
+                var display = withSt.Count > count
+                    ? withSt.GetRange(withSt.Count - count, count)
+                    : withSt;
+
                 return new CandleSeriesResult
                 {
-                    Candles = AttachSuperTrend(result.Candles),
+                    Candles = display,
                     IsFromZerodha = true
                 };
+            }
 
             if (!string.IsNullOrEmpty(result.Error))
                 return result;
