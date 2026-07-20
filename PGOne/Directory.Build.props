@@ -5,10 +5,10 @@
     JS bridge and produces a blank/black screen with no error.
 
     Run .\sync-maui-version.ps1 after installing/updating the MAUI workload, or
-  override on the command line: dotnet build -p:MauiVersion=8.0.100
+  override on the command line: dotnet build -p:MauiVersion=10.0.20
   -->
   <Import Project="MauiVersion.local.props" Condition="Exists('MauiVersion.local.props')" />
   <PropertyGroup>
-    <MauiVersion Condition="'$(MauiVersion)' == ''">8.0.100</MauiVersion>
+    <MauiVersion Condition="'$(MauiVersion)' == ''">10.0.20</MauiVersion>
   </PropertyGroup>
 </Project>

@@ -8,7 +8,7 @@ Write-Host "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS set for this session:" -Foregr
 Write-Host "  $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"
 Write-Host ""
 Write-Host "Now launch PGOne.exe from THIS PowerShell window (not double-click), e.g.:" -ForegroundColor Yellow
-Write-Host "  .\bin\x64\Debug\net8.0-windows10.0.19041.0\win-x64\AppX\PGOne.exe"
+Write-Host "  .\bin\x64\Debug\net10.0-windows10.0.19041.0\win-x64\PGOne.exe"
 Write-Host ""
 Write-Host "If the UI now renders, the black screen was caused by GPU/graphics driver" -ForegroundColor Green
 Write-Host "compositing on this machine. The app's own code already applies this fix"

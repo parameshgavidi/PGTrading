@@ -13,8 +13,19 @@ if (-not $dotnet) {
     exit 1
 }
 
+$csprojPath = Join-Path $PSScriptRoot "PGOne.csproj"
+$csproj = Get-Content $csprojPath -Raw
+$tfmMatch = [regex]::Match($csproj, '<TargetFramework>([^<]+)</TargetFramework>')
+if (-not $tfmMatch.Success) {
+    Write-Host "ERROR: Could not read TargetFramework from PGOne.csproj" -ForegroundColor Red
+    exit 1
+}
+
+$tfm = $tfmMatch.Groups[1].Value
+$tfmMajor = if ($tfm -match '^net(\d+)') { [int]$Matches[1] } else { 0 }
+
 $workloads = & $dotnet workload list 2>&1 | Out-String
-$match = [regex]::Match($workloads, 'maui[^\d]*(\d+\.\d+\.\d+)')
+$match = [regex]::Match($workloads, 'maui[^\d]*(\d+)\.(\d+)\.(\d+)')
 if (-not $match.Success) {
     Write-Host "WARNING: Could not detect MAUI workload version from 'dotnet workload list'." -ForegroundColor Yellow
     Write-Host "Install the workload: dotnet workload install maui"
@@ -22,7 +33,19 @@ if (-not $match.Success) {
     exit 1
 }
 
-$version = $match.Groups[1].Value
+$mauiMajor = [int]$match.Groups[1].Value
+$version = "$($match.Groups[1].Value).$($match.Groups[2].Value).$($match.Groups[3].Value)"
+
+if ($tfmMajor -ne 0 -and $tfmMajor -ne $mauiMajor) {
+    Write-Host "ERROR: Target framework mismatch." -ForegroundColor Red
+    Write-Host "  PGOne.csproj targets: $tfm (expects MAUI $tfmMajor.x)"
+    Write-Host "  Installed workload:   maui $version (MAUI $mauiMajor.x)"
+    Write-Host ""
+    Write-Host "Fix: update <TargetFramework> in PGOne.csproj to net$mauiMajor.0-windows10.0.19041.0"
+    Write-Host "     or install the MAUI $tfmMajor workload: dotnet workload install maui"
+    exit 1
+}
+
 $propsPath = Join-Path $PSScriptRoot "MauiVersion.local.props"
 $content = @"
 <Project>
@@ -35,4 +58,5 @@ $content = @"
 
 Set-Content -Path $propsPath -Value $content -Encoding UTF8
 Write-Host "Wrote $propsPath with MauiVersion=$version" -ForegroundColor Green
+Write-Host "Target framework $tfm is compatible with MAUI $version." -ForegroundColor Green
 Write-Host "Rebuild the app (clean + F5) for the change to take effect."

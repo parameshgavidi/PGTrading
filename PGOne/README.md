@@ -18,11 +18,11 @@ A **.NET MAUI Blazor Hybrid (Windows)** desktop application for SuperTrend-based
 ## Prerequisites
 
 - Windows 10/11 (version 1809 or later)
-- **.NET 8 SDK** (x64) — [Download here](https://dotnet.microsoft.com/download/dotnet/8.0)
+- **.NET 10 SDK** (x64) — [Download here](https://dotnet.microsoft.com/download/dotnet/10.0)
 - **Visual Studio 2026 Community** (or VS 2022 17.8+) with **.NET Multi-platform App UI development** workload
 - Zerodha Kite Connect API credentials ([developers.kite.trade](https://developers.kite.trade))
 
-> **You have .NET 6.0.400?** That is too old. You must install **.NET 8 SDK**. Run `.\check-sdk.ps1` to verify.
+> **Requires .NET 10 SDK** for MAUI 10. Run `.\check-sdk.ps1` to verify.
 
 ## Setup on D:\PGOne
 
@@ -42,71 +42,54 @@ Copy the entire `PGOne` project folder to `D:\PGOne`.
 ```powershell
 cd D:\PGOne\PGOne
 
-# 1. Check SDK (must show .NET 8.x)
+# 1. Check SDK (must show .NET 10.x)
 .\check-sdk.ps1
 
-# 2. Install MAUI workload (one-time)
+# 2. Align MAUI packages with workload
+.\sync-maui-version.ps1
+
+# 3. Install MAUI workload (one-time)
 dotnet workload install maui
 
 # 3. Clean and build
 .\clean.ps1
 dotnet restore
-dotnet build -f net8.0-windows10.0.19041.0
-dotnet run -f net8.0-windows10.0.19041.0
+dotnet build -f net10.0-windows10.0.19041.0
+dotnet run -f net10.0-windows10.0.19041.0
 ```
 
 Or open `PGTrading.sln` in **Visual Studio 2026 Community** and press **F5**.
 
-### Install .NET 8 SDK (required if you have .NET 6)
+### Install .NET 10 SDK
 
-Your machine shows `dotnet version: 6.0.400` — you need **.NET 8 SDK**.
-
-#### Easiest: Run the install script
-```powershell
-cd D:\PGOne\parameshgavidi\PGTrading\PGOne
-.\install-dotnet8.ps1
-```
-Choose option **1** (winget) or **3** (direct download).
+PG One targets **.NET 10 / MAUI 10**. If `.\check-sdk.ps1` reports a missing SDK:
 
 #### Option A — winget (one command)
-Open **PowerShell** and run:
 ```powershell
-winget install Microsoft.DotNet.SDK.8
+winget install Microsoft.DotNet.SDK.10
 ```
-Restart PowerShell, then verify: `dotnet --list-sdks` (should show `8.0.xxx`).
+Restart PowerShell, then verify: `dotnet --list-sdks` (should show `10.0.xxx`).
 
-#### Option B — Direct download link
-Click this link to download the installer directly:
+#### Option B — Manual from Microsoft page
+1. Go to: **https://dotnet.microsoft.com/download/dotnet/10.0**
+2. Download the **x64 SDK**
+3. Run the installer
 
-**https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-8.0.423-windows-x64-installer**
-
-Run the downloaded `.exe` file, then restart PowerShell.
-
-#### Option C — Manual from Microsoft page
-1. Go to: **https://dotnet.microsoft.com/download/dotnet/8.0**
-2. Find the section **"Build apps - SDK"** (not Runtime)
-3. Click the latest version (e.g. **8.0.423**)
-4. Under **Windows**, click **x64** (not x86)
-5. Run the installer
-
-#### Option D — Via Visual Studio Installer
+#### Option C — Via Visual Studio Installer
 1. Open **Visual Studio Installer**
 2. Click **Modify** on VS 2026 Community
-3. Go to **Individual components** tab
-4. Search for **".NET 8"**
-5. Check:
-   - **.NET 8.0 Runtime**
-   - **.NET 8.0 SDK**
-6. Also check workload: **.NET Multi-platform App UI development**
-7. Click **Modify**
+3. Check workload: **.NET Multi-platform App UI development**
+4. Under **Individual components**, check **.NET 10.0 SDK**
+5. Click **Modify**
 
-#### After installing .NET 8
+#### After installing .NET 10
 ```powershell
-dotnet --list-sdks          # must show 8.0.xxx
+dotnet --list-sdks          # must show 10.0.xxx
 dotnet workload install maui
+.\sync-maui-version.ps1
 .\check-sdk.ps1
 .\clean.ps1
-dotnet build -f net8.0-windows10.0.19041.0
+dotnet build -f net10.0-windows10.0.19041.0
 ```
 
 ### VS 2026 Community setup
@@ -147,7 +130,7 @@ cd D:\PGOne\parameshgavidi\PGTrading\PGOne
 git pull origin main
 .\clean.ps1
 dotnet workload restore
-dotnet build -f net8.0-windows10.0.19041.0
+dotnet build -f net10.0-windows10.0.19041.0
 ```
 
 Then close and reopen Visual Studio, reload the project if prompted, and rebuild.
