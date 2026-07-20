@@ -66,24 +66,32 @@
             <div class="card-header">Multi Timeframe Analysis</div>
             <table class="analysis-table">
                 <tr>
-                    <td>1 Hour Trend</td>
+                    <td>1H Bias — RSI(28) @ViewModel.Analysis.RsiTrend</td>
+                    <td class="@GetTrendClass(ViewModel.Analysis.RsiBias)">@GetTrendIcon(ViewModel.Analysis.RsiBias) @BiasLabel(ViewModel.Analysis.RsiBias)</td>
+                </tr>
+                <tr>
+                    <td>1 Hour SuperTrend</td>
                     <td class="@GetTrendClass(ViewModel.Analysis.Trend1H)">@GetTrendIcon(ViewModel.Analysis.Trend1H) @ViewModel.Analysis.Trend1H</td>
                 </tr>
                 <tr>
-                    <td>15 Min Trend</td>
+                    <td>15 Min SuperTrend</td>
                     <td class="@GetTrendClass(ViewModel.Analysis.Trend15M)">@GetTrendIcon(ViewModel.Analysis.Trend15M) @ViewModel.Analysis.Trend15M</td>
                 </tr>
                 <tr>
-                    <td>5 Min Trend</td>
+                    <td>5 Min SuperTrend</td>
                     <td class="@GetTrendClass(ViewModel.Analysis.Trend5M)">@GetTrendIcon(ViewModel.Analysis.Trend5M) @ViewModel.Analysis.Trend5M</td>
                 </tr>
                 <tr>
-                    <td>RSI(14)</td>
-                    <td>@ViewModel.Analysis.Rsi</td>
+                    <td>ADX(14) 1H</td>
+                    <td>@ViewModel.Analysis.Adx — @ViewModel.Analysis.Strength1H</td>
                 </tr>
                 <tr>
-                    <td>ADX(14)</td>
-                    <td>@ViewModel.Analysis.Adx</td>
+                    <td>5m VWAP @ViewModel.Analysis.Vwap5M.ToString("N2")</td>
+                    <td class="@(ViewModel.Analysis.AboveVwap ? "buy" : "sell")">@(ViewModel.Analysis.AboveVwap ? "Above (Bullish)" : "Below (Bearish)")</td>
+                </tr>
+                <tr>
+                    <td>Regime</td>
+                    <td>@(ViewModel.Analysis.IsRangebound ? "Range-bound → Keltner" : "Trending")</td>
                 </tr>
                 <tr>
                     <td>CPR</td>
@@ -100,12 +108,17 @@
 
         <div class="signal-panel card">
             <div class="card-header">Current Signal</div>
+            @if (ViewModel.Analysis.WaitForReversal)
+            {
+                <div class="signal-check sell">⚠ Reversal risk: @ViewModel.Analysis.ReversalReason</div>
+            }
             <div class="signal-checks">
-                <div class="signal-check">✔ Trend Alignment : @(ViewModel.Analysis.Trend1H == ViewModel.Analysis.Trend15M && ViewModel.Analysis.Trend15M == ViewModel.Analysis.Trend5M ? "YES" : "NO")</div>
-                <div class="signal-check">✔ RSI > 55 : @(ViewModel.Analysis.Rsi > 55 ? "YES" : "NO")</div>
-                <div class="signal-check">✔ ADX > 25 : @(ViewModel.Analysis.Adx > 25 ? "YES" : "NO")</div>
-                <div class="signal-check">✔ Entry : @ViewModel.CurrentSignal.Entry @ViewModel.CurrentSignal.Strategy</div>
-                <div class="signal-check">✔ Confidence : @ViewModel.CurrentSignal.Confidence%</div>
+                <div class="signal-check">Bias : @BiasLabel(ViewModel.Analysis.RsiBias) (RSI28 @ViewModel.Analysis.RsiTrend)</div>
+                <div class="signal-check">Strength : @ViewModel.Analysis.Strength1H (ADX @ViewModel.Analysis.Adx)</div>
+                <div class="signal-check">5m VWAP : @(ViewModel.Analysis.AboveVwap ? "Bullish" : "Bearish")</div>
+                <div class="signal-check">Entry : @ViewModel.CurrentSignal.Entry</div>
+                <div class="signal-check">Plan : @ViewModel.CurrentSignal.Strategy</div>
+                <div class="signal-check">Confidence : @ViewModel.CurrentSignal.Confidence%</div>
             </div>
         </div>
     </div>
@@ -146,6 +159,13 @@
     TrendDirection.Buy => "🟢",
     TrendDirection.Sell => "🔴",
     _ => "⚪"
+  };
+
+  private static string BiasLabel(TrendDirection bias) => bias switch
+  {
+    TrendDirection.Buy => "Bullish",
+    TrendDirection.Sell => "Bearish",
+    _ => "Neutral"
   };
 
   public void Dispose()

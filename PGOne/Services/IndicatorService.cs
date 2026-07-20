@@ -7,6 +7,8 @@ public interface IIndicatorService
     decimal CalculateRsi(List<Candle> candles, int period);
     decimal CalculateAdx(List<Candle> candles, int period);
     string GetCprBias(List<Candle> candles);
+    void ApplyKeltner(List<Candle> candles, int emaPeriod, int atrPeriod, double multiplierInner, double multiplierOuter);
+    void ApplyVwap(List<Candle> candles);
 }
 
 public class IndicatorService : IIndicatorService
@@ -94,5 +96,101 @@ public class IndicatorService : IIndicatorService
         if (current > pivot * 1.001m) return "Bullish";
         if (current < pivot * 0.999m) return "Bearish";
         return "Neutral";
+    }
+
+    // Keltner Channels: middle = EMA(close, emaPeriod); bands = middle ± mult * ATR(atrPeriod).
+    public void ApplyKeltner(List<Candle> candles, int emaPeriod, int atrPeriod, double multiplierInner, double multiplierOuter)
+    {
+        if (candles.Count == 0) return;
+
+        var ema = Ema(candles.Select(c => c.Close).ToList(), emaPeriod);
+        var atr = AtrSeries(candles, atrPeriod);
+        var m1 = (decimal)multiplierInner;
+        var m2 = (decimal)multiplierOuter;
+
+        for (int i = 0; i < candles.Count; i++)
+        {
+            if (ema[i] is not { } mid || atr[i] <= 0m)
+                continue;
+
+            candles[i].KeltnerMid = mid;
+            candles[i].KeltnerUpperInner = mid + m1 * atr[i];
+            candles[i].KeltnerLowerInner = mid - m1 * atr[i];
+            candles[i].KeltnerUpperOuter = mid + m2 * atr[i];
+            candles[i].KeltnerLowerOuter = mid - m2 * atr[i];
+        }
+    }
+
+    // Session-anchored VWAP. NIFTY index candles carry zero volume, so we fall
+    // back to a running average of the typical price (a reasonable VWAP proxy).
+    public void ApplyVwap(List<Candle> candles)
+    {
+        DateTime? day = null;
+        decimal cumPv = 0, cumVol = 0, cumTypical = 0;
+        int cumCount = 0;
+
+        foreach (var c in candles)
+        {
+            if (day is null || c.Timestamp.Date != day)
+            {
+                day = c.Timestamp.Date;
+                cumPv = cumVol = cumTypical = 0;
+                cumCount = 0;
+            }
+
+            var typical = (c.High + c.Low + c.Close) / 3m;
+            cumPv += typical * c.Volume;
+            cumVol += c.Volume;
+            cumTypical += typical;
+            cumCount++;
+
+            c.Vwap = cumVol > 0 ? cumPv / cumVol : cumTypical / cumCount;
+        }
+    }
+
+    private static decimal?[] Ema(List<decimal> values, int period)
+    {
+        var n = values.Count;
+        var ema = new decimal?[n];
+        if (n < period) return ema;
+
+        var k = 2m / (period + 1);
+        decimal sum = 0;
+        for (int i = 0; i < period; i++) sum += values[i];
+        var prev = sum / period;
+        ema[period - 1] = prev;
+
+        for (int i = period; i < n; i++)
+        {
+            prev = values[i] * k + prev * (1 - k);
+            ema[i] = prev;
+        }
+
+        return ema;
+    }
+
+    private static decimal[] AtrSeries(List<Candle> candles, int period)
+    {
+        var n = candles.Count;
+        var tr = new decimal[n];
+        tr[0] = candles[0].High - candles[0].Low;
+        for (int i = 1; i < n; i++)
+        {
+            var highLow = candles[i].High - candles[i].Low;
+            var highClose = Math.Abs(candles[i].High - candles[i - 1].Close);
+            var lowClose = Math.Abs(candles[i].Low - candles[i - 1].Close);
+            tr[i] = Math.Max(highLow, Math.Max(highClose, lowClose));
+        }
+
+        var atr = new decimal[n];
+        if (n < period) return atr;
+
+        decimal sum = 0;
+        for (int i = 0; i < period; i++) sum += tr[i];
+        atr[period - 1] = sum / period;
+        for (int i = period; i < n; i++)
+            atr[i] = (atr[i - 1] * (period - 1) + tr[i]) / period;
+
+        return atr;
     }
 }

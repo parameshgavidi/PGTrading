@@ -35,6 +35,11 @@
             <span class="legend-item"><span class="legend-color sell"></span> SuperTrend SELL</span>
             <span class="legend-item"><span class="legend-color candle-up"></span> Bullish Candle</span>
             <span class="legend-item"><span class="legend-color candle-down"></span> Bearish Candle</span>
+            @if (ViewModel.SelectedTimeframe == "5m")
+            {
+                <span class="legend-item"><span class="legend-color keltner"></span> Keltner (20, 1.5/2.0)</span>
+                <span class="legend-item"><span class="legend-color vwap"></span> VWAP</span>
+            }
         </div>
     </div>
 </div>
