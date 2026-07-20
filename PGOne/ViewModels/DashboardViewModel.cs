@@ -38,7 +38,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         _signal = signal;
         _watchlist = watchlist;
         _marketData.PriceUpdated += OnPriceUpdated;
-        _watchlist.WatchlistUpdated += () => { Watchlist = _watchlist.Items; Notify(); };
+        _watchlist.WatchlistUpdated += () => { Watchlist = _watchlist.TopWeightageItems; Notify(); };
     }
 
     public async Task InitializeAsync()
@@ -48,7 +48,8 @@ public class DashboardViewModel : INotifyPropertyChanged
         Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
         CurrentSignal = await _signal.GenerateSignalAsync(SelectedSymbol);
         UpdateSelectedTrend();
-        Watchlist = _watchlist.Items;
+        await _watchlist.RefreshTopWeightageAsync();
+        Watchlist = _watchlist.TopWeightageItems;
         Notify();
         _marketData.StartStreaming(SelectedInstrument);
     }

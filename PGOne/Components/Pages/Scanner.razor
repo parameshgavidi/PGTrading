@@ -59,10 +59,10 @@
   {
     _scanning = true;
     StateHasChanged();
-    await WatchlistService.RefreshAsync();
+    await WatchlistService.RefreshTopWeightageAsync();
 
     _results = new List<ScanResult>();
-    foreach (var item in WatchlistService.Items)
+    foreach (var item in WatchlistService.TopWeightageItems)
     {
       var analysis = await SignalService.AnalyzeAsync(item.Symbol);
       _results.Add(new ScanResult

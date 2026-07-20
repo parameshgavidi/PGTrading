@@ -4,9 +4,10 @@ namespace PGOne.Services;
 
 public interface IWatchlistService
 {
-    List<WatchItem> Items { get; }
-    Task RefreshAsync();
+    List<WatchItem> TopWeightageItems { get; }
+    bool IsLoading { get; }
     event Action? WatchlistUpdated;
+    Task RefreshTopWeightageAsync();
 }
 
 public class WatchlistService : IWatchlistService
@@ -14,45 +15,56 @@ public class WatchlistService : IWatchlistService
     private readonly IZerodhaService _zerodha;
     private readonly ISignalService _signal;
 
-    public List<WatchItem> Items { get; private set; } = new();
+    public List<WatchItem> TopWeightageItems { get; private set; } = new();
+    public bool IsLoading { get; private set; }
     public event Action? WatchlistUpdated;
-
-    private static readonly string[] DefaultSymbols =
-    {
-        "NSE:NIFTY 50", "NSE:NIFTY BANK", "NSE:RELIANCE",
-        "NSE:INFY", "NSE:TCS", "NSE:SBIN", "NSE:HDFCBANK"
-    };
 
     public WatchlistService(IZerodhaService zerodha, ISignalService signal)
     {
         _zerodha = zerodha;
         _signal = signal;
-        _ = RefreshAsync();
     }
 
-    public async Task RefreshAsync()
+    public async Task RefreshTopWeightageAsync()
     {
-        var quotes = await _zerodha.GetQuotesAsync(DefaultSymbols);
-        var items = new List<WatchItem>();
-
-        foreach (var (symbol, price) in quotes)
-        {
-            var name = symbol.Replace("NSE:", "").Replace("NIFTY 50", "NIFTY").Replace("NIFTY BANK", "BANKNIFTY");
-            var analysis = await _signal.AnalyzeAsync(name);
-
-            items.Add(new WatchItem
-            {
-                Symbol = name,
-                Name = name,
-                LastPrice = price,
-                Change = price * 0.0033m,
-                ChangePercent = 0.33m,
-                Trend = analysis.Trend5M,
-                IsFavorite = name == "NIFTY"
-            });
-        }
-
-        Items = items;
+        IsLoading = true;
         WatchlistUpdated?.Invoke();
+
+        try
+        {
+            var symbols = NiftyConstituents.TopWeightage;
+            var instruments = symbols.Select(s => $"NSE:{s}").ToArray();
+            var quotes = await _zerodha.GetQuotesAsync(instruments);
+            var items = new List<WatchItem>();
+
+            for (var i = 0; i < symbols.Count; i++)
+            {
+                var symbol = symbols[i];
+                var instrument = $"NSE:{symbol}";
+                var price = quotes.GetValueOrDefault(instrument, 0m);
+                var analysis = price > 0
+                    ? await _signal.AnalyzeAsync(symbol)
+                    : new MultiTimeframeAnalysis();
+
+                items.Add(new WatchItem
+                {
+                    Symbol = symbol,
+                    Name = symbol,
+                    Rank = i + 1,
+                    LastPrice = price,
+                    Change = 0m,
+                    ChangePercent = 0m,
+                    Trend = analysis.Trend5M,
+                    IsFavorite = i < 5
+                });
+            }
+
+            TopWeightageItems = items;
+        }
+        finally
+        {
+            IsLoading = false;
+            WatchlistUpdated?.Invoke();
+        }
     }
 }
