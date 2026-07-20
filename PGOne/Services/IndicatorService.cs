@@ -6,6 +6,11 @@ public interface IIndicatorService
 {
     decimal CalculateRsi(List<Candle> candles, int period);
     decimal CalculateAdx(List<Candle> candles, int period);
+    decimal CalculatePlusDi(List<Candle> candles, int period);
+    decimal CalculateEma(List<Candle> candles, int period);
+    decimal CalculateWma(List<Candle> candles, int period);
+    decimal CalculateAtr(List<Candle> candles, int period);
+    decimal CalculateSmaVolume(List<Candle> candles, int period);
     string GetCprBias(List<Candle> candles);
     void ApplyKeltner(List<Candle> candles, int emaPeriod, int atrPeriod, double multiplierInner, double multiplierOuter);
     void ApplyVwap(List<Candle> candles);
@@ -83,6 +88,81 @@ public class IndicatorService : IIndicatorService
         }
 
         return dxValues.Count > 0 ? Math.Round(dxValues.TakeLast(period).Average(), 0) : 20;
+    }
+
+    public decimal CalculatePlusDi(List<Candle> candles, int period)
+    {
+        if (candles.Count < period + 1)
+            return 0;
+
+        var plusDm = new List<decimal>();
+        var tr = new List<decimal>();
+
+        for (int i = 1; i < candles.Count; i++)
+        {
+            var upMove = candles[i].High - candles[i - 1].High;
+            var downMove = candles[i - 1].Low - candles[i].Low;
+            plusDm.Add(upMove > downMove && upMove > 0 ? upMove : 0);
+
+            var highLow = candles[i].High - candles[i].Low;
+            var highClose = Math.Abs(candles[i].High - candles[i - 1].Close);
+            var lowClose = Math.Abs(candles[i].Low - candles[i - 1].Close);
+            tr.Add(Math.Max(highLow, Math.Max(highClose, lowClose)));
+        }
+
+        decimal smoothPlusDm = plusDm.Take(period).Sum();
+        decimal smoothTr = tr.Take(period).Sum();
+
+        for (int i = period; i < tr.Count; i++)
+        {
+            smoothPlusDm = smoothPlusDm - smoothPlusDm / period + plusDm[i];
+            smoothTr = smoothTr - smoothTr / period + tr[i];
+        }
+
+        return smoothTr > 0 ? Math.Round(100 * smoothPlusDm / smoothTr, 1) : 0;
+    }
+
+    public decimal CalculateEma(List<Candle> candles, int period)
+    {
+        if (candles.Count == 0)
+            return 0;
+
+        var values = Ema(candles.Select(c => c.Close).ToList(), period);
+        return values[^1] ?? candles[^1].Close;
+    }
+
+    public decimal CalculateWma(List<Candle> candles, int period)
+    {
+        if (candles.Count < period)
+            return candles[^1].Close;
+
+        var slice = candles.TakeLast(period).Select(c => c.Close).ToList();
+        decimal weightedSum = 0;
+        int weightTotal = 0;
+
+        for (int i = 0; i < slice.Count; i++)
+        {
+            var weight = i + 1;
+            weightedSum += slice[i] * weight;
+            weightTotal += weight;
+        }
+
+        return weightTotal > 0 ? Math.Round(weightedSum / weightTotal, 2) : slice[^1];
+    }
+
+    public decimal CalculateAtr(List<Candle> candles, int period)
+    {
+        var atr = AtrSeries(candles, period);
+        return atr.Length > 0 ? Math.Round(atr[^1], 2) : 0;
+    }
+
+    public decimal CalculateSmaVolume(List<Candle> candles, int period)
+    {
+        if (candles.Count == 0)
+            return 0;
+
+        var count = Math.Min(period, candles.Count);
+        return Math.Round(candles.TakeLast(count).Average(c => (decimal)c.Volume), 0);
     }
 
     public string GetCprBias(List<Candle> candles)

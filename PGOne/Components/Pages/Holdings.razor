@@ -10,8 +10,8 @@
         </div>
 
         <p class="text-secondary">
-            Delivery holdings with framework status. Stocks marked <span class="buy">Up</span> satisfy the trade framework;
-            others show a stop-loss level to review.
+            Delivery holdings evaluated against the intraday or long-term trade framework.
+            Stocks marked <span class="buy">Up</span> satisfy the active framework; others show a stop-loss level to review.
         </p>
 
         @if (!ViewModel.IsConnected)
@@ -21,19 +21,42 @@
             </div>
         }
 
+        <div class="holdings-tabs">
+            <button class="holdings-tab @(_activeTab == HoldingsTab.Intraday ? "active" : "")"
+                    @onclick="() => SelectTab(HoldingsTab.Intraday)">
+                Intraday
+            </button>
+            <button class="holdings-tab @(_activeTab == HoldingsTab.LongTerm ? "active" : "")"
+                    @onclick="() => SelectTab(HoldingsTab.LongTerm)">
+                Long term
+            </button>
+        </div>
+
+        <div class="framework-panel">
+            <div class="framework-panel-title">
+                @(_activeTab == HoldingsTab.Intraday ? "Intraday Framework Conditions" : "Long term Framework Conditions (Chartink)")
+            </div>
+            <ul class="framework-conditions">
+                @foreach (var condition in ActiveFrameworkConditions)
+                {
+                    <li>@condition</li>
+                }
+            </ul>
+        </div>
+
         @if (ViewModel.IsLoading)
         {
-            <div class="scanning">Analyzing holdings against framework...</div>
+            <div class="scanning">Analyzing holdings against @(_activeTab == HoldingsTab.Intraday ? "intraday" : "long-term") framework...</div>
         }
-        else if (ViewModel.Items.Count == 0)
+        else if (ActiveItems.Count == 0)
         {
             <div class="empty-state">No holdings found.</div>
         }
         else
         {
             <div class="holdings-summary">
-                <span class="summary-pill buy">@ViewModel.SatisfiedCount Up</span>
-                <span class="summary-pill sell">@ViewModel.ReviewCount Need review</span>
+                <span class="summary-pill buy">@ActiveSatisfiedCount Up</span>
+                <span class="summary-pill sell">@ActiveReviewCount Need review</span>
             </div>
 
             <table class="data-table">
@@ -50,7 +73,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var item in ViewModel.Items)
+                    @foreach (var item in ActiveItems)
                     {
                         <tr class="@(item.FrameworkSatisfied ? "aligned-row" : "review-row")">
                             <td><strong>@item.Symbol</strong></td>
@@ -81,10 +104,38 @@
 </div>
 
 @code {
+  private enum HoldingsTab { Intraday, LongTerm }
+
+  private HoldingsTab _activeTab = HoldingsTab.Intraday;
+
+  private IReadOnlyList<HoldingRow> ActiveItems =>
+    _activeTab == HoldingsTab.Intraday ? ViewModel.IntradayItems : ViewModel.LongTermItems;
+
+  private IReadOnlyList<string> ActiveFrameworkConditions =>
+    _activeTab == HoldingsTab.Intraday
+      ? ViewModel.IntradayFrameworkConditions
+      : ViewModel.LongTermFrameworkConditions;
+
+  private int ActiveSatisfiedCount =>
+    _activeTab == HoldingsTab.Intraday
+      ? ViewModel.IntradaySatisfiedCount
+      : ViewModel.LongTermSatisfiedCount;
+
+  private int ActiveReviewCount =>
+    _activeTab == HoldingsTab.Intraday
+      ? ViewModel.IntradayReviewCount
+      : ViewModel.LongTermReviewCount;
+
   protected override async Task OnInitializedAsync()
   {
     ViewModel.PropertyChanged += OnViewModelPropertyChanged;
     await RefreshAsync();
+  }
+
+  private void SelectTab(HoldingsTab tab)
+  {
+    _activeTab = tab;
+    StateHasChanged();
   }
 
   private async Task RefreshAsync() => await ViewModel.RefreshAsync();
