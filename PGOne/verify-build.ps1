@@ -1,10 +1,25 @@
 # Verify PG One build output contains Blazor UI files
 Write-Host "Checking PG One build output..." -ForegroundColor Cyan
 
+$tfm = "net10.0-windows10.0.19041.0"
+$candidateRoots = @(
+    "bin\Debug\$tfm\win-x64",
+    "bin\x64\Debug\$tfm\win-x64"
+)
+
+$root = $candidateRoots | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $root) {
+    Write-Host "  MISSING  build output folder under bin\Debug or bin\x64\Debug" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Run: .\clean.ps1"
+    Write-Host "Then rebuild in Visual Studio (F5)."
+    exit 1
+}
+
 $paths = @(
-    "bin\Debug\net8.0-windows10.0.19041.0\win-x64\wwwroot\index.html",
-    "bin\Debug\net8.0-windows10.0.19041.0\win-x64\wwwroot\_framework\blazor.webview.js",
-    "bin\Debug\net8.0-windows10.0.19041.0\win-x64\wwwroot\css\app.css"
+    "$root\wwwroot\index.html",
+    "$root\wwwroot\_framework\blazor.webview.js",
+    "$root\wwwroot\css\app.css"
 )
 
 $allOk = $true
@@ -27,6 +42,6 @@ if (-not $allOk) {
 
 Write-Host ""
 Write-Host "Build output looks correct. If UI is still blank:" -ForegroundColor Green
-Write-Host "  1. Enable Developer Mode: Win+R -> ms-settings:developers"
-Write-Host "  2. In VS: right-click PGOne project -> Deploy"
+Write-Host "  1. Run .\sync-maui-version.ps1"
+Write-Host "  2. Run .\install-webview2.ps1 if WebView2 Runtime is missing"
 Write-Host "  3. Press F5 with profile 'Windows Machine'"
