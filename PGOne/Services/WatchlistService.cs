@@ -55,7 +55,7 @@ public class WatchlistService : IWatchlistService
                     Change = 0m,
                     ChangePercent = 0m,
                     Trend = analysis.Trend5M,
-                    IsFavorite = i < 2
+                    IsFavorite = i < 3
                 });
             }
 

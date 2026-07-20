@@ -11,6 +11,7 @@ public static class InstrumentMapper
         {
             "NIFTY" => "NSE:NIFTY 50",
             "BANKNIFTY" => "NSE:NIFTY BANK",
+            "SENSEX" => "BSE:SENSEX",
             "RELIANCE" => "NSE:RELIANCE",
             "INFY" => "NSE:INFY",
             "TCS" => "NSE:TCS",
@@ -24,6 +25,7 @@ public static class InstrumentMapper
     {
         "NIFTY" => "NIFTY 50",
         "BANKNIFTY" => "NIFTY BANK",
+        "SENSEX" => "SENSEX",
         _ => symbol
     };
 }

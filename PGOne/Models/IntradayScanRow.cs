@@ -16,9 +16,9 @@ public static class NiftyConstituents
         "SHRIRAMFIN", "BEL", "JIOFIN", "ETERNAL"
     ];
 
-    /// <summary>Dashboard watchlist: Nifty index, Bank Nifty, then top-weight stocks.</summary>
+    /// <summary>Dashboard watchlist: Nifty, Bank Nifty, Sensex, then top-weight stocks.</summary>
     public static IReadOnlyList<string> DashboardWatchlist { get; } =
-        new[] { "NIFTY", "BANKNIFTY" }
+        new[] { "NIFTY", "BANKNIFTY", "SENSEX" }
             .Concat(TopWeightage)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();

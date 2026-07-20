@@ -592,6 +592,7 @@ public class ZerodhaService : IZerodhaService
     {
         ["NSE:NIFTY 50"] = 256265,
         ["NSE:NIFTY BANK"] = 260105,
+        ["BSE:SENSEX"] = 265,
         ["NSE:RELIANCE"] = 738561,
         ["NSE:INFY"] = 408065,
         ["NSE:TCS"] = 2953217,
@@ -677,6 +678,7 @@ public class ZerodhaService : IZerodhaService
         {
             ["NSE:NIFTY 50"] = 25325.40m,
             ["NSE:NIFTY BANK"] = 52100.75m,
+            ["BSE:SENSEX"] = 83250.15m,
             ["NSE:RELIANCE"] = 2845.50m,
             ["NSE:INFY"] = 1820.30m,
             ["NSE:TCS"] = 4125.80m,
