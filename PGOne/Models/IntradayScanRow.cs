@@ -16,6 +16,13 @@ public static class NiftyConstituents
         "SHRIRAMFIN", "BEL", "JIOFIN", "ETERNAL"
     ];
 
+    /// <summary>Dashboard watchlist: Nifty, Bank Nifty, Sensex, then top-weight stocks.</summary>
+    public static IReadOnlyList<string> DashboardWatchlist { get; } =
+        new[] { "NIFTY", "BANKNIFTY", "SENSEX" }
+            .Concat(TopWeightage)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
     /// <summary>Liquid NSE equities used for intraday framework scan (Nifty-heavy universe).</summary>
     public static IReadOnlyList<string> ScanUniverse { get; } =
     [

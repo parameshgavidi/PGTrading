@@ -32,15 +32,15 @@ public class WatchlistService : IWatchlistService
 
         try
         {
-            var symbols = NiftyConstituents.TopWeightage;
-            var instruments = symbols.Select(s => $"NSE:{s}").ToArray();
+            var symbols = NiftyConstituents.DashboardWatchlist;
+            var instruments = symbols.Select(InstrumentMapper.ToZerodhaKey).ToArray();
             var quotes = await _zerodha.GetQuotesAsync(instruments);
             var items = new List<WatchItem>();
 
             for (var i = 0; i < symbols.Count; i++)
             {
                 var symbol = symbols[i];
-                var instrument = $"NSE:{symbol}";
+                var instrument = InstrumentMapper.ToZerodhaKey(symbol);
                 var price = quotes.GetValueOrDefault(instrument, 0m);
                 var analysis = price > 0
                     ? await _signal.AnalyzeAsync(symbol)
@@ -49,13 +49,13 @@ public class WatchlistService : IWatchlistService
                 items.Add(new WatchItem
                 {
                     Symbol = symbol,
-                    Name = symbol,
+                    Name = InstrumentMapper.ToDisplayName(symbol),
                     Rank = i + 1,
                     LastPrice = price,
                     Change = 0m,
                     ChangePercent = 0m,
                     Trend = analysis.Trend5M,
-                    IsFavorite = i < 5
+                    IsFavorite = i < 3
                 });
             }
 

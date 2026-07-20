@@ -11,7 +11,7 @@
                 {
                     <div class="watchlist-row @(item.IsFavorite ? "favorite" : "") @(ViewModel.SelectedSymbol == item.Symbol ? "selected" : "")"
                          @onclick="() => SelectSymbol(item.Symbol)">
-                        <span class="symbol">@(item.IsFavorite ? "★ " : "")@item.Symbol</span>
+                        <span class="symbol">@(item.IsFavorite ? "★ " : "")@item.Name</span>
                         <span class="trend @GetTrendClass(item.Trend)">@item.Trend</span>
                     </div>
                 }
