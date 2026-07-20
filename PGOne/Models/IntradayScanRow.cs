@@ -1,18 +1,5 @@
 namespace PGOne.Models;
 
-public class IntradayScanRow
-{
-    public string Symbol { get; set; } = string.Empty;
-    public string Exchange { get; set; } = "NSE";
-    public decimal LastPrice { get; set; }
-    public int Quantity { get; set; }
-    public decimal OrderValue { get; set; }
-    public bool FrameworkSatisfied { get; set; }
-    public string FrameworkStatus { get; set; } = string.Empty;
-    public int FrameworkScore { get; set; }
-    public string? OrderMessage { get; set; }
-}
-
 public static class NiftyConstituents
 {
     /// <summary>Top Nifty 50 stocks by approximate index weight (highest first).</summary>

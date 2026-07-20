@@ -4,5 +4,7 @@ public enum WatchlistTab
 {
     TopWeight,
     IntradayScan,
-    TrailingStop
+    TrailingStop,
+    LongTermScan,
+    LongTermExitMonitor
 }

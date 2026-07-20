@@ -23,7 +23,8 @@ public interface IZerodhaService
     Task<List<Position>> GetMisPositionsAsync(bool includeClosed = true);
     Task<List<Holding>> GetHoldingsAsync();
     Task<List<Order>> GetOrdersAsync();
-    Task<string?> PlaceOrderAsync(string exchange, string tradingsymbol, string transactionType, int quantity, string orderType, decimal? price = null);
+    Task<string?> PlaceOrderAsync(string exchange, string tradingsymbol, string transactionType, int quantity, string orderType, decimal? price = null, string product = "MIS");
+    Task<IReadOnlyList<string>> GetNseEquitySymbolsAsync();
     void Disconnect();
 }
 
@@ -33,6 +34,8 @@ public class ZerodhaService : IZerodhaService
     private readonly HttpClient _http;
     private const string BaseUrl = "https://api.kite.trade";
     private const string LoginUrl = "https://kite.zerodha.com/connect/login";
+
+    private List<string>? _nseEquitySymbols;
 
     public bool IsConnected { get; private set; }
     public string? UserId { get; private set; }
@@ -491,7 +494,14 @@ public class ZerodhaService : IZerodhaService
         }
     }
 
-    public async Task<string?> PlaceOrderAsync(string exchange, string tradingsymbol, string transactionType, int quantity, string orderType, decimal? price = null)
+    public async Task<string?> PlaceOrderAsync(
+        string exchange,
+        string tradingsymbol,
+        string transactionType,
+        int quantity,
+        string orderType,
+        decimal? price = null,
+        string product = "MIS")
     {
         if (!IsConnected)
             return null;
@@ -503,7 +513,7 @@ public class ZerodhaService : IZerodhaService
             ["transaction_type"] = transactionType,
             ["quantity"] = quantity.ToString(),
             ["order_type"] = orderType,
-            ["product"] = "MIS",
+            ["product"] = product,
             ["validity"] = "DAY"
         };
 
@@ -521,6 +531,52 @@ public class ZerodhaService : IZerodhaService
 
         using var doc = JsonDocument.Parse(json);
         return doc.RootElement.GetProperty("data").GetProperty("order_id").GetString();
+    }
+
+    public async Task<IReadOnlyList<string>> GetNseEquitySymbolsAsync()
+    {
+        if (_nseEquitySymbols is not null)
+            return _nseEquitySymbols;
+
+        if (!IsConnected)
+            return NiftyConstituents.ScanUniverse.ToList();
+
+        try
+        {
+            var request = CreateRequest(HttpMethod.Get, "/instruments");
+            var response = await _http.SendAsync(request);
+            var csv = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                return NiftyConstituents.ScanUniverse.ToList();
+
+            var symbols = new List<string>();
+            using var reader = new StringReader(csv);
+            _ = reader.ReadLine();
+
+            while (reader.ReadLine() is { } line)
+            {
+                var parts = line.Split(',');
+                if (parts.Length < 12)
+                    continue;
+
+                if (parts[9] != "EQ" || parts[11] != "NSE")
+                    continue;
+
+                var symbol = parts[2].Trim('"');
+                if (string.IsNullOrWhiteSpace(symbol) || symbol.Contains('-', StringComparison.Ordinal))
+                    continue;
+
+                symbols.Add(symbol);
+            }
+
+            _nseEquitySymbols = symbols.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(s => s).ToList();
+            return _nseEquitySymbols;
+        }
+        catch
+        {
+            return NiftyConstituents.ScanUniverse.ToList();
+        }
     }
 
     public void Disconnect()

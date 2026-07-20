@@ -2,7 +2,7 @@ using PGOne.Models;
 
 namespace PGOne.Services;
 
-public interface IIntradayScannerService
+public interface ILongTermScannerService
 {
     event Action? Updated;
     IReadOnlyList<StockScanRow> Items { get; }
@@ -12,23 +12,23 @@ public interface IIntradayScannerService
     Task<string?> PlaceOrderAsync(StockScanRow row);
 }
 
-public class IntradayScannerService : IIntradayScannerService
+public class LongTermScannerService : ILongTermScannerService
 {
     private const int QuoteBatchSize = 400;
-    private const int MaxParallel = 4;
+    private const int MaxParallel = 3;
 
     private readonly IZerodhaService _zerodha;
-    private readonly ISignalService _signal;
+    private readonly ILongTermFrameworkService _longTermFramework;
 
     public event Action? Updated;
     public IReadOnlyList<StockScanRow> Items { get; private set; } = Array.Empty<StockScanRow>();
     public bool IsScanning { get; private set; }
     public string? ProgressMessage { get; private set; }
 
-    public IntradayScannerService(IZerodhaService zerodha, ISignalService signal)
+    public LongTermScannerService(IZerodhaService zerodha, ILongTermFrameworkService longTermFramework)
     {
         _zerodha = zerodha;
-        _signal = signal;
+        _longTermFramework = longTermFramework;
     }
 
     public async Task ScanAsync()
@@ -56,14 +56,14 @@ public class IntradayScannerService : IIntradayScannerService
                         return;
 
                     Interlocked.Increment(ref scanned);
-                    ProgressMessage = $"Intraday scan {symbol} ({scanned}/{universe.Count})...";
+                    ProgressMessage = $"Long-term scan {symbol} ({scanned}/{universe.Count})...";
                     Notify();
 
-                    var analysis = await _signal.AnalyzeForFrameworkAsync(symbol);
-                    if (!IntradayFrameworkEvaluator.IsSatisfied(analysis))
+                    var evaluation = await _longTermFramework.EvaluateAsync(symbol, lastPrice);
+                    if (!evaluation.Satisfied)
                         return;
 
-                    var qty = IntradayFrameworkEvaluator.QuantityForNotional(lastPrice, ScanNotional.Intraday);
+                    var qty = IntradayFrameworkEvaluator.QuantityForNotional(lastPrice, ScanNotional.LongTerm);
                     lock (satisfied)
                     {
                         satisfied.Add(new StockScanRow
@@ -74,8 +74,8 @@ public class IntradayScannerService : IIntradayScannerService
                             Quantity = qty,
                             OrderValue = qty * lastPrice,
                             FrameworkSatisfied = true,
-                            FrameworkStatus = IntradayFrameworkEvaluator.GetStatus(analysis, true),
-                            FrameworkScore = analysis.OverallScore
+                            FrameworkStatus = evaluation.Status,
+                            FrameworkScore = evaluation.Score
                         });
                     }
                 }
@@ -93,12 +93,12 @@ public class IntradayScannerService : IIntradayScannerService
                 .ToList();
 
             ProgressMessage = Items.Count > 0
-                ? $"Found {Items.Count} NSE stocks matching intraday framework."
-                : "No NSE stocks matched the intraday framework right now.";
+                ? $"Found {Items.Count} NSE stocks matching long-term framework."
+                : "No NSE stocks matched the long-term framework right now.";
         }
         catch (Exception ex)
         {
-            ProgressMessage = $"Intraday scan failed: {ex.Message}";
+            ProgressMessage = $"Long-term scan failed: {ex.Message}";
         }
         finally
         {
@@ -108,7 +108,7 @@ public class IntradayScannerService : IIntradayScannerService
     }
 
     public Task<string?> PlaceOrderAsync(StockScanRow row) =>
-        _zerodha.PlaceOrderAsync(row.Exchange, row.Symbol, "BUY", row.Quantity, "MARKET", product: "MIS");
+        _zerodha.PlaceOrderAsync(row.Exchange, row.Symbol, "BUY", row.Quantity, "MARKET", product: "CNC");
 
     private async Task<Dictionary<string, decimal>> FetchQuotesBatchedAsync(IReadOnlyList<string> symbols)
     {
