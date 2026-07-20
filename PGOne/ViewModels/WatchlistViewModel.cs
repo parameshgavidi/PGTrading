@@ -51,6 +51,25 @@ public class WatchlistViewModel : INotifyPropertyChanged, IDisposable
 
     public async Task RefreshTrailingStopAsync() => await _trailingStop.RefreshAsync();
 
+    public async Task RefreshTabAsync(WatchlistTab tab, bool rescanIntraday = false)
+    {
+        switch (tab)
+        {
+            case WatchlistTab.TopWeight:
+                await RefreshTopWeightageAsync();
+                break;
+
+            case WatchlistTab.IntradayScan:
+                if (rescanIntraday)
+                    await ScanIntradayAsync();
+                break;
+
+            case WatchlistTab.TrailingStop:
+                await RefreshTrailingStopAsync();
+                break;
+        }
+    }
+
     public async Task SetTrailingStopMonitoringAsync(bool enabled)
         => await _trailingStop.SetMonitoringAsync(enabled);
 

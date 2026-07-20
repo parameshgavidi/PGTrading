@@ -228,33 +228,32 @@
 </div>
 
 @code {
-  private enum WatchlistTab { TopWeight, IntradayScan, TrailingStop }
-
   private WatchlistTab _activeTab = WatchlistTab.TopWeight;
 
   protected override async Task OnInitializedAsync()
   {
     ViewModel.PropertyChanged += OnViewModelPropertyChanged;
-    await RefreshActiveTabAsync();
+    await ViewModel.RefreshTabAsync(WatchlistTab.TopWeight);
   }
 
-  private void SelectTab(WatchlistTab tab)
+  private async Task SelectTab(WatchlistTab tab)
   {
     _activeTab = tab;
-    _ = RefreshActiveTabAsync();
+    await ViewModel.RefreshTabAsync(tab);
+    StateHasChanged();
   }
 
-  private async Task RefreshActiveTabAsync() => _activeTab switch
+  private async Task RefreshActiveTabAsync()
   {
-    WatchlistTab.TopWeight => await ViewModel.RefreshTopWeightageAsync(),
-    WatchlistTab.IntradayScan when ViewModel.IntradayScanItems.Count == 0 => await Task.CompletedTask,
-    WatchlistTab.IntradayScan => await ViewModel.ScanIntradayAsync(),
-    _ => await ViewModel.RefreshTrailingStopAsync()
-  };
+    var rescanIntraday = _activeTab == WatchlistTab.IntradayScan
+        && ViewModel.IntradayScanItems.Count > 0;
 
-  private async Task ScanIntradayAsync() => await ViewModel.ScanIntradayAsync();
+    await ViewModel.RefreshTabAsync(_activeTab, rescanIntraday);
+  }
 
-  private async Task PlaceOrderAsync(IntradayScanRow row) => await ViewModel.PlaceMisMarketOrderAsync(row);
+  private Task ScanIntradayAsync() => ViewModel.ScanIntradayAsync();
+
+  private Task PlaceOrderAsync(IntradayScanRow row) => ViewModel.PlaceMisMarketOrderAsync(row);
 
   private async Task OnMonitoringChanged(ChangeEventArgs e)
   {
