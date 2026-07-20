@@ -69,10 +69,10 @@ public class HoldingsService : IHoldingsService
             var intradayRows = new List<HoldingRow>();
             var longTermRows = new List<HoldingRow>();
 
-            var misPositions = await _zerodha.GetPositionsAsync("MIS");
+            var misPositions = await _zerodha.GetMisPositionsAsync(includeClosed: true);
             foreach (var position in misPositions)
             {
-                intradayRows.Add(await BuildIntradayRowAsync(ToHolding(position)));
+                intradayRows.Add(await BuildIntradayRowAsync(position));
             }
 
             var holdings = await _zerodha.GetHoldingsAsync();
@@ -81,7 +81,7 @@ public class HoldingsService : IHoldingsService
                 longTermRows.Add(await BuildLongTermRowAsync(holding));
             }
 
-            IntradayItems = SortRows(intradayRows);
+            IntradayItems = SortIntradayRows(intradayRows);
             LongTermItems = SortRows(longTermRows);
         }
         catch (Exception ex)
@@ -97,7 +97,7 @@ public class HoldingsService : IHoldingsService
 
     private static Holding ToHolding(Position position)
     {
-        var quantity = Math.Abs(position.Quantity);
+        var quantity = position.IsClosed ? 0 : Math.Abs(position.Quantity);
 
         return new Holding
         {
@@ -111,6 +111,14 @@ public class HoldingsService : IHoldingsService
         };
     }
 
+    private static List<HoldingRow> SortIntradayRows(List<HoldingRow> rows) =>
+        rows
+            .OrderBy(r => r.IsClosed)
+            .ThenByDescending(r => r.FrameworkSatisfied)
+            .ThenByDescending(r => r.FrameworkScore)
+            .ThenBy(r => r.Symbol)
+            .ToList();
+
     private static List<HoldingRow> SortRows(List<HoldingRow> rows) =>
         rows
             .OrderByDescending(r => r.FrameworkSatisfied)
@@ -118,8 +126,12 @@ public class HoldingsService : IHoldingsService
             .ThenBy(r => r.Symbol)
             .ToList();
 
-    private async Task<HoldingRow> BuildIntradayRowAsync(Holding holding)
+    private async Task<HoldingRow> BuildIntradayRowAsync(Position position)
     {
+        var holding = ToHolding(position);
+        if (position.IsClosed)
+            return CreateClosedRow(holding);
+
         var instrument = InstrumentMapper.ToZerodhaKey(holding.Symbol, holding.Exchange);
         var analysis = await _signal.AnalyzeAsync(instrument);
         var satisfied = IsIntradaySatisfied(analysis);
@@ -131,6 +143,24 @@ public class HoldingsService : IHoldingsService
             analysis.OverallScore,
             satisfied ? null : await GetIntradayStopLossAsync(holding, analysis));
     }
+
+    private static HoldingRow CreateClosedRow(Holding holding) =>
+        new()
+        {
+            Symbol = holding.Symbol,
+            Exchange = holding.Exchange,
+            Quantity = 0,
+            AveragePrice = holding.AveragePrice,
+            LastPrice = holding.LastPrice,
+            DayChangePercent = 0m,
+            OverallChangePercent = 0m,
+            FrameworkSatisfied = holding.PnL >= 0,
+            FrameworkStatus = "Closed",
+            FrameworkScore = 0,
+            StopLossRecommendation = null,
+            IsClosed = true,
+            PnL = holding.PnL
+        };
 
     private async Task<HoldingRow> BuildLongTermRowAsync(Holding holding)
     {
@@ -170,7 +200,8 @@ public class HoldingsService : IHoldingsService
             FrameworkSatisfied = satisfied,
             FrameworkStatus = status,
             FrameworkScore = score,
-            StopLossRecommendation = stopLoss
+            StopLossRecommendation = stopLoss,
+            PnL = holding.PnL
         };
     }
 

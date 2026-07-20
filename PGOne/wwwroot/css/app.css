@@ -479,6 +479,8 @@ html, body {
 
 .review-row { background: rgba(255,82,82,0.04) !important; }
 
+.closed-row { background: rgba(255,255,255,0.03) !important; opacity: 0.85; }
+
 .holdings-summary {
     display: flex;
     gap: 12px;
