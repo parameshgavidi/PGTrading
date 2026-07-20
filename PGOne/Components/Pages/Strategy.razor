@@ -5,83 +5,242 @@
     <div class="card strategy-card">
         <div class="card-header"><h2>Strategy Configuration</h2></div>
 
-        <div class="strategy-section">
-            <h3>SuperTrend</h3>
+        <p class="text-secondary">
+            Global strategy settings used across signals, scanner, and holdings framework checks.
+        </p>
 
-            <div class="strategy-group">
-                <h4>1 Hour</h4>
+        <div class="holdings-tabs">
+            <button class="holdings-tab @(_activeTab == StrategyTab.Intraday ? "active" : "")"
+                    @onclick="() => SelectTab(StrategyTab.Intraday)">
+                Intraday
+            </button>
+            <button class="holdings-tab @(_activeTab == StrategyTab.LongTerm ? "active" : "")"
+                    @onclick="() => SelectTab(StrategyTab.LongTerm)">
+                Long term
+            </button>
+        </div>
+
+        @if (_activeTab == StrategyTab.Intraday)
+        {
+            <div class="strategy-section">
+                <h3>SuperTrend</h3>
+
+                <div class="strategy-group">
+                    <h4>1 Hour</h4>
+                    <div class="form-row">
+                        <label>Period</label>
+                        <input type="number" @bind="ViewModel.IntradayConfig.SuperTrend1HPeriod" class="form-input" />
+                    </div>
+                    <div class="form-row">
+                        <label>Multiplier</label>
+                        <input type="number" step="0.1" @bind="ViewModel.IntradayConfig.SuperTrend1HMultiplier" class="form-input" />
+                    </div>
+                </div>
+
+                <div class="strategy-group">
+                    <h4>15 Minutes</h4>
+                    <div class="form-row">
+                        <label>Period</label>
+                        <input type="number" @bind="ViewModel.IntradayConfig.SuperTrend15MPeriod" class="form-input" />
+                    </div>
+                    <div class="form-row">
+                        <label>Multiplier</label>
+                        <input type="number" step="0.1" @bind="ViewModel.IntradayConfig.SuperTrend15MMultiplier" class="form-input" />
+                    </div>
+                </div>
+
+                <div class="strategy-group">
+                    <h4>5 Minutes</h4>
+                    <div class="form-row">
+                        <label>Period</label>
+                        <input type="number" @bind="ViewModel.IntradayConfig.SuperTrend5MPeriod" class="form-input" />
+                    </div>
+                    <div class="form-row">
+                        <label>Multiplier</label>
+                        <input type="number" step="0.1" @bind="ViewModel.IntradayConfig.SuperTrend5MMultiplier" class="form-input" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="strategy-section">
+                <h3>RSI</h3>
+                <div class="form-row">
+                    <label>RSI Length (panel)</label>
+                    <input type="number" @bind="ViewModel.IntradayConfig.RsiLength" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>RSI Trend Length (1H bias)</label>
+                    <input type="number" @bind="ViewModel.IntradayConfig.RsiTrendLength" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>Bull threshold</label>
+                    <input type="number" step="0.1" @bind="ViewModel.IntradayConfig.RsiBullThreshold" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>Bear threshold</label>
+                    <input type="number" step="0.1" @bind="ViewModel.IntradayConfig.RsiBearThreshold" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>Reversal threshold</label>
+                    <input type="number" step="0.1" @bind="ViewModel.IntradayConfig.RsiReversalThreshold" class="form-input" />
+                </div>
+            </div>
+
+            <div class="strategy-section">
+                <h3>ADX</h3>
+                <div class="form-row">
+                    <label>ADX Length</label>
+                    <input type="number" @bind="ViewModel.IntradayConfig.AdxLength" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>Weak threshold</label>
+                    <input type="number" step="0.1" @bind="ViewModel.IntradayConfig.AdxWeakThreshold" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>Strong threshold</label>
+                    <input type="number" step="0.1" @bind="ViewModel.IntradayConfig.AdxStrongThreshold" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>Minimum ADX</label>
+                    <input type="number" @bind="ViewModel.IntradayConfig.MinimumAdx" class="form-input" />
+                </div>
+            </div>
+
+            <div class="strategy-section">
+                <h3>Keltner (range-bound 5m)</h3>
+                <div class="form-row">
+                    <label>EMA Length</label>
+                    <input type="number" @bind="ViewModel.IntradayConfig.KeltnerEmaLength" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>ATR Length</label>
+                    <input type="number" @bind="ViewModel.IntradayConfig.KeltnerAtrLength" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>Inner multiplier</label>
+                    <input type="number" step="0.1" @bind="ViewModel.IntradayConfig.KeltnerMultiplierInner" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>Outer multiplier</label>
+                    <input type="number" step="0.1" @bind="ViewModel.IntradayConfig.KeltnerMultiplierOuter" class="form-input" />
+                </div>
+            </div>
+
+            <div class="strategy-section">
+                <h3>Entry Mode</h3>
+                <div class="radio-group">
+                    <label class="radio-label">
+                        <input type="radio" name="entryMode" checked="@(ViewModel.IntradayConfig.EntryMode == EntryMode.Conservative)"
+                               @onchange="() => ViewModel.IntradayConfig.EntryMode = EntryMode.Conservative" />
+                        Conservative
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="entryMode" checked="@(ViewModel.IntradayConfig.EntryMode == EntryMode.Normal)"
+                               @onchange="() => ViewModel.IntradayConfig.EntryMode = EntryMode.Normal" />
+                        Normal
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="entryMode" checked="@(ViewModel.IntradayConfig.EntryMode == EntryMode.Aggressive)"
+                               @onchange="() => ViewModel.IntradayConfig.EntryMode = EntryMode.Aggressive" />
+                        Aggressive
+                    </label>
+                </div>
+            </div>
+
+            <button class="btn btn-primary btn-large" @onclick="SaveIntraday">Save Intraday Strategy</button>
+        }
+        else
+        {
+            <div class="strategy-section">
+                <h3>SuperTrend (daily / weekly)</h3>
                 <div class="form-row">
                     <label>Period</label>
-                    <input type="number" @bind="ViewModel.Config.SuperTrend1HPeriod" class="form-input" />
+                    <input type="number" @bind="ViewModel.LongTermConfig.SuperTrendPeriod" class="form-input" />
                 </div>
                 <div class="form-row">
                     <label>Multiplier</label>
-                    <input type="number" step="0.1" @bind="ViewModel.Config.SuperTrend1HMultiplier" class="form-input" />
+                    <input type="number" step="0.1" @bind="ViewModel.LongTermConfig.SuperTrendMultiplier" class="form-input" />
                 </div>
             </div>
 
-            <div class="strategy-group">
-                <h4>15 Minutes</h4>
+            <div class="strategy-section">
+                <h3>Fundamentals (Chartink)</h3>
                 <div class="form-row">
-                    <label>Period</label>
-                    <input type="number" @bind="ViewModel.Config.SuperTrend15MPeriod" class="form-input" />
-                </div>
-                <div class="form-row">
-                    <label>Multiplier</label>
-                    <input type="number" step="0.1" @bind="ViewModel.Config.SuperTrend15MMultiplier" class="form-input" />
-                </div>
-            </div>
-
-            <div class="strategy-group">
-                <h4>5 Minutes</h4>
-                <div class="form-row">
-                    <label>Period</label>
-                    <input type="number" @bind="ViewModel.Config.SuperTrend5MPeriod" class="form-input" />
+                    <label>Min ROE %</label>
+                    <input type="number" step="0.1" @bind="ViewModel.LongTermConfig.MinRoePercent" class="form-input" />
                 </div>
                 <div class="form-row">
-                    <label>Multiplier</label>
-                    <input type="number" step="0.1" @bind="ViewModel.Config.SuperTrend5MMultiplier" class="form-input" />
+                    <label>Min ROCE %</label>
+                    <input type="number" step="0.1" @bind="ViewModel.LongTermConfig.MinRocePercent" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>Max Debt/Equity</label>
+                    <input type="number" step="0.01" @bind="ViewModel.LongTermConfig.MaxDebtEquityRatio" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>Max P/B</label>
+                    <input type="number" step="0.01" @bind="ViewModel.LongTermConfig.MaxPriceToBook" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>Min Market Cap (Cr)</label>
+                    <input type="number" step="1" @bind="ViewModel.LongTermConfig.MinMarketCapCr" class="form-input" />
                 </div>
             </div>
-        </div>
 
-        <div class="strategy-section">
-            <div class="form-row">
-                <label>RSI Length</label>
-                <input type="number" @bind="ViewModel.Config.RsiLength" class="form-input" />
+            <div class="strategy-section">
+                <h3>Price &amp; Volume</h3>
+                <div class="form-row">
+                    <label>Yearly high lower band</label>
+                    <input type="number" step="0.01" @bind="ViewModel.LongTermConfig.YearlyHighLowerBand" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>Yearly high upper band</label>
+                    <input type="number" step="0.01" @bind="ViewModel.LongTermConfig.YearlyHighUpperBand" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>Min SMA volume (20)</label>
+                    <input type="number" @bind="ViewModel.LongTermConfig.MinVolumeSma" class="form-input" />
+                </div>
             </div>
-            <div class="form-row">
-                <label>ADX Length</label>
-                <input type="number" @bind="ViewModel.Config.AdxLength" class="form-input" />
-            </div>
-            <div class="form-row">
-                <label>Minimum ADX</label>
-                <input type="number" @bind="ViewModel.Config.MinimumAdx" class="form-input" />
-            </div>
-        </div>
 
-        <div class="strategy-section">
-            <h3>Entry Mode</h3>
-            <div class="radio-group">
-                <label class="radio-label">
-                    <input type="radio" name="entryMode" checked="@(ViewModel.Config.EntryMode == EntryMode.Conservative)"
-                           @onchange="() => ViewModel.Config.EntryMode = EntryMode.Conservative" />
-                    Conservative
-                </label>
-                <label class="radio-label">
-                    <input type="radio" name="entryMode" checked="@(ViewModel.Config.EntryMode == EntryMode.Normal)"
-                           @onchange="() => ViewModel.Config.EntryMode = EntryMode.Normal" />
-                    Normal
-                </label>
-                <label class="radio-label">
-                    <input type="radio" name="entryMode" checked="@(ViewModel.Config.EntryMode == EntryMode.Aggressive)"
-                           @onchange="() => ViewModel.Config.EntryMode = EntryMode.Aggressive" />
-                    Aggressive
-                </label>
+            <div class="strategy-section">
+                <h3>Trend &amp; Momentum</h3>
+                <div class="form-row">
+                    <label>ADX period</label>
+                    <input type="number" @bind="ViewModel.LongTermConfig.AdxPeriod" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>Min DI+</label>
+                    <input type="number" step="0.1" @bind="ViewModel.LongTermConfig.MinPlusDi" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>EMA fast period</label>
+                    <input type="number" @bind="ViewModel.LongTermConfig.EmaFastPeriod" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>EMA slow period</label>
+                    <input type="number" @bind="ViewModel.LongTermConfig.EmaSlowPeriod" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>WMA fast period</label>
+                    <input type="number" @bind="ViewModel.LongTermConfig.WmaFastPeriod" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>WMA slow period</label>
+                    <input type="number" @bind="ViewModel.LongTermConfig.WmaSlowPeriod" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>ATR period</label>
+                    <input type="number" @bind="ViewModel.LongTermConfig.AtrPeriod" class="form-input" />
+                </div>
+                <div class="form-row">
+                    <label>ATR min vs close ratio</label>
+                    <input type="number" step="0.0001" @bind="ViewModel.LongTermConfig.AtrMinCloseRatio" class="form-input" />
+                </div>
             </div>
-        </div>
 
-        <button class="btn btn-primary btn-large" @onclick="Save">Save Strategy</button>
+            <button class="btn btn-primary btn-large" @onclick="SaveLongTerm">Save Long Term Strategy</button>
+        }
 
         @if (!string.IsNullOrEmpty(ViewModel.SaveMessage))
         {
@@ -91,5 +250,16 @@
 </div>
 
 @code {
-  private async Task Save() => await ViewModel.SaveAsync();
+  private enum StrategyTab { Intraday, LongTerm }
+
+  private StrategyTab _activeTab = StrategyTab.Intraday;
+
+  private void SelectTab(StrategyTab tab)
+  {
+    _activeTab = tab;
+    ViewModel.SaveMessage = string.Empty;
+  }
+
+  private async Task SaveIntraday() => await ViewModel.SaveIntradayAsync();
+  private async Task SaveLongTerm() => await ViewModel.SaveLongTermAsync();
 }
