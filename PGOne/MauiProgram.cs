@@ -49,6 +49,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IFundamentalDataService, FundamentalDataService>();
         builder.Services.AddSingleton<ILongTermFrameworkService, LongTermFrameworkService>();
         builder.Services.AddSingleton<IHoldingsService, HoldingsService>();
+        builder.Services.AddSingleton<ITrailingStopLossService, TrailingStopLossService>();
         builder.Services.AddSingleton<IStrategyService, StrategyService>();
 
         builder.Services.AddSingleton<DashboardViewModel>();
