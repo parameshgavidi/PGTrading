@@ -10,64 +10,65 @@ public interface ISuperTrendService
 
 public class SuperTrendService : ISuperTrendService
 {
+    // Standard SuperTrend, matching TradingView's built-in ta.supertrend:
+    // ATR uses Wilder/RMA smoothing; final upper/lower bands are tracked
+    // separately and the trend flips only when close crosses the opposite band.
     public (TrendDirection direction, List<decimal> values) Calculate(List<Candle> candles, int period, double multiplier)
     {
-        if (candles.Count < period + 1)
+        var n = candles.Count;
+        if (n < period + 1)
             return (TrendDirection.Neutral, new List<decimal>());
 
+        var factor = (decimal)multiplier;
         var atr = CalculateAtr(candles, period);
-        var superTrend = new List<decimal>();
+
+        var values = new List<decimal>();
+        decimal prevUpper = 0, prevLower = 0, prevSuperTrend = 0;
         var direction = TrendDirection.Neutral;
+        var started = false;
 
-        decimal upperBand = 0, lowerBand = 0, prevSuperTrend = 0;
-        TrendDirection prevDirection = TrendDirection.Neutral;
-
-        for (int i = period; i < candles.Count; i++)
+        for (int i = 0; i < n; i++)
         {
-            var hl2 = (candles[i].High + candles[i].Low) / 2;
-            upperBand = hl2 + (decimal)(multiplier * (double)atr[i - period]);
-            lowerBand = hl2 - (decimal)(multiplier * (double)atr[i - period]);
+            if (atr[i] <= 0m)
+                continue; // ATR not yet defined for this bar
 
-            if (i == period)
+            var hl2 = (candles[i].High + candles[i].Low) / 2m;
+            var upper = hl2 + factor * atr[i];
+            var lower = hl2 - factor * atr[i];
+            var prevClose = candles[i - 1].Close;
+
+            if (!started)
             {
-                prevSuperTrend = upperBand;
-                prevDirection = candles[i].Close > prevSuperTrend ? TrendDirection.Buy : TrendDirection.Sell;
+                // Seed: TradingView starts in a downtrend when the previous ATR is NA.
+                prevUpper = upper;
+                prevLower = lower;
+                prevSuperTrend = upper;
+                direction = TrendDirection.Sell;
+                values.Add(prevSuperTrend);
+                started = true;
+                continue;
             }
+
+            // Carry bands forward unless price broke them.
+            lower = (lower > prevLower || prevClose < prevLower) ? lower : prevLower;
+            upper = (upper < prevUpper || prevClose > prevUpper) ? upper : prevUpper;
+
+            bool isUp;
+            if (prevSuperTrend == prevUpper)
+                isUp = candles[i].Close > upper; // was in downtrend; flip up if close breaks upper
             else
-            {
-                if (prevDirection == TrendDirection.Buy)
-                {
-                    lowerBand = Math.Max(lowerBand, prevSuperTrend);
-                    if (candles[i].Close < lowerBand)
-                    {
-                        prevDirection = TrendDirection.Sell;
-                        prevSuperTrend = upperBand;
-                    }
-                    else
-                    {
-                        prevSuperTrend = lowerBand;
-                    }
-                }
-                else
-                {
-                    upperBand = Math.Min(upperBand, prevSuperTrend);
-                    if (candles[i].Close > upperBand)
-                    {
-                        prevDirection = TrendDirection.Buy;
-                        prevSuperTrend = lowerBand;
-                    }
-                    else
-                    {
-                        prevSuperTrend = upperBand;
-                    }
-                }
-            }
+                isUp = !(candles[i].Close < lower); // was in uptrend; flip down if close breaks lower
 
-            superTrend.Add(prevSuperTrend);
-            direction = prevDirection;
+            var superTrend = isUp ? lower : upper;
+
+            values.Add(superTrend);
+            direction = isUp ? TrendDirection.Buy : TrendDirection.Sell;
+            prevUpper = upper;
+            prevLower = lower;
+            prevSuperTrend = superTrend;
         }
 
-        return (direction, superTrend);
+        return (direction, values);
     }
 
     public TrendDirection GetTrend(List<Candle> candles, int period, double multiplier)
@@ -76,33 +77,33 @@ public class SuperTrendService : ISuperTrendService
         return direction;
     }
 
-    private static List<decimal> CalculateAtr(List<Candle> candles, int period)
+    // ATR aligned to candle indices. atr[i] == 0 means "not yet defined".
+    // TR[0] = high-low; ATR is seeded with the SMA of the first `period` TRs
+    // then smoothed with Wilder's method (RMA), matching TradingView's ta.atr.
+    private static decimal[] CalculateAtr(List<Candle> candles, int period)
     {
-        var tr = new List<decimal>();
-        for (int i = 1; i < candles.Count; i++)
+        var n = candles.Count;
+        var tr = new decimal[n];
+        tr[0] = candles[0].High - candles[0].Low;
+        for (int i = 1; i < n; i++)
         {
             var highLow = candles[i].High - candles[i].Low;
             var highClose = Math.Abs(candles[i].High - candles[i - 1].Close);
             var lowClose = Math.Abs(candles[i].Low - candles[i - 1].Close);
-            tr.Add(Math.Max(highLow, Math.Max(highClose, lowClose)));
+            tr[i] = Math.Max(highLow, Math.Max(highClose, lowClose));
         }
 
-        var atr = new List<decimal>();
+        var atr = new decimal[n];
+        if (n < period)
+            return atr;
+
         decimal sum = 0;
-        for (int i = 0; i < tr.Count; i++)
-        {
-            if (i < period)
-            {
-                sum += tr[i];
-                if (i == period - 1)
-                    atr.Add(sum / period);
-            }
-            else
-            {
-                var prev = atr[^1];
-                atr.Add((prev * (period - 1) + tr[i]) / period);
-            }
-        }
+        for (int i = 0; i < period; i++)
+            sum += tr[i];
+        atr[period - 1] = sum / period;
+
+        for (int i = period; i < n; i++)
+            atr[i] = (atr[i - 1] * (period - 1) + tr[i]) / period;
 
         return atr;
     }
