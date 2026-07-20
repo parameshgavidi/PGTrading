@@ -47,10 +47,12 @@ public static class MauiProgram
         builder.Services.AddSingleton<ISignalService, SignalService>();
         builder.Services.AddSingleton<IWatchlistService, WatchlistService>();
         builder.Services.AddSingleton<IIntradayScannerService, IntradayScannerService>();
+        builder.Services.AddSingleton<ILongTermScannerService, LongTermScannerService>();
         builder.Services.AddSingleton<IFundamentalDataService, FundamentalDataService>();
         builder.Services.AddSingleton<ILongTermFrameworkService, LongTermFrameworkService>();
         builder.Services.AddSingleton<IHoldingsService, HoldingsService>();
         builder.Services.AddSingleton<ITrailingStopLossService, TrailingStopLossService>();
+        builder.Services.AddSingleton<ILongTermExitMonitorService, LongTermExitMonitorService>();
         builder.Services.AddSingleton<IStrategyService, StrategyService>();
 
         builder.Services.AddSingleton<DashboardViewModel>();

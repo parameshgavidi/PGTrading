@@ -8,59 +8,117 @@ namespace PGOne.ViewModels;
 public class WatchlistViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly IWatchlistService _watchlist;
-    private readonly IIntradayScannerService _scanner;
+    private readonly IIntradayScannerService _intradayScanner;
+    private readonly ILongTermScannerService _longTermScanner;
     private readonly ITrailingStopLossService _trailingStop;
+    private readonly ILongTermExitMonitorService _longTermExit;
     private readonly IZerodhaService _zerodha;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public List<WatchItem> TopWeightageItems { get; private set; } = new();
-    public List<IntradayScanRow> IntradayScanItems { get; private set; } = new();
+    public List<StockScanRow> IntradayScanItems { get; private set; } = new();
     public List<TrailingStopRow> TrailingStopItems { get; private set; } = new();
+    public List<StockScanRow> LongTermScanItems { get; private set; } = new();
+    public List<LongTermExitRow> LongTermExitItems { get; private set; } = new();
 
-    public bool IsLoading => _watchlist.IsLoading || _scanner.IsScanning || _trailingStop.IsLoading;
-    public bool IsScanning => _scanner.IsScanning;
+    public bool IsLoading =>
+        _watchlist.IsLoading
+        || _intradayScanner.IsScanning
+        || _longTermScanner.IsScanning
+        || _trailingStop.IsLoading
+        || _longTermExit.IsLoading;
+
+    public bool IsIntradayScanning => _intradayScanner.IsScanning;
+    public bool IsLongTermScanning => _longTermScanner.IsScanning;
     public bool IsConnected => _zerodha.IsConnected;
-    public string? ScanProgressMessage => _scanner.ProgressMessage;
+
+    public string? IntradayScanProgressMessage => _intradayScanner.ProgressMessage;
+    public string? LongTermScanProgressMessage => _longTermScanner.ProgressMessage;
     public string? TrailingStopStatusMessage => _trailingStop.StatusMessage;
+    public string? LongTermExitStatusMessage => _longTermExit.StatusMessage;
+
     public bool IsTrailingStopMonitoring => _trailingStop.IsMonitoring;
+    public bool IsLongTermExitMonitoring => _longTermExit.IsMonitoring;
+
     public IReadOnlyList<string> IntradayFrameworkConditions => IntradayFrameworkEvaluator.Conditions;
+    public IReadOnlyList<string> LongTermFrameworkConditions { get; }
 
     public int TrailingStopTriggeredCount => TrailingStopItems.Count(i => i.IsTriggered && !i.ExitPlaced);
     public int TrailingStopMonitoringCount => TrailingStopItems.Count;
+    public int LongTermExitAlertCount => LongTermExitItems.Count(i => i.IsExitSignal);
 
     public WatchlistViewModel(
         IWatchlistService watchlist,
-        IIntradayScannerService scanner,
+        IIntradayScannerService intradayScanner,
+        ILongTermScannerService longTermScanner,
         ITrailingStopLossService trailingStop,
-        IZerodhaService zerodha)
+        ILongTermExitMonitorService longTermExit,
+        IZerodhaService zerodha,
+        ILongTermFrameworkService longTermFramework)
     {
         _watchlist = watchlist;
-        _scanner = scanner;
+        _intradayScanner = intradayScanner;
+        _longTermScanner = longTermScanner;
         _trailingStop = trailingStop;
+        _longTermExit = longTermExit;
         _zerodha = zerodha;
+        LongTermFrameworkConditions = longTermFramework.FrameworkConditions;
 
         _watchlist.WatchlistUpdated += OnWatchlistUpdated;
-        _scanner.Updated += OnScannerUpdated;
+        _intradayScanner.Updated += OnIntradayScannerUpdated;
+        _longTermScanner.Updated += OnLongTermScannerUpdated;
         _trailingStop.Updated += OnTrailingStopUpdated;
+        _longTermExit.Updated += OnLongTermExitUpdated;
     }
 
     public async Task RefreshTopWeightageAsync() => await _watchlist.RefreshTopWeightageAsync();
 
-    public async Task ScanIntradayAsync() => await _scanner.ScanAsync();
+    public async Task ScanIntradayAsync() => await _intradayScanner.ScanAsync();
+
+    public async Task ScanLongTermAsync() => await _longTermScanner.ScanAsync();
 
     public async Task RefreshTrailingStopAsync() => await _trailingStop.RefreshAsync();
+
+    public async Task RefreshLongTermExitAsync() => await _longTermExit.RefreshAsync();
+
+    public async Task RefreshTabAsync(WatchlistTab tab, bool rescan = false)
+    {
+        switch (tab)
+        {
+            case WatchlistTab.TopWeight:
+                await RefreshTopWeightageAsync();
+                break;
+
+            case WatchlistTab.IntradayScan:
+                if (rescan)
+                    await ScanIntradayAsync();
+                break;
+
+            case WatchlistTab.TrailingStop:
+                await RefreshTrailingStopAsync();
+                break;
+
+            case WatchlistTab.LongTermScan:
+                if (rescan)
+                    await ScanLongTermAsync();
+                break;
+
+            case WatchlistTab.LongTermExitMonitor:
+                await RefreshLongTermExitAsync();
+                break;
+        }
+    }
 
     public async Task SetTrailingStopMonitoringAsync(bool enabled)
         => await _trailingStop.SetMonitoringAsync(enabled);
 
-    public async Task<string?> PlaceMisMarketOrderAsync(IntradayScanRow row)
+    public async Task SetLongTermExitMonitoringAsync(bool enabled)
+        => await _longTermExit.SetMonitoringAsync(enabled);
+
+    public async Task<string?> PlaceMisMarketOrderAsync(StockScanRow row)
     {
-        var orderId = await _scanner.PlaceMisMarketOrderAsync(
-            row.Exchange,
-            row.Symbol,
-            row.Quantity,
-            "BUY");
+        var orderId = await _intradayScanner.PlaceOrderAsync(row);
 
         row.OrderMessage = orderId is not null
             ? $"MIS MARKET BUY placed — order {orderId}"
@@ -70,21 +128,45 @@ public class WatchlistViewModel : INotifyPropertyChanged, IDisposable
         return orderId;
     }
 
+    public async Task<string?> PlaceCncMarketOrderAsync(StockScanRow row)
+    {
+        var orderId = await _longTermScanner.PlaceOrderAsync(row);
+
+        row.OrderMessage = orderId is not null
+            ? $"CNC MARKET BUY placed — order {orderId}"
+            : "Order failed — check Zerodha connection";
+
+        Notify(nameof(LongTermScanItems));
+        return orderId;
+    }
+
     private void OnWatchlistUpdated()
     {
         TopWeightageItems = _watchlist.TopWeightageItems;
         Notify();
     }
 
-    private void OnScannerUpdated()
+    private void OnIntradayScannerUpdated()
     {
-        IntradayScanItems = _scanner.Items;
+        IntradayScanItems = _intradayScanner.Items.ToList();
+        Notify();
+    }
+
+    private void OnLongTermScannerUpdated()
+    {
+        LongTermScanItems = _longTermScanner.Items.ToList();
         Notify();
     }
 
     private void OnTrailingStopUpdated()
     {
-        TrailingStopItems = _trailingStop.Items;
+        TrailingStopItems = _trailingStop.Items.ToList();
+        Notify();
+    }
+
+    private void OnLongTermExitUpdated()
+    {
+        LongTermExitItems = _longTermExit.Items.ToList();
         Notify();
     }
 
@@ -97,20 +179,29 @@ public class WatchlistViewModel : INotifyPropertyChanged, IDisposable
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TopWeightageItems)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IntradayScanItems)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TrailingStopItems)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LongTermScanItems)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LongTermExitItems)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsLoading)));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsScanning)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsIntradayScanning)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsLongTermScanning)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsConnected)));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ScanProgressMessage)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IntradayScanProgressMessage)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LongTermScanProgressMessage)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TrailingStopStatusMessage)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LongTermExitStatusMessage)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsTrailingStopMonitoring)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsLongTermExitMonitoring)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TrailingStopTriggeredCount)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TrailingStopMonitoringCount)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LongTermExitAlertCount)));
     }
 
     public void Dispose()
     {
         _watchlist.WatchlistUpdated -= OnWatchlistUpdated;
-        _scanner.Updated -= OnScannerUpdated;
+        _intradayScanner.Updated -= OnIntradayScannerUpdated;
+        _longTermScanner.Updated -= OnLongTermScannerUpdated;
         _trailingStop.Updated -= OnTrailingStopUpdated;
+        _longTermExit.Updated -= OnLongTermExitUpdated;
     }
 }
