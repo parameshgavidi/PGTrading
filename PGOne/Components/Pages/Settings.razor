@@ -20,33 +20,42 @@
             </div>
             <div class="form-row">
                 <label>API Key</label>
-                <input type="text" @bind="ViewModel.Settings.ApiKey" class="form-input" placeholder="Your Kite Connect API Key" />
+                <input type="text" @bind="ViewModel.Settings.ApiKey" @bind:event="oninput" class="form-input" placeholder="Your Kite Connect API Key" />
             </div>
             <div class="form-row">
                 <label>API Secret</label>
-                <input type="password" @bind="ViewModel.Settings.ApiSecret" class="form-input" placeholder="Your Kite Connect API Secret" />
+                <input type="password" @bind="ViewModel.Settings.ApiSecret" @bind:event="oninput" class="form-input" placeholder="Your Kite Connect API Secret" />
             </div>
 
             <div class="zerodha-connect">
                 <h4>Connect to Zerodha</h4>
                 <p class="text-secondary">
-                    1. Save your API Key and Secret below.<br />
-                    2. Click "Open Zerodha Login" and authorize the app.<br />
-                    3. Copy the <code>request_token</code> from the redirect URL.<br />
-                    4. Paste it below and click Connect.
+                    1. Click <strong>Save Settings</strong> after entering API Key and Secret.<br />
+                    2. Click <strong>Open Zerodha Login</strong> and authorize the app.<br />
+                    3. Copy only the <code>request_token</code> value from the redirect URL.<br />
+                    4. Paste it below and click <strong>Connect</strong>.
                 </p>
                 <button class="btn btn-secondary" @onclick="OpenLogin">Open Zerodha Login</button>
                 <div class="form-row">
                     <label>Request Token</label>
-                    <input type="text" @bind="ViewModel.RequestToken" class="form-input" placeholder="Paste request_token here" />
+                    <input type="text" @bind="ViewModel.RequestToken" @bind:event="oninput" class="form-input" placeholder="Paste request_token here" />
                 </div>
                 <div class="button-row">
-                    <button class="btn btn-primary" @onclick="Connect">Connect</button>
+                    <button class="btn btn-primary" disabled="@ViewModel.IsConnecting" @onclick="Connect">
+                        @(ViewModel.IsConnecting ? "Connecting…" : "Connect")
+                    </button>
                     @if (ViewModel.IsConnected)
                     {
                         <button class="btn btn-danger" @onclick="Disconnect">Disconnect</button>
                     }
                 </div>
+
+                @if (!string.IsNullOrEmpty(_connectStatusMessage))
+                {
+                    <div class="status-message @(_connectStatusIsSuccess ? "success" : "error")">
+                        @_connectStatusMessage
+                    </div>
+                }
             </div>
         </div>
 
@@ -98,13 +107,15 @@
 
         @if (!string.IsNullOrEmpty(_statusMessage))
         {
-            <div class="status-message">@_statusMessage</div>
+            <div class="status-message success">@_statusMessage</div>
         }
     </div>
 </div>
 
 @code {
     private string _statusMessage = string.Empty;
+    private string _connectStatusMessage = string.Empty;
+    private bool _connectStatusIsSuccess;
 
     protected override async Task OnInitializedAsync()
     {
@@ -117,7 +128,17 @@
     {
         if (e.PropertyName == nameof(SettingsViewModel.StatusMessage))
         {
-            _statusMessage = ViewModel.StatusMessage;
+            var message = ViewModel.StatusMessage;
+            if (message is "Settings saved!" or "Disconnected from Zerodha.")
+            {
+                _statusMessage = message;
+            }
+            else
+            {
+                _connectStatusMessage = message;
+                _connectStatusIsSuccess = message.StartsWith("Connected as", StringComparison.Ordinal);
+            }
+
             InvokeAsync(StateHasChanged);
         }
     }
