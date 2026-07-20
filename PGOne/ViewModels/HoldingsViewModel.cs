@@ -12,11 +12,17 @@ public class HoldingsViewModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public List<HoldingRow> Items { get; private set; } = new();
+    public List<HoldingRow> IntradayItems { get; private set; } = new();
+    public List<HoldingRow> LongTermItems { get; private set; } = new();
     public bool IsLoading => _holdings.IsLoading;
     public bool IsConnected => _zerodha.IsConnected;
-    public int SatisfiedCount => Items.Count(i => i.FrameworkSatisfied);
-    public int ReviewCount => Items.Count(i => !i.FrameworkSatisfied);
+    public IReadOnlyList<string> IntradayFrameworkConditions => _holdings.IntradayFrameworkConditions;
+    public IReadOnlyList<string> LongTermFrameworkConditions => _holdings.LongTermFrameworkConditions;
+
+    public int IntradaySatisfiedCount => IntradayItems.Count(i => i.FrameworkSatisfied);
+    public int IntradayReviewCount => IntradayItems.Count(i => !i.FrameworkSatisfied);
+    public int LongTermSatisfiedCount => LongTermItems.Count(i => i.FrameworkSatisfied);
+    public int LongTermReviewCount => LongTermItems.Count(i => !i.FrameworkSatisfied);
 
     public HoldingsViewModel(IHoldingsService holdings, IZerodhaService zerodha)
     {
@@ -24,7 +30,8 @@ public class HoldingsViewModel : INotifyPropertyChanged
         _zerodha = zerodha;
         _holdings.HoldingsUpdated += () =>
         {
-            Items = _holdings.Items;
+            IntradayItems = _holdings.IntradayItems;
+            LongTermItems = _holdings.LongTermItems;
             Notify();
         };
     }
@@ -37,10 +44,13 @@ public class HoldingsViewModel : INotifyPropertyChanged
         if (property != null)
             return;
 
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Items)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IntradayItems)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LongTermItems)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsLoading)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsConnected)));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SatisfiedCount)));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ReviewCount)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IntradaySatisfiedCount)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IntradayReviewCount)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LongTermSatisfiedCount)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LongTermReviewCount)));
     }
 }
