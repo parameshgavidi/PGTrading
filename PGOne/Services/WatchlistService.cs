@@ -33,7 +33,7 @@ public class WatchlistService : IWatchlistService
         try
         {
             var symbols = NiftyConstituents.DashboardWatchlist;
-            var instruments = symbols.Select(InstrumentMapper.ToZerodhaKey).ToArray();
+            var instruments = symbols.Select(s => InstrumentMapper.ToZerodhaKey(s)).ToArray();
             var quotes = await _zerodha.GetQuotesAsync(instruments);
             var items = new List<WatchItem>();
 
