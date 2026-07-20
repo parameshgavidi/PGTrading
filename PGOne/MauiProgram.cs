@@ -66,9 +66,9 @@ public static class MauiProgram
             if (handler.PlatformView is not WebView2 webView)
                 return;
 
-            webView.CoreWebView2InitializationCompleted += (_, args) =>
+            webView.CoreWebView2Initialized += (_, args) =>
             {
-                if (args.IsSuccess)
+                if (args.Exception is null)
                 {
 #if DEBUG
                     try
@@ -84,7 +84,7 @@ public static class MauiProgram
                     return;
                 }
 
-                var message = args.InitializationException?.Message
+                var message = args.Exception.Message
                     ?? "WebView2 failed to initialize. Install the WebView2 Runtime (see install-webview2.ps1).";
 
                 System.Diagnostics.Debug.WriteLine($"WebView2 init failed: {message}");
