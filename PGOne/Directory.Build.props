@@ -1,0 +1,14 @@
+<Project>
+  <!--
+    MAUI NuGet package versions must match the installed MAUI workload runtime.
+    A mismatch (e.g. packages 8.0.100 vs workload 8.1.x) breaks the BlazorWebView
+    JS bridge and produces a blank/black screen with no error.
+
+    Run .\sync-maui-version.ps1 after installing/updating the MAUI workload, or
+  override on the command line: dotnet build -p:MauiVersion=8.0.100
+  -->
+  <Import Project="MauiVersion.local.props" Condition="Exists('MauiVersion.local.props')" />
+  <PropertyGroup>
+    <MauiVersion Condition="'$(MauiVersion)' == ''">8.0.100</MauiVersion>
+  </PropertyGroup>
+</Project>

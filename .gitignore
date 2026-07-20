@@ -6,6 +6,7 @@
 *.user
 *.suo
 .vs/
+PGOne/MauiVersion.local.props
 
 ## Rider / VS
 .idea/

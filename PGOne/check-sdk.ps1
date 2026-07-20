@@ -22,6 +22,20 @@ $sdks = & $dotnet --list-sdks
 $hasNet8 = $sdks | Where-Object { $_ -match "^8\.0\." }
 
 Write-Host ""
+Write-Host "Installed workloads:" -ForegroundColor Yellow
+& $dotnet workload list
+
+Write-Host ""
+Write-Host "MAUI package alignment:" -ForegroundColor Yellow
+$localProps = Join-Path $PSScriptRoot "MauiVersion.local.props"
+if (Test-Path $localProps) {
+    Write-Host "  OK  MauiVersion.local.props exists" -ForegroundColor Green
+} else {
+    Write-Host "  TIP Run .\sync-maui-version.ps1 to align NuGet MAUI packages with your workload." -ForegroundColor Yellow
+    Write-Host "      A version mismatch often causes a blank/black BlazorWebView screen."
+}
+
+Write-Host ""
 if ($hasNet8) {
     Write-Host "OK: .NET 8 SDK found." -ForegroundColor Green
     Write-Host "Build with:" -ForegroundColor Yellow
