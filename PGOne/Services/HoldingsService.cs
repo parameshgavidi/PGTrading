@@ -21,7 +21,6 @@ public class HoldingsService : IHoldingsService
     private readonly IMarketDataService _marketData;
     private readonly ISuperTrendService _superTrend;
     private readonly ILongTermFrameworkService _longTermFramework;
-    private readonly ISettingsService _settings;
 
     public event Action? HoldingsUpdated;
     public List<HoldingRow> IntradayItems { get; private set; } = new();
@@ -47,15 +46,13 @@ public class HoldingsService : IHoldingsService
         ISignalService signal,
         IMarketDataService marketData,
         ISuperTrendService superTrend,
-        ILongTermFrameworkService longTermFramework,
-        ISettingsService settings)
+        ILongTermFrameworkService longTermFramework)
     {
         _zerodha = zerodha;
         _signal = signal;
         _marketData = marketData;
         _superTrend = superTrend;
         _longTermFramework = longTermFramework;
-        _settings = settings;
     }
 
     public async Task RefreshAsync()
@@ -133,7 +130,7 @@ public class HoldingsService : IHoldingsService
             return CreateClosedRow(holding);
 
         var instrument = InstrumentMapper.ToZerodhaKey(holding.Symbol, holding.Exchange);
-        var analysis = await _signal.AnalyzeAsync(instrument);
+        var analysis = await _signal.AnalyzeForFrameworkAsync(instrument);
         var satisfied = IsIntradaySatisfied(analysis);
 
         return CreateRow(
@@ -252,7 +249,7 @@ public class HoldingsService : IHoldingsService
             return $"Review — {analysis.ReversalReason}";
 
         var instrument = InstrumentMapper.ToZerodhaKey(holding.Symbol, holding.Exchange);
-        var config = _settings.Strategy;
+        var config = FrameworkDefaults.Intraday;
         var candles5M = await _marketData.GetCandlesAsync(instrument, "5m", 200);
 
         if (analysis.IsRangebound)

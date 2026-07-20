@@ -6,6 +6,7 @@ public interface ISignalService
 {
     Task<Signal> GenerateSignalAsync(string instrument = "NIFTY");
     Task<MultiTimeframeAnalysis> AnalyzeAsync(string instrument = "NIFTY");
+    Task<MultiTimeframeAnalysis> AnalyzeForFrameworkAsync(string instrument);
 }
 
 public class SignalService : ISignalService
@@ -28,9 +29,14 @@ public class SignalService : ISignalService
     }
 
     public async Task<MultiTimeframeAnalysis> AnalyzeAsync(string instrument = "NIFTY")
+        => await AnalyzeWithConfigAsync(instrument, _settings.Strategy);
+
+    public Task<MultiTimeframeAnalysis> AnalyzeForFrameworkAsync(string instrument)
+        => AnalyzeWithConfigAsync(instrument, FrameworkDefaults.Intraday);
+
+    private async Task<MultiTimeframeAnalysis> AnalyzeWithConfigAsync(string instrument, StrategyConfig config)
     {
         var symbol = MapInstrument(instrument);
-        var config = _settings.Strategy;
 
         var candles1H = await _marketData.GetCandlesAsync(symbol, "1H", 200);
         var candles15M = await _marketData.GetCandlesAsync(symbol, "15m", 200);
