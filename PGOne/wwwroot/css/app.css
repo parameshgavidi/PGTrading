@@ -478,6 +478,7 @@ html, body {
 .text-secondary { color: var(--text-secondary); font-size: 13px; }
 .status-message { margin-top: 12px; padding: 10px; background: #0A0A0A; border-radius: 6px; font-size: 13px; }
 .status-message.success { color: var(--buy); }
+.status-message.error { color: var(--sell); }
 .empty-state { text-align: center; padding: 40px; color: var(--text-secondary); }
 .scanning { padding: 20px; text-align: center; color: var(--accent); }
 

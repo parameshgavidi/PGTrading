@@ -10,6 +10,7 @@ public class SettingsViewModel : INotifyPropertyChanged
     private readonly ISettingsService _settings;
     private readonly IZerodhaService _zerodha;
     private string _statusMessage = string.Empty;
+    private bool _isConnecting;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -17,6 +18,7 @@ public class SettingsViewModel : INotifyPropertyChanged
     public string StatusMessage => _statusMessage;
     public string RequestToken { get; set; } = string.Empty;
     public bool IsConnected => _zerodha.IsConnected;
+    public bool IsConnecting => _isConnecting;
 
     public SettingsViewModel(ISettingsService settings, IZerodhaService zerodha)
     {
@@ -34,23 +36,43 @@ public class SettingsViewModel : INotifyPropertyChanged
 
     public async Task SaveAsync()
     {
+        _settings.ApplySettings(Settings);
         await _settings.SaveSettingsAsync();
         SetStatusMessage("Settings saved!");
     }
 
     public async Task ConnectAsync()
     {
+        if (_isConnecting)
+            return;
+
         if (string.IsNullOrWhiteSpace(RequestToken))
         {
-            SetStatusMessage("Enter the request token from Zerodha login redirect URL.");
+            SetStatusMessage("Enter the request token from the Zerodha redirect URL.");
             return;
         }
 
-        var success = await _zerodha.GenerateSessionAsync(RequestToken.Trim());
-        SetStatusMessage(success
-            ? $"Connected as {_zerodha.UserId}"
-            : "Connection failed. Check API Key, Secret, and Request Token.");
-        Notify(nameof(IsConnected));
+        try
+        {
+            _isConnecting = true;
+            Notify(nameof(IsConnecting));
+            SetStatusMessage("Connecting to Zerodha…");
+
+            _settings.ApplySettings(Settings);
+            await _settings.SaveSettingsAsync();
+
+            var (success, message) = await _zerodha.GenerateSessionAsync(RequestToken.Trim());
+            SetStatusMessage(message);
+            Notify(nameof(IsConnected));
+
+            if (success)
+                RequestToken = string.Empty;
+        }
+        finally
+        {
+            _isConnecting = false;
+            Notify(nameof(IsConnecting));
+        }
     }
 
     public void Disconnect()
@@ -68,6 +90,8 @@ public class SettingsViewModel : INotifyPropertyChanged
 
     public bool TryGetLoginUrl(out string url)
     {
+        _settings.ApplySettings(Settings);
+
         url = _zerodha.GetLoginUrl();
         if (!string.IsNullOrEmpty(url) && url.Contains("api_key=") && !url.EndsWith("api_key="))
             return true;

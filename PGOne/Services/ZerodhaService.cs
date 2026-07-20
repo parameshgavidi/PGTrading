@@ -12,7 +12,7 @@ public interface IZerodhaService
     string? UserId { get; }
     event Action<bool>? ConnectionChanged;
     string GetLoginUrl();
-    Task<bool> GenerateSessionAsync(string requestToken);
+    Task<(bool Success, string Message)> GenerateSessionAsync(string requestToken);
     Task<decimal> GetLtpAsync(string instrument);
     Task<Dictionary<string, decimal>> GetQuotesAsync(string[] instruments);
     Task<List<Position>> GetPositionsAsync();
@@ -55,38 +55,71 @@ public class ZerodhaService : IZerodhaService
         return $"{LoginUrl}?v=3&api_key={apiKey}";
     }
 
-    public async Task<bool> GenerateSessionAsync(string requestToken)
+    public async Task<(bool Success, string Message)> GenerateSessionAsync(string requestToken)
     {
-        var apiKey = _settings.Settings.ApiKey;
-        var apiSecret = _settings.Settings.ApiSecret;
+        await _settings.LoadAsync();
+
+        var apiKey = _settings.Settings.ApiKey?.Trim() ?? string.Empty;
+        var apiSecret = _settings.Settings.ApiSecret?.Trim() ?? string.Empty;
+        requestToken = requestToken.Trim();
 
         if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(apiSecret))
-            return false;
+            return (false, "API Key and API Secret are required. Enter them above and click Save Settings.");
 
-        var checksum = ComputeSha256(apiKey + requestToken + apiSecret);
+        if (string.IsNullOrEmpty(requestToken))
+            return (false, "Request token is empty. Paste the token from the Zerodha redirect URL.");
 
-        var content = new FormUrlEncodedContent(new Dictionary<string, string>
+        try
         {
-            ["api_key"] = apiKey,
-            ["request_token"] = requestToken,
-            ["checksum"] = checksum
-        });
+            var checksum = ComputeSha256(apiKey + requestToken + apiSecret);
 
-        var response = await _http.PostAsync($"{BaseUrl}/session/token", content);
-        var json = await response.Content.ReadAsStringAsync();
+            var content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["api_key"] = apiKey,
+                ["request_token"] = requestToken,
+                ["checksum"] = checksum
+            });
 
-        if (!response.IsSuccessStatusCode)
-            return false;
+            var response = await _http.PostAsync($"{BaseUrl}/session/token", content);
+            var json = await response.Content.ReadAsStringAsync();
 
-        using var doc = JsonDocument.Parse(json);
-        var data = doc.RootElement.GetProperty("data");
-        _settings.Settings.AccessToken = data.GetProperty("access_token").GetString() ?? string.Empty;
-        UserId = data.GetProperty("user_id").GetString();
-        await _settings.SaveSettingsAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = TryReadKiteError(json)
+                    ?? $"Zerodha rejected the token (HTTP {(int)response.StatusCode}). Generate a fresh request_token and try again.";
+                return (false, error);
+            }
 
-        IsConnected = true;
-        ConnectionChanged?.Invoke(true);
-        return true;
+            using var doc = JsonDocument.Parse(json);
+            var data = doc.RootElement.GetProperty("data");
+            _settings.Settings.AccessToken = data.GetProperty("access_token").GetString() ?? string.Empty;
+            UserId = data.GetProperty("user_id").GetString();
+            await _settings.SaveSettingsAsync();
+
+            IsConnected = true;
+            ConnectionChanged?.Invoke(true);
+            return (true, $"Connected as {UserId}");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Connection error: {ex.Message}");
+        }
+    }
+
+    private static string? TryReadKiteError(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("message", out var message))
+                return message.GetString();
+        }
+        catch
+        {
+            // Ignore malformed error payloads.
+        }
+
+        return null;
     }
 
     public async Task<decimal> GetLtpAsync(string instrument)

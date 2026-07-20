@@ -6,6 +6,7 @@ public interface ISettingsService
 {
     AppSettings Settings { get; }
     StrategyConfig Strategy { get; }
+    void ApplySettings(AppSettings settings);
     Task SaveSettingsAsync();
     Task SaveStrategyAsync();
     Task LoadAsync();
@@ -30,6 +31,22 @@ public class SettingsService : ISettingsService
             Strategy = System.Text.Json.JsonSerializer.Deserialize<StrategyConfig>(strategyJson) ?? new();
 
         await Task.CompletedTask;
+    }
+
+    public void ApplySettings(AppSettings settings)
+    {
+        Settings.Broker = settings.Broker;
+        Settings.ApiKey = settings.ApiKey;
+        Settings.ApiSecret = settings.ApiSecret;
+        Settings.AccessToken = settings.AccessToken;
+        Settings.LotSize = settings.LotSize;
+        Settings.RiskPercent = settings.RiskPercent;
+        Settings.AutoTradingEnabled = settings.AutoTradingEnabled;
+        Settings.DesktopNotifications = settings.DesktopNotifications;
+        Settings.TelegramNotifications = settings.TelegramNotifications;
+        Settings.SoundNotifications = settings.SoundNotifications;
+        Settings.TelegramBotToken = settings.TelegramBotToken;
+        Settings.TelegramChatId = settings.TelegramChatId;
     }
 
     public async Task SaveSettingsAsync()
