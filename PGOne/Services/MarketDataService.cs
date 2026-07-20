@@ -10,7 +10,7 @@ public interface IMarketDataService
     Task<decimal> GetCurrentPriceAsync(string instrument);
     Task<InstrumentQuote?> GetQuoteAsync(string instrument);
     event Action<string, decimal>? PriceUpdated;
-    void StartStreaming();
+    void StartStreaming(string? instrument = null);
     void StopStreaming();
 }
 
@@ -21,6 +21,7 @@ public class MarketDataService : IMarketDataService
     private readonly IIndicatorService _indicators;
     private readonly ISettingsService _settings;
     private System.Timers.Timer? _timer;
+    private string _streamingInstrument = "NSE:NIFTY 50";
     private readonly Random _random = new(42);
 
     public event Action<string, decimal>? PriceUpdated;
@@ -100,10 +101,16 @@ public class MarketDataService : IMarketDataService
     public Task<InstrumentQuote?> GetQuoteAsync(string instrument) =>
         _zerodha.GetQuoteAsync(instrument);
 
-    public void StartStreaming()
+    public void StartStreaming(string? instrument = null)
     {
+        if (!string.IsNullOrWhiteSpace(instrument))
+            _streamingInstrument = instrument;
+
         if (!MarketHours.IsOpen())
             return;
+
+        _timer?.Stop();
+        _timer?.Dispose();
 
         _timer = new System.Timers.Timer(3000);
         _timer.Elapsed += async (_, _) =>
@@ -111,9 +118,9 @@ public class MarketDataService : IMarketDataService
             if (!MarketHours.IsOpen())
                 return;
 
-            var price = await _zerodha.GetLtpAsync("NSE:NIFTY 50");
+            var price = await _zerodha.GetLtpAsync(_streamingInstrument);
             if (price > 0)
-                PriceUpdated?.Invoke("NSE:NIFTY 50", price);
+                PriceUpdated?.Invoke(_streamingInstrument, price);
         };
         _timer.Start();
     }
