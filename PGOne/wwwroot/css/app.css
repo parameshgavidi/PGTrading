@@ -296,6 +296,16 @@ html, body {
     justify-content: flex-end;
 }
 
+.chart-meta {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-family: Consolas, monospace;
+}
+
+.chart-meta.zerodha { color: var(--buy); }
+.chart-meta.warning { color: #FFB74D; }
+
 .tf-btn {
     padding: 4px 12px;
     background: transparent;
