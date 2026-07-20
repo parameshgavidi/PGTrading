@@ -44,6 +44,12 @@
     private string _pageTitle = "Dashboard";
     private System.Timers.Timer? _timer;
 
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+            AppUiEvents.RaiseShellRendered();
+    }
+
     protected override void OnInitialized()
     {
         _isConnected = ZerodhaService.IsConnected;

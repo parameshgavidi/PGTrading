@@ -154,10 +154,21 @@ Then close and reopen Visual Studio, reload the project if prompted, and rebuild
 
 ### Troubleshooting: Blank / black screen after launch
 
-The app runs **unpackaged** — no Developer Mode, no Deploy checkbox needed. Just:
+The app runs **unpackaged** — no Developer Mode, no Deploy checkbox needed.
+
+**Step 1 — align MAUI package versions with your workload** (most common cause of a permanent black screen):
 
 ```powershell
-cd D:\PGOne\parameshgavidi\PGTrading
+cd PGOne
+.\sync-maui-version.ps1
+.\clean.ps1
+```
+
+Then reopen Visual Studio and press **F5**.
+
+**Step 2 — full clean rebuild** if still blank:
+
+```powershell
 git pull origin main
 cd PGOne
 .\clean.ps1
@@ -165,18 +176,28 @@ cd PGOne
 
 Delete `bin`, `obj`, and `.vs`, reopen Visual Studio, press **F5**.
 
-Two specific issues were fixed for this exact symptom:
+**Step 3 — verify build output:**
 
-- **BlazorWebView loads but shows an empty rectangle** — a known WebView2/WinAppSDK regression around the internal host address. Fixed via `AppContext.SetSwitch("BlazorWebView.AppHostAddressAlways0000", true)` in `MauiProgram.cs`.
-- **WebView2 loads content but the window stays solid black** — a GPU/DirectComposition compositing issue common on VMs, remote desktop sessions, and some graphics drivers. Fixed by disabling GPU acceleration for the WebView2 process in `Platforms/Windows/App.xaml.cs`.
+```powershell
+.\verify-build.ps1
+.\install-webview2.ps1   # if WebView2 Runtime is missing
+```
+
+Known fixes already in the codebase:
+
+- **BlazorWebView loads but shows an empty rectangle** — `AppContext.SetSwitch("BlazorWebView.AppHostAddressAlways0000", true)` in `MauiProgram.cs`.
+- **WebView2 loads content but the window stays solid black** — GPU compositing disabled via `WebView2Bootstrap.cs` (runs before WebView2 loads).
+- **MAUI package / workload version mismatch** — run `sync-maui-version.ps1` to generate `MauiVersion.local.props`.
+
+In **DEBUG** builds, WebView2 DevTools opens automatically — check the Console tab for script errors.
 
 #### What you should see
 
 | Screen | Meaning |
 |--------|---------|
-| Blue "Starting PG One..." then full UI | Working |
+| Blue "Starting PG One..." → "Loading PG One UI…" → full UI | Working |
 | Red error panel / red diagnostic bar at bottom | Read the message — it names the actual failure |
-| Solid black, no banner at all | Old code — confirm `git pull origin main` picked up the latest commit |
+| Blue banner stuck, black below | WebView2 or Blazor failed to start — run steps above |
 
 ## Zerodha Connection
 
