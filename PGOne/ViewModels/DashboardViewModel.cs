@@ -39,10 +39,10 @@ public class DashboardViewModel : INotifyPropertyChanged
     {
         ChartCandles = await _marketData.GetCandlesAsync("NSE:NIFTY 50", SelectedTimeframe, 60);
         ChartVersion++;
-        UpdatePriceFromCandles();
+        await UpdatePriceAsync();
         Analysis = await _signal.AnalyzeAsync("NIFTY");
         CurrentSignal = await _signal.GenerateSignalAsync("NIFTY");
-        NiftyTrend = Analysis.Trend5M;
+        UpdateSelectedTrend();
         Watchlist = _watchlist.Items;
         Notify();
         _marketData.StartStreaming();
@@ -52,7 +52,9 @@ public class DashboardViewModel : INotifyPropertyChanged
     {
         SelectedTimeframe = timeframe;
         ChartCandles = await _marketData.GetCandlesAsync("NSE:NIFTY 50", timeframe, 60);
-        UpdatePriceFromCandles();
+        ChartVersion++;
+        await UpdatePriceAsync();
+        UpdateSelectedTrend();
         Notify();
     }
 
@@ -60,10 +62,10 @@ public class DashboardViewModel : INotifyPropertyChanged
     {
         ChartCandles = await _marketData.GetCandlesAsync("NSE:NIFTY 50", SelectedTimeframe, 60);
         ChartVersion++;
-        UpdatePriceFromCandles();
+        await UpdatePriceAsync();
         Analysis = await _signal.AnalyzeAsync("NIFTY");
         CurrentSignal = await _signal.GenerateSignalAsync("NIFTY");
-        NiftyTrend = Analysis.Trend5M;
+        UpdateSelectedTrend();
         Notify();
     }
 
@@ -74,6 +76,24 @@ public class DashboardViewModel : INotifyPropertyChanged
 
         NiftyPrice = price;
         Notify(nameof(NiftyPrice));
+    }
+
+    private async Task UpdatePriceAsync()
+    {
+        var quote = await _marketData.GetQuoteAsync("NSE:NIFTY 50");
+        if (quote is { LastPrice: > 0 })
+        {
+            NiftyPrice = quote.LastPrice;
+            var reference = IsMarketOpen ? quote.Open : quote.PreviousClose;
+            if (reference > 0)
+            {
+                NiftyChange = quote.LastPrice - reference;
+                NiftyChangePercent = Math.Round(NiftyChange / reference * 100, 2);
+            }
+            return;
+        }
+
+        UpdatePriceFromCandles();
     }
 
     private void UpdatePriceFromCandles()
@@ -92,6 +112,17 @@ public class DashboardViewModel : INotifyPropertyChanged
         }
     }
 
+    private void UpdateSelectedTrend()
+    {
+        NiftyTrend = SelectedTimeframe switch
+        {
+            "1H" => Analysis.Trend1H,
+            "15m" => Analysis.Trend15M,
+            "1D" => Analysis.Trend1H,
+            _ => Analysis.Trend5M
+        };
+    }
+
     private void Notify([CallerMemberName] string? property = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
@@ -105,5 +136,6 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(MarketStatus)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NiftyChange)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NiftyChangePercent)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NiftyTrend)));
     }
 }
