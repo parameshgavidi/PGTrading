@@ -135,6 +135,23 @@ dotnet build -f net10.0-windows10.0.19041.0
 
 Then close and reopen Visual Studio, reload the project if prompted, and rebuild.
 
+### Troubleshooting: `ExpandPriContent` / `MSB4062` PriGen error
+
+If `dotnet build` fails with:
+
+```
+error MSB4062: The "Microsoft.Build.Packaging.Pri.Tasks.ExpandPriContent" task could not be loaded
+```
+
+This happens when `EnableMsixTooling` is `false` — `dotnet build` cannot find legacy Visual Studio packaging tasks. The project keeps `EnableMsixTooling=true` with `WindowsPackageType=None` so CLI builds work while the app still runs unpackaged as a plain `.exe`.
+
+```powershell
+git pull origin main
+cd PGOne
+.\clean.ps1
+dotnet build -f net10.0-windows10.0.19041.0
+```
+
 ### Troubleshooting: Blank / black screen after launch
 
 The app runs **unpackaged** — no Developer Mode, no Deploy checkbox needed.
