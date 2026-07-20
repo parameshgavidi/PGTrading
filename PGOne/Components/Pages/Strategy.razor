@@ -258,7 +258,7 @@
   private void SelectTab(StrategyTab tab)
   {
     _activeTab = tab;
-    ViewModel.SaveMessage = string.Empty;
+    ViewModel.ClearSaveMessage();
   }
 
   private async Task SaveIntraday() => await ViewModel.SaveIntradayAsync();

@@ -36,6 +36,12 @@ public class StrategyViewModel : INotifyPropertyChanged
         Notify(nameof(SaveMessage));
     }
 
+    public void ClearSaveMessage()
+    {
+        SaveMessage = string.Empty;
+        Notify(nameof(SaveMessage));
+    }
+
     private void Notify([CallerMemberName] string? property = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
 }
