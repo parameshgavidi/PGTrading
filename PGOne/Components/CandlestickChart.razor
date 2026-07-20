@@ -1,0 +1,48 @@
+@namespace PGOne.Components
+@using PGOne.Models
+@inject IJSRuntime JS
+
+<div class="chart-area @CssClass">
+    <canvas id="@CanvasId" width="@Width" height="@Height"></canvas>
+</div>
+
+@code {
+    [Parameter] public string CanvasId { get; set; } = "priceChart";
+    [Parameter] public List<Candle> Candles { get; set; } = new();
+    [Parameter] public int ChartVersion { get; set; }
+    [Parameter] public string CssClass { get; set; } = string.Empty;
+    [Parameter] public int Width { get; set; } = 800;
+    [Parameter] public int Height { get; set; } = 350;
+
+    private int _lastRenderedVersion = -1;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Candles.Count == 0 || ChartVersion == _lastRenderedVersion)
+            return;
+
+        _lastRenderedVersion = ChartVersion;
+        await RenderAsync();
+    }
+
+    private async Task RenderAsync()
+    {
+        var payload = Candles.Select(c => new
+        {
+            open = c.Open,
+            high = c.High,
+            low = c.Low,
+            close = c.Close,
+            superTrend = c.SuperTrend
+        }).ToList();
+
+        try
+        {
+            await JS.InvokeVoidAsync("pgOneChart.drawCandlestickChart", CanvasId, payload);
+        }
+        catch
+        {
+            // WebView may not be ready on the first render attempt.
+        }
+    }
+}

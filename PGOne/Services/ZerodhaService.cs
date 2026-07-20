@@ -14,6 +14,7 @@ public interface IZerodhaService
     string GetLoginUrl();
     Task<(bool Success, string Message)> GenerateSessionAsync(string requestToken);
     Task<decimal> GetLtpAsync(string instrument);
+    Task<List<Candle>> GetHistoricalCandlesAsync(string instrument, string interval, int count = 100);
     Task<Dictionary<string, decimal>> GetQuotesAsync(string[] instruments);
     Task<List<Position>> GetPositionsAsync();
     Task<List<Order>> GetOrdersAsync();
@@ -126,6 +127,52 @@ public class ZerodhaService : IZerodhaService
     {
         var quotes = await GetQuotesAsync(new[] { instrument });
         return quotes.GetValueOrDefault(instrument, 0);
+    }
+
+    public async Task<List<Candle>> GetHistoricalCandlesAsync(string instrument, string interval, int count = 100)
+    {
+        if (!IsConnected)
+            return new List<Candle>();
+
+        if (!InstrumentTokens.TryGetValue(instrument, out var token))
+            return new List<Candle>();
+
+        try
+        {
+            var kiteInterval = MapKiteInterval(interval);
+            var (from, to) = GetHistoricalRange(interval, count);
+            var fromParam = Uri.EscapeDataString(from.ToString("yyyy-MM-dd HH:mm:ss"));
+            var toParam = Uri.EscapeDataString(to.ToString("yyyy-MM-dd HH:mm:ss"));
+            var request = CreateRequest(HttpMethod.Get,
+                $"/instruments/historical/{token}/{kiteInterval}?from={fromParam}&to={toParam}&continuous=0&oi=0");
+            var response = await _http.SendAsync(request);
+            var json = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                return new List<Candle>();
+
+            using var doc = JsonDocument.Parse(json);
+            var candles = new List<Candle>();
+
+            foreach (var row in doc.RootElement.GetProperty("data").GetProperty("candles").EnumerateArray())
+            {
+                candles.Add(new Candle
+                {
+                    Timestamp = DateTime.Parse(row[0].GetString() ?? DateTime.Now.ToString()),
+                    Open = row[1].GetDecimal(),
+                    High = row[2].GetDecimal(),
+                    Low = row[3].GetDecimal(),
+                    Close = row[4].GetDecimal(),
+                    Volume = row[5].GetInt64()
+                });
+            }
+
+            return candles.Count > count ? candles[^count..] : candles;
+        }
+        catch
+        {
+            return new List<Candle>();
+        }
     }
 
     public async Task<Dictionary<string, decimal>> GetQuotesAsync(string[] instruments)
@@ -279,6 +326,57 @@ public class ZerodhaService : IZerodhaService
         UserId = null;
         ConnectionChanged?.Invoke(false);
     }
+
+    private static readonly Dictionary<string, int> InstrumentTokens = new()
+    {
+        ["NSE:NIFTY 50"] = 256265,
+        ["NSE:NIFTY BANK"] = 260105,
+        ["NSE:RELIANCE"] = 738561,
+        ["NSE:INFY"] = 408065,
+        ["NSE:TCS"] = 2953217,
+        ["NSE:SBIN"] = 779521,
+        ["NSE:HDFCBANK"] = 341249
+    };
+
+    private static string MapKiteInterval(string interval) => interval switch
+    {
+        "5m" => "5minute",
+        "15m" => "15minute",
+        "1H" => "60minute",
+        "1D" => "day",
+        _ => "5minute"
+    };
+
+    private static (DateTime From, DateTime To) GetHistoricalRange(string interval, int count)
+    {
+        var ist = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
+        var to = ist;
+        if (!MarketHours.IsOpen(ist))
+        {
+            to = MarketHours.GetLastSessionClose(ist);
+        }
+
+        var minutes = GetIntervalMinutes(interval) * Math.Max(count + 10, 30);
+        var from = interval == "1D"
+            ? to.AddDays(-(count + 10))
+            : to.AddMinutes(-minutes);
+
+        // Walk back over weekends for daily-ish ranges.
+        while (from.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+            from = from.AddDays(-1);
+
+        return (from, to);
+    }
+
+    private static int GetIntervalMinutes(string interval) => interval switch
+    {
+        "5m" => 5,
+        "15m" => 15,
+        "1H" => 60,
+        "1D" => 1440,
+        _ => 5
+    };
 
     private HttpRequestMessage CreateRequest(HttpMethod method, string endpoint)
     {

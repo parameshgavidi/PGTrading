@@ -8,4 +8,5 @@ public class Candle
     public decimal Low { get; set; }
     public decimal Close { get; set; }
     public long Volume { get; set; }
+    public decimal? SuperTrend { get; set; }
 }
