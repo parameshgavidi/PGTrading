@@ -275,19 +275,16 @@ html, body {
 .trend-badge.sell { background: rgba(255,23,68,0.15); color: var(--sell); }
 
 .chart-area {
-    flex: 1;
     background: #0A0A0A;
     border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 300px;
     position: relative;
+    height: 340px;
+    overflow: hidden;
 }
 
-.chart-area.large { min-height: 450px; }
+.chart-area.large { height: 520px; }
 
-.chart-area canvas { max-width: 100%; cursor: crosshair; }
+.chart-area canvas { display: block; cursor: crosshair; }
 
 .chart-zoom-controls {
     position: absolute;
