@@ -10,6 +10,7 @@
     [Parameter] public string CanvasId { get; set; } = "priceChart";
     [Parameter] public List<Candle> Candles { get; set; } = new();
     [Parameter] public int ChartVersion { get; set; }
+    [Parameter] public string Timeframe { get; set; } = "5m";
     [Parameter] public string CssClass { get; set; } = string.Empty;
     [Parameter] public int Width { get; set; } = 800;
     [Parameter] public int Height { get; set; } = 350;
@@ -29,6 +30,7 @@
     {
         var payload = Candles.Select(c => new
         {
+            time = c.Timestamp.ToString("o"),
             open = c.Open,
             high = c.High,
             low = c.Low,
@@ -38,7 +40,7 @@
 
         try
         {
-            await JS.InvokeVoidAsync("pgOneChart.drawCandlestickChart", CanvasId, payload);
+            await JS.InvokeVoidAsync("pgOneChart.drawCandlestickChart", CanvasId, payload, Timeframe);
         }
         catch
         {

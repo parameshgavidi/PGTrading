@@ -71,7 +71,8 @@ public class DashboardViewModel : INotifyPropertyChanged
 
     private async Task LoadChartAsync()
     {
-        var result = await _marketData.GetCandlesResultAsync("NSE:NIFTY 50", SelectedTimeframe, 60);
+        var count = GetCandleCount(SelectedTimeframe);
+        var result = await _marketData.GetCandlesResultAsync("NSE:NIFTY 50", SelectedTimeframe, count);
         ChartCandles = result.Candles;
         ChartVersion++;
         IsChartFromZerodha = result.IsFromZerodha;
@@ -80,6 +81,17 @@ public class DashboardViewModel : INotifyPropertyChanged
             : result.Error ?? "Demo candle data";
         LastCandleSummary = BuildLastCandleSummary();
     }
+
+    // Show a sensible window per timeframe (an NSE session is ~6h15m):
+    // 5m ≈ 1.5 sessions, 15m ≈ 3 sessions, 1H ≈ 8 sessions, 1D ≈ 3 months.
+    private static int GetCandleCount(string timeframe) => timeframe switch
+    {
+        "5m" => 108,
+        "15m" => 75,
+        "1H" => 60,
+        "1D" => 90,
+        _ => 60
+    };
 
     private string? BuildLastCandleSummary()
     {

@@ -1,6 +1,6 @@
 // Candlestick chart renderer for PG One
 window.pgOneChart = {
-    drawCandlestickChart: function (canvasId, candles) {
+    drawCandlestickChart: function (canvasId, candles, timeframe) {
         const canvas = document.getElementById(canvasId);
         if (!canvas || !candles || candles.length === 0) return;
 
@@ -17,7 +17,7 @@ window.pgOneChart = {
         const ctx = canvas.getContext('2d');
         const width = canvas.width;
         const height = canvas.height;
-        const padding = { top: 20, right: 60, bottom: 30, left: 10 };
+        const padding = { top: 20, right: 62, bottom: 26, left: 10 };
         const chartW = width - padding.left - padding.right;
         const chartH = height - padding.top - padding.bottom;
 
@@ -36,7 +36,7 @@ window.pgOneChart = {
         const toY = (price) => padding.top + ((maxPrice - price) / priceRange) * chartH;
         const toX = (i) => padding.left + (chartW / candles.length) * i + candleWidth / 2;
 
-        // Grid lines
+        // Horizontal grid + price labels
         ctx.strokeStyle = '#1A1A1A';
         ctx.lineWidth = 1;
         for (let i = 0; i <= 4; i++) {
@@ -47,12 +47,37 @@ window.pgOneChart = {
             ctx.stroke();
 
             const price = maxPrice - (priceRange / 4) * i;
-            ctx.fillStyle = '#666';
+            ctx.fillStyle = '#888';
             ctx.font = '10px sans-serif';
             ctx.textAlign = 'left';
-            ctx.fillText(price.toFixed(0), width - padding.right + 4, y + 4);
+            ctx.fillText(price.toFixed(2), width - padding.right + 4, y + 4);
         }
 
+        // X-axis time labels (based on candle timestamps)
+        const labelCount = Math.min(6, candles.length);
+        const step = Math.max(1, Math.floor(candles.length / labelCount));
+        ctx.fillStyle = '#888';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        let lastDay = null;
+        for (let i = 0; i < candles.length; i += step) {
+            const t = candles[i].time ? new Date(candles[i].time) : null;
+            if (!t) continue;
+            const x = toX(i);
+            const day = t.getDate();
+            let label;
+            if (timeframe === '1D') {
+                label = t.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+            } else if (day !== lastDay) {
+                label = t.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+                lastDay = day;
+            } else {
+                label = t.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
+            }
+            ctx.fillText(label, x, height - 8);
+        }
+
+        // Candles
         candles.forEach((candle, i) => {
             const open = Number(candle.open);
             const close = Number(candle.close);
@@ -74,11 +99,11 @@ window.pgOneChart = {
             ctx.fillRect(toX(i) - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
         });
 
-        // SuperTrend overlay — color by close vs SuperTrend
+        // SuperTrend overlay — green when price above ST, red when below
         ctx.lineWidth = 1.5;
         let segment = null;
         const flush = () => {
-            if (!segment || segment.points.length < 2) return;
+            if (!segment || segment.points.length < 2) { segment = null; return; }
             ctx.strokeStyle = segment.color;
             ctx.beginPath();
             segment.points.forEach((p, idx) => {

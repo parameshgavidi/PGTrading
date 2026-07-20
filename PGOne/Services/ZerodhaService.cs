@@ -410,16 +410,19 @@ public class ZerodhaService : IZerodhaService
         var ist = MarketHours.GetIstNow();
         var to = MarketHours.IsOpen(ist) ? ist : MarketHours.GetLastSessionClose(ist);
 
-        // Kite only returns candles during market hours — request enough calendar days
-        // to collect `count` bars for the selected interval.
-        var from = interval switch
+        // ~6.25 trading hours per session. Convert bar count into enough calendar
+        // days (with slack for weekends/holidays) so Kite returns `count` bars.
+        var barsPerDay = interval switch
         {
-            "1D" => to.AddDays(-(count + 20)),
-            "1H" => to.AddDays(-Math.Max(count / 6 + 8, 15)),
-            "15m" => to.AddDays(-Math.Max(count / 25 + 5, 8)),
-            "5m" => to.AddDays(-Math.Max(count / 75 + 3, 5)),
-            _ => to.AddDays(-10)
+            "5m" => 75,
+            "15m" => 25,
+            "1H" => 7,
+            _ => 1
         };
+
+        var from = interval == "1D"
+            ? to.AddDays(-(int)(count * 1.6) - 5)
+            : to.AddDays(-(int)Math.Ceiling(count / (double)barsPerDay * 1.6) - 3);
 
         while (from.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
             from = from.AddDays(-1);
