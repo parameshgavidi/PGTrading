@@ -1,23 +1,103 @@
-// Candlestick chart renderer for PG One
-window.pgOneChart = {
-    drawCandlestickChart: function (canvasId, candles, timeframe) {
+// Candlestick chart renderer for PG One with zoom/pan support.
+window.pgOneChart = (function () {
+    const states = {};
+
+    function num(v) { return v == null ? null : Number(v); }
+
+    function ensureInteractions(canvas, id) {
+        if (canvas.dataset.pgBound === '1') return;
+        canvas.dataset.pgBound = '1';
+
+        // Mouse wheel: zoom around the cursor.
+        canvas.addEventListener('wheel', function (e) {
+            const st = states[id];
+            if (!st) return;
+            e.preventDefault();
+            const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+            zoomAt(id, factor);
+        }, { passive: false });
+
+        // Drag to pan.
+        let dragging = false, lastX = 0;
+        canvas.addEventListener('mousedown', function (e) { dragging = true; lastX = e.clientX; });
+        window.addEventListener('mouseup', function () { dragging = false; });
+        canvas.addEventListener('mousemove', function (e) {
+            if (!dragging) return;
+            const st = states[id];
+            if (!st) return;
+            const perBar = (canvas.clientWidth - 72) / st.count;
+            const deltaBars = Math.round((e.clientX - lastX) / perBar);
+            if (deltaBars !== 0) {
+                st.offset = clamp(st.offset + deltaBars, 0, st.candles.length - st.count);
+                lastX = e.clientX;
+                render(id);
+            }
+        });
+    }
+
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+    function zoomAt(id, factor) {
+        const st = states[id];
+        if (!st) return;
+        const newCount = clamp(Math.round(st.count / factor), 12, st.candles.length);
+        // Keep the right edge roughly anchored while zooming.
+        st.count = newCount;
+        st.offset = clamp(st.offset, 0, st.candles.length - st.count);
+        render(id);
+    }
+
+    function setData(canvasId, candles, timeframe) {
         const canvas = document.getElementById(canvasId);
         if (!canvas || !candles || candles.length === 0) return;
 
-        const container = canvas.parentElement;
-        if (container) {
-            const width = Math.max(container.clientWidth - 8, 320);
-            const height = Math.max(container.clientHeight - 8, 240);
-            canvas.width = width;
-            canvas.height = height;
-            canvas.style.width = width + 'px';
-            canvas.style.height = height + 'px';
+        const prev = states[canvasId];
+        let count, offset;
+        if (prev && prev.timeframe === timeframe) {
+            count = clamp(prev.count, 12, candles.length);
+            offset = clamp(prev.offset, 0, candles.length - count);
+        } else {
+            count = candles.length; // show everything by default
+            offset = 0;
         }
 
+        states[canvasId] = { canvas, candles, timeframe, count, offset };
+        ensureInteractions(canvas, canvasId);
+        render(canvasId);
+    }
+
+    function zoom(canvasId, factor) { zoomAt(canvasId, factor); }
+
+    function resetZoom(canvasId) {
+        const st = states[canvasId];
+        if (!st) return;
+        st.count = st.candles.length;
+        st.offset = 0;
+        render(canvasId);
+    }
+
+    function render(id) {
+        const st = states[id];
+        if (!st) return;
+        const { canvas, candles, timeframe } = st;
+
+        const container = canvas.parentElement;
+        const cssW = Math.max((container ? container.clientWidth : canvas.clientWidth) - 8, 320);
+        const cssH = Math.max((container ? container.clientHeight : canvas.clientHeight) - 8, 240);
+
+        // High-DPI crisp rendering.
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.round(cssW * dpr);
+        canvas.height = Math.round(cssH * dpr);
+        canvas.style.width = cssW + 'px';
+        canvas.style.height = cssH + 'px';
+
         const ctx = canvas.getContext('2d');
-        const width = canvas.width;
-        const height = canvas.height;
-        const padding = { top: 20, right: 62, bottom: 26, left: 10 };
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const width = cssW;
+        const height = cssH;
+        const padding = { top: 18, right: 68, bottom: 30, left: 12 };
         const chartW = width - padding.left - padding.right;
         const chartH = height - padding.top - padding.bottom;
 
@@ -25,47 +105,53 @@ window.pgOneChart = {
         ctx.fillStyle = '#0A0A0A';
         ctx.fillRect(0, 0, width, height);
 
-        const num = (v) => (v == null ? null : Number(v));
-        const collect = (key) => candles.map(c => num(c[key])).filter(v => v != null && !Number.isNaN(v));
+        // Viewport slice
+        const start = clamp(candles.length - st.offset - st.count, 0, Math.max(0, candles.length - 1));
+        const end = clamp(candles.length - st.offset, 1, candles.length);
+        const view = candles.slice(start, end);
+        if (view.length === 0) return;
 
-        const highs = candles.map(c => Number(c.high));
-        const lows = candles.map(c => Number(c.low));
-        // Include overlays in the price scaling so nothing is clipped.
+        const collect = (key) => view.map(c => num(c[key])).filter(v => v != null && !Number.isNaN(v));
+        const highs = view.map(c => Number(c.high));
+        const lows = view.map(c => Number(c.low));
         const extra = [].concat(collect('superTrend'), collect('keltnerUpperOuter'), collect('keltnerLowerOuter'), collect('vwap'));
         const maxPrice = Math.max(...highs, ...(extra.length ? extra : [Number.MIN_VALUE]));
         const minPrice = Math.min(...lows, ...(extra.length ? extra : [Number.MAX_VALUE]));
-        const priceRange = maxPrice - minPrice || 1;
-        const candleWidth = Math.max(2, chartW / candles.length - 2);
+        const priceRange = (maxPrice - minPrice) || 1;
+        const slot = chartW / view.length;
+        const candleWidth = Math.max(1.5, slot - 2);
 
         const toY = (price) => padding.top + ((maxPrice - price) / priceRange) * chartH;
-        const toX = (i) => padding.left + (chartW / candles.length) * i + candleWidth / 2;
+        const toX = (i) => padding.left + slot * i + slot / 2;
 
         // Horizontal grid + price labels
-        ctx.strokeStyle = '#1A1A1A';
-        ctx.lineWidth = 1;
+        ctx.textBaseline = 'middle';
         for (let i = 0; i <= 4; i++) {
             const y = padding.top + (chartH / 4) * i;
+            ctx.strokeStyle = '#1C1C1C';
+            ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(padding.left, y);
             ctx.lineTo(width - padding.right, y);
             ctx.stroke();
 
             const price = maxPrice - (priceRange / 4) * i;
-            ctx.fillStyle = '#888';
-            ctx.font = '10px sans-serif';
+            ctx.fillStyle = '#B8B8B8';
+            ctx.font = '12px "Segoe UI", sans-serif';
             ctx.textAlign = 'left';
-            ctx.fillText(price.toFixed(2), width - padding.right + 4, y + 4);
+            ctx.fillText(price.toFixed(2), width - padding.right + 6, y);
         }
 
         // X-axis time labels
-        const labelCount = Math.min(6, candles.length);
-        const step = Math.max(1, Math.floor(candles.length / labelCount));
-        ctx.fillStyle = '#888';
-        ctx.font = '10px sans-serif';
+        ctx.textBaseline = 'alphabetic';
+        const labelCount = Math.min(7, view.length);
+        const step = Math.max(1, Math.floor(view.length / labelCount));
+        ctx.fillStyle = '#B8B8B8';
+        ctx.font = '12px "Segoe UI", sans-serif';
         ctx.textAlign = 'center';
         let lastDay = null;
-        for (let i = 0; i < candles.length; i += step) {
-            const t = candles[i].time ? new Date(candles[i].time) : null;
+        for (let i = 0; i < view.length; i += step) {
+            const t = view[i].time ? new Date(view[i].time) : null;
             if (!t) continue;
             const x = toX(i);
             const day = t.getDate();
@@ -78,17 +164,16 @@ window.pgOneChart = {
             } else {
                 label = t.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
             }
-            ctx.fillText(label, x, height - 8);
+            ctx.fillText(label, x, height - 10);
         }
 
-        // Helper: draw a continuous line for a value accessor
         const drawLine = (key, color, dash) => {
             ctx.strokeStyle = color;
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 1.25;
             ctx.setLineDash(dash || []);
             ctx.beginPath();
             let started = false;
-            candles.forEach((c, i) => {
+            view.forEach((c, i) => {
                 const v = num(c[key]);
                 if (v == null || Number.isNaN(v)) { started = false; return; }
                 const x = toX(i), y = toY(v);
@@ -99,18 +184,18 @@ window.pgOneChart = {
             ctx.setLineDash([]);
         };
 
-        // Keltner Channels (drawn behind candles)
+        // Keltner Channels
         drawLine('keltnerUpperOuter', 'rgba(120,144,255,0.55)');
         drawLine('keltnerUpperInner', 'rgba(120,144,255,0.35)');
         drawLine('keltnerMid', 'rgba(120,144,255,0.45)', [4, 3]);
         drawLine('keltnerLowerInner', 'rgba(120,144,255,0.35)');
         drawLine('keltnerLowerOuter', 'rgba(120,144,255,0.55)');
 
-        // VWAP (yellow)
+        // VWAP
         drawLine('vwap', '#D4AF37', [2, 2]);
 
         // Candles
-        candles.forEach((candle, i) => {
+        view.forEach((candle, i) => {
             const open = Number(candle.open);
             const close = Number(candle.close);
             const high = Number(candle.high);
@@ -131,39 +216,32 @@ window.pgOneChart = {
             ctx.fillRect(toX(i) - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
         });
 
-        // SuperTrend overlay — green when price above ST, red when below
-        ctx.lineWidth = 1.5;
+        // SuperTrend overlay — green above, red below
+        ctx.lineWidth = 1.75;
         let segment = null;
         const flush = () => {
             if (!segment || segment.points.length < 2) { segment = null; return; }
             ctx.strokeStyle = segment.color;
             ctx.beginPath();
-            segment.points.forEach((p, idx) => {
-                if (idx === 0) ctx.moveTo(p.x, p.y);
-                else ctx.lineTo(p.x, p.y);
-            });
+            segment.points.forEach((p, idx) => idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
             ctx.stroke();
             segment = null;
         };
-
-        candles.forEach((candle, i) => {
-            const st = candle.superTrend != null ? Number(candle.superTrend) : null;
-            if (st == null || Number.isNaN(st)) {
-                flush();
-                return;
-            }
-
+        view.forEach((candle, i) => {
+            const stv = candle.superTrend != null ? Number(candle.superTrend) : null;
+            if (stv == null || Number.isNaN(stv)) { flush(); return; }
             const close = Number(candle.close);
-            const color = close >= st ? '#00C853' : '#FF1744';
-            const point = { x: toX(i), y: toY(st) };
-
-            if (!segment || segment.color !== color) {
-                flush();
-                segment = { color: color, points: [point] };
-            } else {
-                segment.points.push(point);
-            }
+            const color = close >= stv ? '#00C853' : '#FF1744';
+            const point = { x: toX(i), y: toY(stv) };
+            if (!segment || segment.color !== color) { flush(); segment = { color: color, points: [point] }; }
+            else segment.points.push(point);
         });
         flush();
     }
-};
+
+    return {
+        drawCandlestickChart: setData,
+        zoom: zoom,
+        resetZoom: resetZoom
+    };
+})();
