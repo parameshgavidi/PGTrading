@@ -10,13 +10,12 @@ public interface ILongTermFrameworkService
 
 public class LongTermFrameworkService : ILongTermFrameworkService
 {
-    private const int SuperTrendPeriod = 10;
-    private const double SuperTrendMultiplier = 3.0;
-
     private readonly IMarketDataService _marketData;
     private readonly ISuperTrendService _superTrend;
     private readonly IIndicatorService _indicators;
     private readonly IFundamentalDataService _fundamentals;
+
+    private static LongTermStrategyConfig Framework => FrameworkDefaults.LongTerm;
 
     public IReadOnlyList<string> FrameworkConditions { get; } =
     [
@@ -51,6 +50,7 @@ public class LongTermFrameworkService : ILongTermFrameworkService
 
     public async Task<LongTermEvaluation> EvaluateAsync(string symbol, decimal lastPrice, string exchange = "NSE")
     {
+        var cfg = Framework;
         var instrument = InstrumentMapper.ToZerodhaKey(symbol, exchange);
         var daily = await _marketData.GetCandlesAsync(instrument, "1D", 300);
         var weekly = CandleAggregator.ToWeekly(daily);
@@ -59,11 +59,11 @@ public class LongTermFrameworkService : ILongTermFrameworkService
 
         if (fundamentals is not null)
         {
-            conditions.Add(Condition("Yearly ROE % > 15", fundamentals.RoePercent > 15, $"{fundamentals.RoePercent:0.#}%"));
-            conditions.Add(Condition("Yearly ROCE % > 15", fundamentals.RocePercent > 15, $"{fundamentals.RocePercent:0.#}%"));
-            conditions.Add(Condition("Debt/Equity < 1", fundamentals.DebtEquityRatio < 1, $"{fundamentals.DebtEquityRatio:0.##}"));
-            conditions.Add(Condition("P/B < 5", fundamentals.PriceToBook < 5, $"{fundamentals.PriceToBook:0.##}"));
-            conditions.Add(Condition("Market Cap > 1000 Cr", fundamentals.MarketCapCr > 1000, $"₹{fundamentals.MarketCapCr:N0} Cr"));
+            conditions.Add(Condition("Yearly ROE % > 15", fundamentals.RoePercent > cfg.MinRoePercent, $"{fundamentals.RoePercent:0.#}%"));
+            conditions.Add(Condition("Yearly ROCE % > 15", fundamentals.RocePercent > cfg.MinRocePercent, $"{fundamentals.RocePercent:0.#}%"));
+            conditions.Add(Condition("Debt/Equity < 1", fundamentals.DebtEquityRatio < cfg.MaxDebtEquityRatio, $"{fundamentals.DebtEquityRatio:0.##}"));
+            conditions.Add(Condition("P/B < 5", fundamentals.PriceToBook < cfg.MaxPriceToBook, $"{fundamentals.PriceToBook:0.##}"));
+            conditions.Add(Condition("Market Cap > 1000 Cr", fundamentals.MarketCapCr > cfg.MinMarketCapCr, $"₹{fundamentals.MarketCapCr:N0} Cr"));
         }
         else
         {
@@ -74,31 +74,31 @@ public class LongTermFrameworkService : ILongTermFrameworkService
         {
             var close = daily[^1].Close;
             var yearlyHigh = daily.Max(c => c.High);
-            var lowerBand = yearlyHigh * 0.4m;
-            var upperBand = yearlyHigh * 0.8m;
+            var lowerBand = yearlyHigh * cfg.YearlyHighLowerBand;
+            var upperBand = yearlyHigh * cfg.YearlyHighUpperBand;
             var volumeSma = _indicators.CalculateSmaVolume(daily, 20);
-            var ema20 = _indicators.CalculateEma(daily, 20);
-            var ema50 = _indicators.CalculateEma(daily, 50);
-            var wma20 = _indicators.CalculateWma(daily, 20);
-            var wma50 = _indicators.CalculateWma(daily, 50);
-            var atr = _indicators.CalculateAtr(daily, 14);
-            var plusDi = _indicators.CalculatePlusDi(daily, 14);
-            var (_, dailyStValues) = _superTrend.Calculate(daily, SuperTrendPeriod, SuperTrendMultiplier);
+            var ema20 = _indicators.CalculateEma(daily, cfg.EmaFastPeriod);
+            var ema50 = _indicators.CalculateEma(daily, cfg.EmaSlowPeriod);
+            var wma20 = _indicators.CalculateWma(daily, cfg.WmaFastPeriod);
+            var wma50 = _indicators.CalculateWma(daily, cfg.WmaSlowPeriod);
+            var atr = _indicators.CalculateAtr(daily, cfg.AtrPeriod);
+            var plusDi = _indicators.CalculatePlusDi(daily, cfg.AdxPeriod);
+            var (_, dailyStValues) = _superTrend.Calculate(daily, cfg.SuperTrendPeriod, cfg.SuperTrendMultiplier);
             var dailySuperTrend = dailyStValues.Count > 0 ? dailyStValues[^1] : 0m;
 
             conditions.Add(Condition("Close >= Yearly High × 0.4", close >= lowerBand, $"{close:N2} vs {lowerBand:N2}"));
             conditions.Add(Condition("Close <= Yearly High × 0.8", close <= upperBand, $"{close:N2} vs {upperBand:N2}"));
-            conditions.Add(Condition("SMA(Volume,20) > 1L", volumeSma > 100_000, $"{volumeSma:N0}"));
+            conditions.Add(Condition("SMA(Volume,20) > 1L", volumeSma > cfg.MinVolumeSma, $"{volumeSma:N0}"));
             conditions.Add(Condition("Daily Close > Daily ST(10,3)", close > dailySuperTrend, $"{close:N2} vs {dailySuperTrend:N2}"));
-            conditions.Add(Condition("ADX DI+(14) > 20", plusDi > 20, $"{plusDi:0.#}"));
+            conditions.Add(Condition("ADX DI+(14) > 20", plusDi > cfg.MinPlusDi, $"{plusDi:0.#}"));
             conditions.Add(Condition("EMA(20) > EMA(50)", ema20 > ema50, $"{ema20:N2} > {ema50:N2}"));
             conditions.Add(Condition("WMA(20) > WMA(50)", wma20 > wma50, $"{wma20:N2} > {wma50:N2}"));
-            conditions.Add(Condition("ATR(14) > Close × 0.001", atr > close * 0.001m, $"{atr:N2}"));
+            conditions.Add(Condition("ATR(14) > Close × 0.001", atr > close * cfg.AtrMinCloseRatio, $"{atr:N2}"));
 
             if (weekly.Count > 0)
             {
                 var weeklyClose = weekly[^1].Close;
-                var (_, weeklyStValues) = _superTrend.Calculate(weekly, SuperTrendPeriod, SuperTrendMultiplier);
+                var (_, weeklyStValues) = _superTrend.Calculate(weekly, cfg.SuperTrendPeriod, cfg.SuperTrendMultiplier);
                 var weeklySuperTrend = weeklyStValues.Count > 0 ? weeklyStValues[^1] : 0m;
                 conditions.Add(Condition("Weekly Close > Weekly ST(10,3)", weeklyClose > weeklySuperTrend, $"{weeklyClose:N2} vs {weeklySuperTrend:N2}"));
             }

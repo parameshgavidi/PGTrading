@@ -634,7 +634,7 @@ html, body {
 .reason-item { padding: 4px 0; font-size: 13px; }
 
 /* Strategy */
-.strategy-card { max-width: 500px; }
+.strategy-card { max-width: 560px; }
 .strategy-section { margin-bottom: 24px; }
 .strategy-section h3 { font-size: 16px; margin-bottom: 12px; color: var(--gold); }
 .strategy-group { margin-bottom: 16px; padding: 12px; background: #0A0A0A; border-radius: 6px; }
