@@ -32,17 +32,20 @@ public class SignalService : ISignalService
         var symbol = MapInstrument(instrument);
         var config = _settings.Strategy;
 
-        var candles1H = await _marketData.GetCandlesAsync(symbol, "1H", 100);
-        var candles15M = await _marketData.GetCandlesAsync(symbol, "15m", 100);
-        var candles5M = await _marketData.GetCandlesAsync(symbol, "5m", 100);
+        var candles1H = await _marketData.GetCandlesAsync(symbol, "1H", 200);
+        var candles15M = await _marketData.GetCandlesAsync(symbol, "15m", 200);
+        var candles5M = await _marketData.GetCandlesAsync(symbol, "5m", 200);
+        var candlesDay = await _marketData.GetCandlesAsync(symbol, "1D", 10);
 
         var trend1H = _superTrend.GetTrend(candles1H, config.SuperTrend1HPeriod, config.SuperTrend1HMultiplier);
         var trend15M = _superTrend.GetTrend(candles15M, config.SuperTrend15MPeriod, config.SuperTrend15MMultiplier);
         var trend5M = _superTrend.GetTrend(candles5M, config.SuperTrend5MPeriod, config.SuperTrend5MMultiplier);
 
-        var rsi = _indicators.CalculateRsi(candles5M, config.RsiLength);
-        var adx = _indicators.CalculateAdx(candles5M, config.AdxLength);
-        var cpr = _indicators.GetCprBias(candles5M);
+        // RSI and ADX on the higher (1H) timeframe so they align with the
+        // 1H chart the user compares against (TradingView RSI / ADX-60).
+        var rsi = _indicators.CalculateRsi(candles1H, config.RsiLength);
+        var adx = _indicators.CalculateAdx(candles1H, config.AdxLength);
+        var cpr = _indicators.GetCprBias(candlesDay.Count >= 2 ? candlesDay : candles1H);
 
         var score = CalculateScore(trend1H, trend15M, trend5M, rsi, adx, cpr, config);
 
