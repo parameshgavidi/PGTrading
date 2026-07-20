@@ -16,6 +16,7 @@ public class HoldingsViewModel : INotifyPropertyChanged
     public List<HoldingRow> LongTermItems { get; private set; } = new();
     public bool IsLoading => _holdings.IsLoading;
     public bool IsConnected => _zerodha.IsConnected;
+    public string? ErrorMessage => _holdings.ErrorMessage;
     public IReadOnlyList<string> IntradayFrameworkConditions => _holdings.IntradayFrameworkConditions;
     public IReadOnlyList<string> LongTermFrameworkConditions => _holdings.LongTermFrameworkConditions;
 
@@ -48,6 +49,7 @@ public class HoldingsViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LongTermItems)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsLoading)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsConnected)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ErrorMessage)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IntradaySatisfiedCount)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IntradayReviewCount)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LongTermSatisfiedCount)));

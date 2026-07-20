@@ -8,6 +8,7 @@ public interface IHoldingsService
     List<HoldingRow> IntradayItems { get; }
     List<HoldingRow> LongTermItems { get; }
     bool IsLoading { get; }
+    string? ErrorMessage { get; }
     IReadOnlyList<string> IntradayFrameworkConditions { get; }
     IReadOnlyList<string> LongTermFrameworkConditions { get; }
     Task RefreshAsync();
@@ -26,6 +27,7 @@ public class HoldingsService : IHoldingsService
     public List<HoldingRow> IntradayItems { get; private set; } = new();
     public List<HoldingRow> LongTermItems { get; private set; } = new();
     public bool IsLoading { get; private set; }
+    public string? ErrorMessage { get; private set; }
 
     public IReadOnlyList<string> IntradayFrameworkConditions { get; } =
     [
@@ -59,23 +61,54 @@ public class HoldingsService : IHoldingsService
     public async Task RefreshAsync()
     {
         IsLoading = true;
+        ErrorMessage = null;
         HoldingsUpdated?.Invoke();
 
-        var holdings = await _zerodha.GetHoldingsAsync();
-        var intradayRows = new List<HoldingRow>();
-        var longTermRows = new List<HoldingRow>();
-
-        foreach (var holding in holdings)
+        try
         {
-            intradayRows.Add(await BuildIntradayRowAsync(holding));
-            longTermRows.Add(await BuildLongTermRowAsync(holding));
+            var intradayRows = new List<HoldingRow>();
+            var longTermRows = new List<HoldingRow>();
+
+            var misPositions = await _zerodha.GetPositionsAsync("MIS");
+            foreach (var position in misPositions)
+            {
+                intradayRows.Add(await BuildIntradayRowAsync(ToHolding(position)));
+            }
+
+            var holdings = await _zerodha.GetHoldingsAsync();
+            foreach (var holding in holdings)
+            {
+                longTermRows.Add(await BuildLongTermRowAsync(holding));
+            }
+
+            IntradayItems = SortRows(intradayRows);
+            LongTermItems = SortRows(longTermRows);
         }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+            HoldingsUpdated?.Invoke();
+        }
+    }
 
-        IntradayItems = SortRows(intradayRows);
-        LongTermItems = SortRows(longTermRows);
+    private static Holding ToHolding(Position position)
+    {
+        var quantity = Math.Abs(position.Quantity);
 
-        IsLoading = false;
-        HoldingsUpdated?.Invoke();
+        return new Holding
+        {
+            Symbol = position.Symbol,
+            Exchange = position.Exchange,
+            Quantity = quantity,
+            AveragePrice = position.AveragePrice,
+            LastPrice = position.LastPrice,
+            DayChangePercent = 0m,
+            PnL = position.PnL
+        };
     }
 
     private static List<HoldingRow> SortRows(List<HoldingRow> rows) =>
@@ -87,7 +120,8 @@ public class HoldingsService : IHoldingsService
 
     private async Task<HoldingRow> BuildIntradayRowAsync(Holding holding)
     {
-        var analysis = await _signal.AnalyzeAsync(holding.Symbol);
+        var instrument = InstrumentMapper.ToZerodhaKey(holding.Symbol, holding.Exchange);
+        var analysis = await _signal.AnalyzeAsync(instrument);
         var satisfied = IsIntradaySatisfied(analysis);
 
         return CreateRow(
@@ -95,12 +129,15 @@ public class HoldingsService : IHoldingsService
             satisfied,
             GetIntradayStatus(analysis, satisfied),
             analysis.OverallScore,
-            satisfied ? null : await GetIntradayStopLossAsync(holding.Symbol, analysis));
+            satisfied ? null : await GetIntradayStopLossAsync(holding, analysis));
     }
 
     private async Task<HoldingRow> BuildLongTermRowAsync(Holding holding)
     {
-        var evaluation = await _longTermFramework.EvaluateAsync(holding.Symbol, holding.LastPrice);
+        var evaluation = await _longTermFramework.EvaluateAsync(
+            holding.Symbol,
+            holding.LastPrice,
+            holding.Exchange);
 
         return CreateRow(
             holding,
@@ -178,12 +215,12 @@ public class HoldingsService : IHoldingsService
         return "Wait for alignment";
     }
 
-    private async Task<string> GetIntradayStopLossAsync(string symbol, MultiTimeframeAnalysis analysis)
+    private async Task<string> GetIntradayStopLossAsync(Holding holding, MultiTimeframeAnalysis analysis)
     {
         if (analysis.WaitForReversal)
             return $"Review — {analysis.ReversalReason}";
 
-        var instrument = InstrumentMapper.ToZerodhaKey(symbol);
+        var instrument = InstrumentMapper.ToZerodhaKey(holding.Symbol, holding.Exchange);
         var config = _settings.Strategy;
         var candles5M = await _marketData.GetCandlesAsync(instrument, "5m", 200);
 

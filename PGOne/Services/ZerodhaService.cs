@@ -19,7 +19,7 @@ public interface IZerodhaService
     Task<List<Candle>> GetHistoricalCandlesAsync(string instrument, string interval, int count = 100);
     Task<CandleSeriesResult> GetHistoricalCandlesResultAsync(string instrument, string interval, int count = 100);
     Task<Dictionary<string, decimal>> GetQuotesAsync(string[] instruments);
-    Task<List<Position>> GetPositionsAsync();
+    Task<List<Position>> GetPositionsAsync(string? product = null);
     Task<List<Holding>> GetHoldingsAsync();
     Task<List<Order>> GetOrdersAsync();
     Task<string?> PlaceOrderAsync(string exchange, string tradingsymbol, string transactionType, int quantity, string orderType, decimal? price = null);
@@ -264,7 +264,7 @@ public class ZerodhaService : IZerodhaService
         }
     }
 
-    public async Task<List<Position>> GetPositionsAsync()
+    public async Task<List<Position>> GetPositionsAsync(string? product = null)
     {
         if (!IsConnected)
             return new List<Position>();
@@ -284,17 +284,27 @@ public class ZerodhaService : IZerodhaService
 
             foreach (var item in net.EnumerateArray())
             {
-                if (item.GetProperty("quantity").GetInt32() == 0) continue;
+                var quantity = item.GetProperty("quantity").GetInt32();
+                if (quantity == 0)
+                    continue;
+
+                var itemProduct = item.GetProperty("product").GetString() ?? "";
+                if (product is not null
+                    && !string.Equals(itemProduct, product, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
 
                 positions.Add(new Position
                 {
                     Symbol = item.GetProperty("tradingsymbol").GetString() ?? "",
-                    Instrument = item.GetProperty("exchange").GetString() ?? "",
-                    Quantity = item.GetProperty("quantity").GetInt32(),
+                    Exchange = item.GetProperty("exchange").GetString() ?? "NSE",
+                    Product = itemProduct,
+                    Quantity = quantity,
                     AveragePrice = item.GetProperty("average_price").GetDecimal(),
                     LastPrice = item.GetProperty("last_price").GetDecimal(),
                     PnL = item.GetProperty("pnl").GetDecimal(),
-                    Side = item.GetProperty("quantity").GetInt32() > 0 ? TrendDirection.Buy : TrendDirection.Sell
+                    Side = quantity > 0 ? TrendDirection.Buy : TrendDirection.Sell
                 });
             }
 
@@ -318,7 +328,11 @@ public class ZerodhaService : IZerodhaService
             var json = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-                return GetDemoHoldings();
+            {
+                var error = TryReadKiteError(json)
+                    ?? $"Holdings API failed (HTTP {(int)response.StatusCode}).";
+                throw new InvalidOperationException(error);
+            }
 
             using var doc = JsonDocument.Parse(json);
             var holdings = new List<Holding>();
@@ -326,7 +340,12 @@ public class ZerodhaService : IZerodhaService
             foreach (var item in doc.RootElement.GetProperty("data").EnumerateArray())
             {
                 var quantity = item.GetProperty("quantity").GetInt32();
-                if (quantity == 0)
+                var t1Quantity = item.TryGetProperty("t1_quantity", out var t1) ? t1.GetInt32() : 0;
+                var collateralQuantity = item.TryGetProperty("collateral_quantity", out var collateral)
+                    ? collateral.GetInt32()
+                    : 0;
+                var effectiveQuantity = quantity + t1Quantity + collateralQuantity;
+                if (effectiveQuantity == 0)
                     continue;
 
                 var averagePrice = item.GetProperty("average_price").GetDecimal();
@@ -339,7 +358,7 @@ public class ZerodhaService : IZerodhaService
                 {
                     Symbol = item.GetProperty("tradingsymbol").GetString() ?? "",
                     Exchange = item.GetProperty("exchange").GetString() ?? "NSE",
-                    Quantity = quantity,
+                    Quantity = effectiveQuantity,
                     AveragePrice = averagePrice,
                     LastPrice = lastPrice,
                     DayChangePercent = dayChangePercent,
@@ -347,11 +366,15 @@ public class ZerodhaService : IZerodhaService
                 });
             }
 
-            return holdings.Count > 0 ? holdings : GetDemoHoldings();
+            return holdings;
         }
-        catch
+        catch (InvalidOperationException)
         {
-            return GetDemoHoldings();
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to load holdings: {ex.Message}", ex);
         }
     }
 

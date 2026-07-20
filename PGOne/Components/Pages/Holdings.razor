@@ -10,25 +10,38 @@
         </div>
 
         <p class="text-secondary">
-            Delivery holdings evaluated against the intraday or long-term trade framework.
+            @if (_activeTab == HoldingsTab.Intraday)
+            {
+                <text>Open MIS (intraday) positions evaluated against the intraday trade framework.</text>
+            }
+            else
+            {
+                <text>Delivery (CNC) holdings evaluated against the long-term Chartink framework.</text>
+            }
             Stocks marked <span class="buy">Up</span> satisfy the active framework; others show a stop-loss level to review.
         </p>
 
         @if (!ViewModel.IsConnected)
         {
             <div class="holdings-banner warning">
-                Showing demo holdings. Connect to Zerodha in Settings for live portfolio data.
+                Showing demo holdings on the Long term tab. Connect to Zerodha in Settings for live portfolio data.
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(ViewModel.ErrorMessage))
+        {
+            <div class="holdings-banner warning">
+                @ViewModel.ErrorMessage
             </div>
         }
 
         <div class="holdings-tabs">
             <button class="holdings-tab @(_activeTab == HoldingsTab.Intraday ? "active" : "")"
                     @onclick="() => SelectTab(HoldingsTab.Intraday)">
-                Intraday
+                Intraday (MIS)
             </button>
             <button class="holdings-tab @(_activeTab == HoldingsTab.LongTerm ? "active" : "")"
                     @onclick="() => SelectTab(HoldingsTab.LongTerm)">
-                Long term
+                Long term (CNC)
             </button>
         </div>
 
@@ -50,11 +63,21 @@
         }
         else if (ActiveItems.Count == 0)
         {
-            <div class="empty-state">No holdings found.</div>
+            <div class="empty-state">
+                @if (_activeTab == HoldingsTab.Intraday)
+                {
+                    <text>No open MIS positions. Intraday tab shows MIS (margin intraday) positions from your Zerodha account.</text>
+                }
+                else
+                {
+                    <text>No delivery holdings found.</text>
+                }
+            </div>
         }
         else
         {
             <div class="holdings-summary">
+                <span class="summary-pill">@ActiveItems.Count total</span>
                 <span class="summary-pill buy">@ActiveSatisfiedCount Up</span>
                 <span class="summary-pill sell">@ActiveReviewCount Need review</span>
             </div>
@@ -63,6 +86,7 @@
                 <thead>
                     <tr>
                         <th>Stock</th>
+                        <th>Exch</th>
                         <th>Qty</th>
                         <th>Avg</th>
                         <th>LTP</th>
@@ -77,6 +101,7 @@
                     {
                         <tr class="@(item.FrameworkSatisfied ? "aligned-row" : "review-row")">
                             <td><strong>@item.Symbol</strong></td>
+                            <td><span class="exchange-badge">@item.Exchange</span></td>
                             <td>@item.Quantity</td>
                             <td>@item.AveragePrice.ToString("N2")</td>
                             <td>@item.LastPrice.ToString("N2")</td>
