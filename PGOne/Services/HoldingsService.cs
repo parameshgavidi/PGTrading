@@ -28,15 +28,8 @@ public class HoldingsService : IHoldingsService
     public bool IsLoading { get; private set; }
     public string? ErrorMessage { get; private set; }
 
-    public IReadOnlyList<string> IntradayFrameworkConditions { get; } =
-    [
-        "1H RSI(28) bias bullish (> 55)",
-        "No reversal guard — RSI < 30 on any timeframe",
-        "ADX(14) on 1H not weak (≥ 18)",
-        "Price above 5m VWAP",
-        "1H SuperTrend bullish + 5m or 15m SuperTrend aligned",
-        "Stop Loss: 5m SuperTrend (or Keltner lower when range-bound)"
-    ];
+    public IReadOnlyList<string> IntradayFrameworkConditions =>
+        IntradayFrameworkEvaluator.Conditions;
 
     public IReadOnlyList<string> LongTermFrameworkConditions =>
         _longTermFramework.FrameworkConditions;
@@ -202,46 +195,11 @@ public class HoldingsService : IHoldingsService
         };
     }
 
-    private static bool IsIntradaySatisfied(MultiTimeframeAnalysis analysis)
-    {
-        if (analysis.WaitForReversal)
-            return false;
+    private static bool IsIntradaySatisfied(MultiTimeframeAnalysis analysis) =>
+        IntradayFrameworkEvaluator.IsSatisfied(analysis);
 
-        if (analysis.RsiBias != TrendDirection.Buy)
-            return false;
-
-        if (analysis.Strength1H == TrendStrength.Weak)
-            return false;
-
-        if (!analysis.AboveVwap)
-            return false;
-
-        return analysis.Trend1H == TrendDirection.Buy
-            && (analysis.Trend5M == TrendDirection.Buy || analysis.Trend15M == TrendDirection.Buy);
-    }
-
-    private static string GetIntradayStatus(MultiTimeframeAnalysis analysis, bool satisfied)
-    {
-        if (satisfied)
-            return "Up";
-
-        if (analysis.WaitForReversal)
-            return "Reversal risk";
-
-        if (analysis.RsiBias == TrendDirection.Sell)
-            return "Bearish";
-
-        if (analysis.IsRangebound)
-            return "Range-bound";
-
-        if (analysis.Strength1H == TrendStrength.Weak)
-            return "Weak trend";
-
-        if (!analysis.AboveVwap)
-            return "Below VWAP";
-
-        return "Wait for alignment";
-    }
+    private static string GetIntradayStatus(MultiTimeframeAnalysis analysis, bool satisfied) =>
+        IntradayFrameworkEvaluator.GetStatus(analysis, satisfied);
 
     private async Task<string> GetIntradayStopLossAsync(Holding holding, MultiTimeframeAnalysis analysis)
     {

@@ -1,49 +1,266 @@
 @page "/watchlist"
 @inject WatchlistViewModel ViewModel
+@implements IDisposable
 
 <div class="page-container">
     <div class="card">
         <div class="card-header">
             <h2>Watchlist</h2>
-            <button class="btn btn-secondary" @onclick="Refresh">Refresh</button>
+            <button class="btn btn-secondary" @onclick="RefreshActiveTabAsync" disabled="@ViewModel.IsLoading">
+                Refresh
+            </button>
         </div>
 
-        <table class="data-table watchlist-table">
-            <thead>
-                <tr>
-                    <th>Symbol</th>
-                    <th>Last Price</th>
-                    <th>Change</th>
-                    <th>Trend</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in ViewModel.Items)
-                {
-                    <tr>
-                        <td>
-                            <strong>@(item.IsFavorite ? "★ " : "")@item.Symbol</strong>
-                        </td>
-                        <td>@item.LastPrice.ToString("N2")</td>
-                        <td class="@(item.Change >= 0 ? "buy" : "sell")">
-                            @(item.Change >= 0 ? "+" : "")@item.Change.ToString("N2") (@item.ChangePercent%)
-                        </td>
-                        <td class="@GetTrendClass(item.Trend)">@item.Trend</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+        <div class="holdings-tabs">
+            <button class="holdings-tab @(_activeTab == WatchlistTab.TopWeight ? "active" : "")"
+                    @onclick="() => SelectTab(WatchlistTab.TopWeight)">
+                Top Nifty weight
+            </button>
+            <button class="holdings-tab @(_activeTab == WatchlistTab.IntradayScan ? "active" : "")"
+                    @onclick="() => SelectTab(WatchlistTab.IntradayScan)">
+                Intraday scan
+            </button>
+            <button class="holdings-tab @(_activeTab == WatchlistTab.TrailingStop ? "active" : "")"
+                    @onclick="() => SelectTab(WatchlistTab.TrailingStop)">
+                Trailing stop loss
+            </button>
+        </div>
+
+        @if (_activeTab == WatchlistTab.TopWeight)
+        {
+            <p class="text-secondary">Static list of top Nifty 50 stocks by approximate index weight.</p>
+
+            @if (ViewModel.IsLoading)
+            {
+                <div class="scanning">Loading top Nifty weightage stocks...</div>
+            }
+            else
+            {
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Symbol</th>
+                            <th>LTP</th>
+                            <th>5m Trend</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in ViewModel.TopWeightageItems)
+                        {
+                            <tr>
+                                <td>@item.Rank</td>
+                                <td><strong>@item.Symbol</strong></td>
+                                <td>@(item.LastPrice > 0 ? item.LastPrice.ToString("N2") : "—")</td>
+                                <td class="@GetTrendClass(item.Trend)">@item.Trend</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        }
+        else if (_activeTab == WatchlistTab.IntradayScan)
+        {
+            <p class="text-secondary">
+                Scans liquid NSE stocks for intraday framework match. Quantity is sized to ~₹5,000 per stock.
+            </p>
+
+            <div class="framework-panel">
+                <div class="framework-panel-title">Intraday Framework Conditions</div>
+                <ul class="framework-conditions">
+                    @foreach (var condition in ViewModel.IntradayFrameworkConditions)
+                    {
+                        <li>@condition</li>
+                    }
+                </ul>
+            </div>
+
+            <div class="button-row">
+                <button class="btn btn-primary" @onclick="ScanIntradayAsync" disabled="@ViewModel.IsScanning">
+                    @(ViewModel.IsScanning ? "Scanning..." : "Scan NSE stocks")
+                </button>
+            </div>
+
+            @if (!string.IsNullOrEmpty(ViewModel.ScanProgressMessage))
+            {
+                <div class="status-message">@ViewModel.ScanProgressMessage</div>
+            }
+
+            @if (!ViewModel.IsConnected)
+            {
+                <div class="holdings-banner warning">Connect to Zerodha in Settings to place MIS orders.</div>
+            }
+
+            @if (ViewModel.IntradayScanItems.Count == 0 && !ViewModel.IsScanning)
+            {
+                <div class="empty-state">Run scan to find stocks matching the intraday framework.</div>
+            }
+            else if (ViewModel.IntradayScanItems.Count > 0)
+            {
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Stock</th>
+                            <th>LTP</th>
+                            <th>Qty (₹5k)</th>
+                            <th>Value</th>
+                            <th>Framework</th>
+                            <th>Score</th>
+                            <th>Order</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in ViewModel.IntradayScanItems)
+                        {
+                            <tr class="aligned-row">
+                                <td><strong>@item.Symbol</strong></td>
+                                <td>@item.LastPrice.ToString("N2")</td>
+                                <td>@item.Quantity</td>
+                                <td>₹@item.OrderValue.ToString("N0")</td>
+                                <td><span class="framework-badge buy">@item.FrameworkStatus</span></td>
+                                <td><span class="score-badge">@item.FrameworkScore%</span></td>
+                                <td>
+                                    <button class="btn btn-primary btn-sm"
+                                            disabled="@(!ViewModel.IsConnected)"
+                                            @onclick="() => PlaceOrderAsync(item)">
+                                        MIS MARKET
+                                    </button>
+                                    @if (!string.IsNullOrEmpty(item.OrderMessage))
+                                    {
+                                        <div class="trailing-detail">@item.OrderMessage</div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        }
+        else
+        {
+            <p class="text-secondary">
+                Monitor open MIS positions. Exit when 5m candle closes through SuperTrend (7, 2.5).
+            </p>
+
+            <div class="framework-panel">
+                <div class="framework-panel-title">Trailing Stop — ST(7, 2.5) on 5m</div>
+                <ul class="framework-conditions">
+                    <li>Long (buy): exit when 5m candle <strong>closes below</strong> ST(7, 2.5)</li>
+                    <li>Short (sell): exit when 5m candle <strong>closes above</strong> ST(7, 2.5)</li>
+                    <li>Uses last completed 5m candle (not the live forming bar)</li>
+                    <li>Enable auto-exit to place MARKET square-off orders on breach</li>
+                </ul>
+                <div class="trailing-stop-controls">
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@ViewModel.IsTrailingStopMonitoring"
+                               @onchange="OnMonitoringChanged" />
+                        Auto-exit on ST breach
+                    </label>
+                    @if (!string.IsNullOrEmpty(ViewModel.TrailingStopStatusMessage))
+                    {
+                        <span class="trailing-stop-status">@ViewModel.TrailingStopStatusMessage</span>
+                    }
+                </div>
+            </div>
+
+            @if (ViewModel.IsLoading)
+            {
+                <div class="scanning">Loading open MIS positions...</div>
+            }
+            else if (ViewModel.TrailingStopItems.Count == 0)
+            {
+                <div class="empty-state">No open MIS positions to trail.</div>
+            }
+            else
+            {
+                <div class="holdings-summary">
+                    <span class="summary-pill">@ViewModel.TrailingStopMonitoringCount open</span>
+                    @if (ViewModel.TrailingStopTriggeredCount > 0)
+                    {
+                        <span class="summary-pill sell">@ViewModel.TrailingStopTriggeredCount exit signal</span>
+                    }
+                    @if (ViewModel.IsTrailingStopMonitoring)
+                    {
+                        <span class="summary-pill buy">Auto-exit on</span>
+                    }
+                </div>
+
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Stock</th>
+                            <th>Exch</th>
+                            <th>Side</th>
+                            <th>Qty</th>
+                            <th>LTP</th>
+                            <th>ST (7, 2.5)</th>
+                            <th>Last 5m close</th>
+                            <th>P&amp;L</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in ViewModel.TrailingStopItems)
+                        {
+                            <tr class="@GetTrailingRowClass(item)">
+                                <td><strong>@item.Symbol</strong></td>
+                                <td><span class="exchange-badge">@item.Exchange</span></td>
+                                <td class="@(item.Side == TrendDirection.Buy ? "buy" : "sell")">@item.Side</td>
+                                <td>@item.Quantity</td>
+                                <td>@item.LastPrice.ToString("N2")</td>
+                                <td>@item.SuperTrendLevel.ToString("N2")</td>
+                                <td>@item.LastClosedPrice.ToString("N2")</td>
+                                <td class="@(item.PnL >= 0 ? "buy" : "sell")">@item.PnL.ToString("N2")</td>
+                                <td>
+                                    <span class="framework-badge @GetTrailingStatusClass(item)">@item.Status</span>
+                                    @if (!string.IsNullOrEmpty(item.Detail))
+                                    {
+                                        <div class="trailing-detail">@item.Detail</div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        }
     </div>
 </div>
 
 @code {
+  private enum WatchlistTab { TopWeight, IntradayScan, TrailingStop }
+
+  private WatchlistTab _activeTab = WatchlistTab.TopWeight;
+
   protected override async Task OnInitializedAsync()
   {
-    await ViewModel.RefreshAsync();
-    ViewModel.PropertyChanged += (_, _) => InvokeAsync(StateHasChanged);
+    ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+    await RefreshActiveTabAsync();
   }
 
-  private async Task Refresh() => await ViewModel.RefreshAsync();
+  private void SelectTab(WatchlistTab tab)
+  {
+    _activeTab = tab;
+    _ = RefreshActiveTabAsync();
+  }
+
+  private async Task RefreshActiveTabAsync() => _activeTab switch
+  {
+    WatchlistTab.TopWeight => await ViewModel.RefreshTopWeightageAsync(),
+    WatchlistTab.IntradayScan when ViewModel.IntradayScanItems.Count == 0 => await Task.CompletedTask,
+    WatchlistTab.IntradayScan => await ViewModel.ScanIntradayAsync(),
+    _ => await ViewModel.RefreshTrailingStopAsync()
+  };
+
+  private async Task ScanIntradayAsync() => await ViewModel.ScanIntradayAsync();
+
+  private async Task PlaceOrderAsync(IntradayScanRow row) => await ViewModel.PlaceMisMarketOrderAsync(row);
+
+  private async Task OnMonitoringChanged(ChangeEventArgs e)
+  {
+    var enabled = e.Value is true;
+    await ViewModel.SetTrailingStopMonitoringAsync(enabled);
+  }
 
   private static string GetTrendClass(TrendDirection trend) => trend switch
   {
@@ -51,4 +268,17 @@
     TrendDirection.Sell => "sell",
     _ => "neutral"
   };
+
+  private static string GetTrailingRowClass(TrailingStopRow item) => item.ExitPlaced
+      ? "closed-row"
+      : item.IsTriggered ? "review-row" : "aligned-row";
+
+  private static string GetTrailingStatusClass(TrailingStopRow item) => item.ExitPlaced
+      ? "neutral"
+      : item.IsTriggered ? "sell" : "buy";
+
+  private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    => InvokeAsync(StateHasChanged);
+
+  public void Dispose() => ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
 }
