@@ -55,7 +55,11 @@ html, body {
 }
 
 .sidebar-logo {
-    display: none;
+    display: block;
+    width: 100%;
+    max-width: 196px;
+    height: auto;
+    margin: 0 auto;
 }
 
 .sidebar-brand {
