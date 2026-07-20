@@ -7,6 +7,7 @@ public interface IMarketDataService
     bool IsMarketOpen { get; }
     Task<List<Candle>> GetCandlesAsync(string instrument, string interval, int count = 100);
     Task<decimal> GetCurrentPriceAsync(string instrument);
+    Task<InstrumentQuote?> GetQuoteAsync(string instrument);
     event Action<string, decimal>? PriceUpdated;
     void StartStreaming();
     void StopStreaming();
@@ -45,6 +46,10 @@ public class MarketDataService : IMarketDataService
     {
         if (_zerodha.IsConnected)
         {
+            var quote = await _zerodha.GetQuoteAsync(instrument);
+            if (quote is { LastPrice: > 0 })
+                return quote.LastPrice;
+
             var price = await _zerodha.GetLtpAsync(instrument);
             if (price > 0)
                 return price;
@@ -52,6 +57,9 @@ public class MarketDataService : IMarketDataService
 
         return 25325.40m;
     }
+
+    public Task<InstrumentQuote?> GetQuoteAsync(string instrument) =>
+        _zerodha.GetQuoteAsync(instrument);
 
     public void StartStreaming()
     {

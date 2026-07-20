@@ -14,6 +14,7 @@ public interface IZerodhaService
     string GetLoginUrl();
     Task<(bool Success, string Message)> GenerateSessionAsync(string requestToken);
     Task<decimal> GetLtpAsync(string instrument);
+    Task<InstrumentQuote?> GetQuoteAsync(string instrument);
     Task<List<Candle>> GetHistoricalCandlesAsync(string instrument, string interval, int count = 100);
     Task<Dictionary<string, decimal>> GetQuotesAsync(string[] instruments);
     Task<List<Position>> GetPositionsAsync();
@@ -125,8 +126,43 @@ public class ZerodhaService : IZerodhaService
 
     public async Task<decimal> GetLtpAsync(string instrument)
     {
-        var quotes = await GetQuotesAsync(new[] { instrument });
-        return quotes.GetValueOrDefault(instrument, 0);
+        var quote = await GetQuoteAsync(instrument);
+        return quote?.LastPrice ?? 0;
+    }
+
+    public async Task<InstrumentQuote?> GetQuoteAsync(string instrument)
+    {
+        if (!IsConnected)
+            return null;
+
+        try
+        {
+            var query = $"i={Uri.EscapeDataString(instrument)}";
+            var request = CreateRequest(HttpMethod.Get, $"/quote?{query}");
+            var response = await _http.SendAsync(request);
+            var json = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.GetProperty("data").TryGetProperty(instrument, out var item))
+                return null;
+
+            var ohlc = item.GetProperty("ohlc");
+            return new InstrumentQuote
+            {
+                LastPrice = item.GetProperty("last_price").GetDecimal(),
+                Open = ohlc.GetProperty("open").GetDecimal(),
+                High = ohlc.GetProperty("high").GetDecimal(),
+                Low = ohlc.GetProperty("low").GetDecimal(),
+                PreviousClose = ohlc.GetProperty("close").GetDecimal()
+            };
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public async Task<List<Candle>> GetHistoricalCandlesAsync(string instrument, string interval, int count = 100)
@@ -349,20 +385,20 @@ public class ZerodhaService : IZerodhaService
 
     private static (DateTime From, DateTime To) GetHistoricalRange(string interval, int count)
     {
-        var ist = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
-            TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
-        var to = ist;
-        if (!MarketHours.IsOpen(ist))
+        var ist = MarketHours.GetIstNow();
+        var to = MarketHours.IsOpen(ist) ? ist : MarketHours.GetLastSessionClose(ist);
+
+        // Kite only returns candles during market hours — request enough calendar days
+        // to collect `count` bars for the selected interval.
+        var from = interval switch
         {
-            to = MarketHours.GetLastSessionClose(ist);
-        }
+            "1D" => to.AddDays(-(count + 20)),
+            "1H" => to.AddDays(-Math.Max(count / 6 + 8, 15)),
+            "15m" => to.AddDays(-Math.Max(count / 25 + 5, 8)),
+            "5m" => to.AddDays(-Math.Max(count / 75 + 3, 5)),
+            _ => to.AddDays(-10)
+        };
 
-        var minutes = GetIntervalMinutes(interval) * Math.Max(count + 10, 30);
-        var from = interval == "1D"
-            ? to.AddDays(-(count + 10))
-            : to.AddMinutes(-minutes);
-
-        // Walk back over weekends for daily-ish ranges.
         while (from.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
             from = from.AddDays(-1);
 

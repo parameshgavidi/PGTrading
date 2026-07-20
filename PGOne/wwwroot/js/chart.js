@@ -27,10 +27,14 @@ window.pgOneChart = {
 
         const highs = candles.map(c => Number(c.high));
         const lows = candles.map(c => Number(c.low));
-        const maxPrice = Math.max(...highs);
-        const minPrice = Math.min(...lows);
+        const stValues = candles.map(c => c.superTrend != null ? Number(c.superTrend) : null).filter(v => v != null && !Number.isNaN(v));
+        const maxPrice = Math.max(...highs, ...(stValues.length ? stValues : [0]));
+        const minPrice = Math.min(...lows, ...(stValues.length ? stValues : [Number.MAX_VALUE]));
         const priceRange = maxPrice - minPrice || 1;
         const candleWidth = Math.max(2, chartW / candles.length - 2);
+
+        const toY = (price) => padding.top + ((maxPrice - price) / priceRange) * chartH;
+        const toX = (i) => padding.left + (chartW / candles.length) * i + candleWidth / 2;
 
         // Grid lines
         ctx.strokeStyle = '#1A1A1A';
@@ -50,7 +54,6 @@ window.pgOneChart = {
         }
 
         candles.forEach((candle, i) => {
-            const x = padding.left + (chartW / candles.length) * i + candleWidth / 2;
             const open = Number(candle.open);
             const close = Number(candle.close);
             const high = Number(candle.high);
@@ -58,42 +61,52 @@ window.pgOneChart = {
             const isUp = close >= open;
             const color = isUp ? '#00C853' : '#FF1744';
 
-            const yHigh = padding.top + ((maxPrice - high) / priceRange) * chartH;
-            const yLow = padding.top + ((maxPrice - low) / priceRange) * chartH;
-            const yOpen = padding.top + ((maxPrice - open) / priceRange) * chartH;
-            const yClose = padding.top + ((maxPrice - close) / priceRange) * chartH;
-
             ctx.strokeStyle = color;
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(x, yHigh);
-            ctx.lineTo(x, yLow);
+            ctx.moveTo(toX(i), toY(high));
+            ctx.lineTo(toX(i), toY(low));
             ctx.stroke();
 
             ctx.fillStyle = color;
-            const bodyTop = Math.min(yOpen, yClose);
-            const bodyHeight = Math.max(1, Math.abs(yClose - yOpen));
-            ctx.fillRect(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
+            const bodyTop = Math.min(toY(open), toY(close));
+            const bodyHeight = Math.max(1, Math.abs(toY(close) - toY(open)));
+            ctx.fillRect(toX(i) - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
         });
 
-        // SuperTrend overlay
-        ctx.strokeStyle = '#2196F3';
+        // SuperTrend overlay — color by close vs SuperTrend
         ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        let started = false;
+        let segment = null;
+        const flush = () => {
+            if (!segment || segment.points.length < 2) return;
+            ctx.strokeStyle = segment.color;
+            ctx.beginPath();
+            segment.points.forEach((p, idx) => {
+                if (idx === 0) ctx.moveTo(p.x, p.y);
+                else ctx.lineTo(p.x, p.y);
+            });
+            ctx.stroke();
+            segment = null;
+        };
+
         candles.forEach((candle, i) => {
             const st = candle.superTrend != null ? Number(candle.superTrend) : null;
-            if (st == null || Number.isNaN(st)) return;
+            if (st == null || Number.isNaN(st)) {
+                flush();
+                return;
+            }
 
-            const x = padding.left + (chartW / candles.length) * i + candleWidth / 2;
-            const y = padding.top + ((maxPrice - st) / priceRange) * chartH;
-            if (!started) {
-                ctx.moveTo(x, y);
-                started = true;
+            const close = Number(candle.close);
+            const color = close >= st ? '#00C853' : '#FF1744';
+            const point = { x: toX(i), y: toY(st) };
+
+            if (!segment || segment.color !== color) {
+                flush();
+                segment = { color: color, points: [point] };
             } else {
-                ctx.lineTo(x, y);
+                segment.points.push(point);
             }
         });
-        if (started) ctx.stroke();
+        flush();
     }
 };
