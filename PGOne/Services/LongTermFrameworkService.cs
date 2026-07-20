@@ -4,7 +4,7 @@ namespace PGOne.Services;
 
 public interface ILongTermFrameworkService
 {
-    Task<LongTermEvaluation> EvaluateAsync(string symbol, decimal lastPrice);
+    Task<LongTermEvaluation> EvaluateAsync(string symbol, decimal lastPrice, string exchange = "NSE");
     IReadOnlyList<string> FrameworkConditions { get; }
 }
 
@@ -49,9 +49,9 @@ public class LongTermFrameworkService : ILongTermFrameworkService
         _fundamentals = fundamentals;
     }
 
-    public async Task<LongTermEvaluation> EvaluateAsync(string symbol, decimal lastPrice)
+    public async Task<LongTermEvaluation> EvaluateAsync(string symbol, decimal lastPrice, string exchange = "NSE")
     {
-        var instrument = InstrumentMapper.ToZerodhaKey(symbol);
+        var instrument = InstrumentMapper.ToZerodhaKey(symbol, exchange);
         var daily = await _marketData.GetCandlesAsync(instrument, "1D", 300);
         var weekly = CandleAggregator.ToWeekly(daily);
         var fundamentals = _fundamentals.GetFundamentals(symbol);
