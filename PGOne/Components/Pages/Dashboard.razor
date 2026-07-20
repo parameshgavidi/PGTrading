@@ -47,6 +47,16 @@
                             @onclick="() => ChangeTimeframe(tf)">@tf</button>
                 }
             </div>
+            @if (!string.IsNullOrEmpty(ViewModel.ChartDataMessage))
+            {
+                <div class="chart-meta @(ViewModel.IsChartFromZerodha ? "zerodha" : "warning")">
+                    @ViewModel.ChartDataMessage
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(ViewModel.LastCandleSummary))
+            {
+                <div class="chart-meta">Last bar: @ViewModel.LastCandleSummary</div>
+            }
         </div>
     </div>
 

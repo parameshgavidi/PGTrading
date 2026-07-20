@@ -23,6 +23,9 @@ public class DashboardViewModel : INotifyPropertyChanged
     public List<Candle> ChartCandles { get; private set; } = new();
     public string SelectedTimeframe { get; set; } = "5m";
     public int ChartVersion { get; private set; }
+    public bool IsChartFromZerodha { get; private set; }
+    public string? ChartDataMessage { get; private set; }
+    public string? LastCandleSummary { get; private set; }
     public bool IsMarketOpen => _marketData.IsMarketOpen;
     public string MarketStatus => IsMarketOpen ? "Market Open" : "Market Closed";
 
@@ -37,8 +40,7 @@ public class DashboardViewModel : INotifyPropertyChanged
 
     public async Task InitializeAsync()
     {
-        ChartCandles = await _marketData.GetCandlesAsync("NSE:NIFTY 50", SelectedTimeframe, 60);
-        ChartVersion++;
+        await LoadChartAsync();
         await UpdatePriceAsync();
         Analysis = await _signal.AnalyzeAsync("NIFTY");
         CurrentSignal = await _signal.GenerateSignalAsync("NIFTY");
@@ -51,8 +53,7 @@ public class DashboardViewModel : INotifyPropertyChanged
     public async Task ChangeTimeframeAsync(string timeframe)
     {
         SelectedTimeframe = timeframe;
-        ChartCandles = await _marketData.GetCandlesAsync("NSE:NIFTY 50", timeframe, 60);
-        ChartVersion++;
+        await LoadChartAsync();
         await UpdatePriceAsync();
         UpdateSelectedTrend();
         Notify();
@@ -60,13 +61,33 @@ public class DashboardViewModel : INotifyPropertyChanged
 
     public async Task RefreshAsync()
     {
-        ChartCandles = await _marketData.GetCandlesAsync("NSE:NIFTY 50", SelectedTimeframe, 60);
-        ChartVersion++;
+        await LoadChartAsync();
         await UpdatePriceAsync();
         Analysis = await _signal.AnalyzeAsync("NIFTY");
         CurrentSignal = await _signal.GenerateSignalAsync("NIFTY");
         UpdateSelectedTrend();
         Notify();
+    }
+
+    private async Task LoadChartAsync()
+    {
+        var result = await _marketData.GetCandlesResultAsync("NSE:NIFTY 50", SelectedTimeframe, 60);
+        ChartCandles = result.Candles;
+        ChartVersion++;
+        IsChartFromZerodha = result.IsFromZerodha;
+        ChartDataMessage = result.IsFromZerodha
+            ? $"Zerodha {SelectedTimeframe} candles ({ChartCandles.Count} bars)"
+            : result.Error ?? "Demo candle data";
+        LastCandleSummary = BuildLastCandleSummary();
+    }
+
+    private string? BuildLastCandleSummary()
+    {
+        if (ChartCandles.Count == 0)
+            return null;
+
+        var last = ChartCandles[^1];
+        return $"{last.Timestamp:dd MMM HH:mm}  O {last.Open:N2}  H {last.High:N2}  L {last.Low:N2}  C {last.Close:N2}";
     }
 
     private void OnPriceUpdated(string instrument, decimal price)
@@ -137,5 +158,8 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NiftyChange)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NiftyChangePercent)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NiftyTrend)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChartFromZerodha)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ChartDataMessage)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LastCandleSummary)));
     }
 }

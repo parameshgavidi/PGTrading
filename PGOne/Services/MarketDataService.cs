@@ -6,6 +6,7 @@ public interface IMarketDataService
 {
     bool IsMarketOpen { get; }
     Task<List<Candle>> GetCandlesAsync(string instrument, string interval, int count = 100);
+    Task<CandleSeriesResult> GetCandlesResultAsync(string instrument, string interval, int count = 100);
     Task<decimal> GetCurrentPriceAsync(string instrument);
     Task<InstrumentQuote?> GetQuoteAsync(string instrument);
     event Action<string, decimal>? PriceUpdated;
@@ -32,14 +33,32 @@ public class MarketDataService : IMarketDataService
 
     public async Task<List<Candle>> GetCandlesAsync(string instrument, string interval, int count = 100)
     {
+        var result = await GetCandlesResultAsync(instrument, interval, count);
+        return result.Candles;
+    }
+
+    public async Task<CandleSeriesResult> GetCandlesResultAsync(string instrument, string interval, int count = 100)
+    {
         if (_zerodha.IsConnected)
         {
-            var historical = await _zerodha.GetHistoricalCandlesAsync(instrument, interval, count);
-            if (historical.Count > 0)
-                return AttachSuperTrend(historical);
+            var result = await _zerodha.GetHistoricalCandlesResultAsync(instrument, interval, count);
+            if (result.IsFromZerodha && result.Candles.Count > 0)
+                return new CandleSeriesResult
+                {
+                    Candles = AttachSuperTrend(result.Candles),
+                    IsFromZerodha = true
+                };
+
+            if (!string.IsNullOrEmpty(result.Error))
+                return result;
         }
 
-        return AttachSuperTrend(await GenerateDemoCandlesAsync(instrument, interval, count));
+        return new CandleSeriesResult
+        {
+            Candles = AttachSuperTrend(await GenerateDemoCandlesAsync(instrument, interval, count)),
+            IsFromZerodha = false,
+            Error = _zerodha.IsConnected ? "Using demo candles because Zerodha historical data was unavailable." : null
+        };
     }
 
     public async Task<decimal> GetCurrentPriceAsync(string instrument)
