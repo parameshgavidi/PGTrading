@@ -382,6 +382,13 @@ html, body {
     flex-shrink: 0;
 }
 
+.dashboard-positions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
 .analysis-panel { flex: 2; }
 .score-panel { flex: 0.5; text-align: center; }
 .signal-panel { flex: 1.5; }

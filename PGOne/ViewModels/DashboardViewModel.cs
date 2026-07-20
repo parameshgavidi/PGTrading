@@ -10,6 +10,8 @@ public class DashboardViewModel : INotifyPropertyChanged
     private readonly IMarketDataService _marketData;
     private readonly ISignalService _signal;
     private readonly IWatchlistService _watchlist;
+    private readonly IZerodhaService _zerodha;
+    private readonly ITrailingStopLossService _trailingStop;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -21,6 +23,9 @@ public class DashboardViewModel : INotifyPropertyChanged
     public Signal CurrentSignal { get; private set; } = new();
     public List<WatchItem> Watchlist { get; private set; } = new();
     public List<Candle> ChartCandles { get; private set; } = new();
+    public List<Position> Positions { get; private set; } = new();
+    public List<TrailingStopRow> TrailingStopItems { get; private set; } = new();
+
     public string SelectedTimeframe { get; set; } = "5m";
     public string SelectedSymbol { get; private set; } = "NIFTY";
     public string SelectedInstrument { get; private set; } = "NSE:NIFTY 50";
@@ -32,13 +37,30 @@ public class DashboardViewModel : INotifyPropertyChanged
     public bool IsMarketOpen => _marketData.IsMarketOpen;
     public string MarketStatus => IsMarketOpen ? "Market Open" : "Market Closed";
 
-    public DashboardViewModel(IMarketDataService marketData, ISignalService signal, IWatchlistService watchlist)
+    public bool IsConnected => _zerodha.IsConnected;
+    public bool IsPositionsLoading { get; private set; }
+    public bool IsTrailingStopLoading => _trailingStop.IsLoading;
+    public string? TrailingStopStatusMessage => _trailingStop.StatusMessage;
+    public bool IsTrailingStopMonitoring => _trailingStop.IsMonitoring;
+    public int TrailingStopTriggeredCount => TrailingStopItems.Count(i => i.IsTriggered && !i.ExitPlaced);
+    public int TrailingStopMonitoringCount => TrailingStopItems.Count;
+
+    public DashboardViewModel(
+        IMarketDataService marketData,
+        ISignalService signal,
+        IWatchlistService watchlist,
+        IZerodhaService zerodha,
+        ITrailingStopLossService trailingStop)
     {
         _marketData = marketData;
         _signal = signal;
         _watchlist = watchlist;
+        _zerodha = zerodha;
+        _trailingStop = trailingStop;
+
         _marketData.PriceUpdated += OnPriceUpdated;
         _watchlist.WatchlistUpdated += () => { Watchlist = _watchlist.TopWeightageItems; Notify(); };
+        _trailingStop.Updated += OnTrailingStopUpdated;
     }
 
     public async Task InitializeAsync()
@@ -50,6 +72,9 @@ public class DashboardViewModel : INotifyPropertyChanged
         UpdateSelectedTrend();
         await _watchlist.RefreshTopWeightageAsync();
         Watchlist = _watchlist.TopWeightageItems;
+        await RefreshPositionsAsync();
+        await _trailingStop.RefreshAsync();
+        TrailingStopItems = _trailingStop.Items.ToList();
         Notify();
         _marketData.StartStreaming(SelectedInstrument);
     }
@@ -86,8 +111,35 @@ public class DashboardViewModel : INotifyPropertyChanged
         Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
         CurrentSignal = await _signal.GenerateSignalAsync(SelectedSymbol);
         UpdateSelectedTrend();
+        await RefreshPositionsAsync();
+        await _trailingStop.RefreshAsync();
+        TrailingStopItems = _trailingStop.Items.ToList();
         Notify();
     }
+
+    public async Task RefreshPositionsAsync()
+    {
+        IsPositionsLoading = true;
+        Notify(nameof(IsPositionsLoading));
+
+        try
+        {
+            Positions = IsConnected
+                ? await _zerodha.GetPositionsAsync()
+                : new List<Position>();
+        }
+        finally
+        {
+            IsPositionsLoading = false;
+            Notify(nameof(Positions));
+            Notify(nameof(IsPositionsLoading));
+        }
+    }
+
+    public async Task RefreshTrailingStopAsync() => await _trailingStop.RefreshAsync();
+
+    public async Task SetTrailingStopMonitoringAsync(bool enabled)
+        => await _trailingStop.SetMonitoringAsync(enabled);
 
     private async Task LoadChartAsync()
     {
@@ -102,8 +154,6 @@ public class DashboardViewModel : INotifyPropertyChanged
         LastCandleSummary = BuildLastCandleSummary();
     }
 
-    // Show a sensible window per timeframe (an NSE session is ~6h15m):
-    // 5m ≈ 1.5 sessions, 15m ≈ 3 sessions, 1H ≈ 8 sessions, 1D ≈ 3 months.
     private static int GetCandleCount(string timeframe) => timeframe switch
     {
         "5m" => 108,
@@ -129,6 +179,12 @@ public class DashboardViewModel : INotifyPropertyChanged
 
         NiftyPrice = price;
         Notify(nameof(NiftyPrice));
+    }
+
+    private void OnTrailingStopUpdated()
+    {
+        TrailingStopItems = _trailingStop.Items.ToList();
+        Notify();
     }
 
     private async Task UpdatePriceAsync()
@@ -179,7 +235,9 @@ public class DashboardViewModel : INotifyPropertyChanged
     private void Notify([CallerMemberName] string? property = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
-        if (property != null) return;
+        if (property != null)
+            return;
+
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedSymbol)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedDisplayName)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedInstrument)));
@@ -196,5 +254,14 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChartFromZerodha)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ChartDataMessage)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LastCandleSummary)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Positions)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TrailingStopItems)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsConnected)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsPositionsLoading)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsTrailingStopLoading)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TrailingStopStatusMessage)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsTrailingStopMonitoring)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TrailingStopTriggeredCount)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TrailingStopMonitoringCount)));
     }
 }
