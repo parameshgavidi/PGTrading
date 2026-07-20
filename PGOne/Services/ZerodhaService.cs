@@ -20,6 +20,7 @@ public interface IZerodhaService
     Task<CandleSeriesResult> GetHistoricalCandlesResultAsync(string instrument, string interval, int count = 100);
     Task<Dictionary<string, decimal>> GetQuotesAsync(string[] instruments);
     Task<List<Position>> GetPositionsAsync(string? product = null);
+    Task<List<Position>> GetMisPositionsAsync(bool includeClosed = true);
     Task<List<Holding>> GetHoldingsAsync();
     Task<List<Order>> GetOrdersAsync();
     Task<string?> PlaceOrderAsync(string exchange, string tradingsymbol, string transactionType, int quantity, string orderType, decimal? price = null);
@@ -309,6 +310,79 @@ public class ZerodhaService : IZerodhaService
             }
 
             return positions;
+        }
+        catch
+        {
+            return new List<Position>();
+        }
+    }
+
+    public async Task<List<Position>> GetMisPositionsAsync(bool includeClosed = true)
+    {
+        if (!IsConnected)
+            return new List<Position>();
+
+        try
+        {
+            var request = CreateRequest(HttpMethod.Get, "/portfolio/positions");
+            var response = await _http.SendAsync(request);
+            var json = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                return new List<Position>();
+
+            using var doc = JsonDocument.Parse(json);
+            var day = doc.RootElement.GetProperty("data").GetProperty("day");
+            var positions = new List<Position>();
+
+            foreach (var item in day.EnumerateArray())
+            {
+                var itemProduct = item.GetProperty("product").GetString() ?? "";
+                if (!string.Equals(itemProduct, "MIS", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var quantity = item.GetProperty("quantity").GetInt32();
+                var dayBuyQuantity = item.TryGetProperty("day_buy_quantity", out var dayBuy)
+                    ? dayBuy.GetInt32()
+                    : 0;
+                var daySellQuantity = item.TryGetProperty("day_sell_quantity", out var daySell)
+                    ? daySell.GetInt32()
+                    : 0;
+                var hasDayActivity = dayBuyQuantity > 0 || daySellQuantity > 0;
+
+                if (quantity == 0 && !hasDayActivity)
+                    continue;
+
+                var isClosed = quantity == 0 && hasDayActivity;
+                if (!includeClosed && isClosed)
+                    continue;
+
+                positions.Add(new Position
+                {
+                    Symbol = item.GetProperty("tradingsymbol").GetString() ?? "",
+                    Exchange = item.GetProperty("exchange").GetString() ?? "NSE",
+                    Product = itemProduct,
+                    Quantity = quantity,
+                    AveragePrice = item.GetProperty("average_price").GetDecimal(),
+                    LastPrice = item.GetProperty("last_price").GetDecimal(),
+                    PnL = item.GetProperty("pnl").GetDecimal(),
+                    Side = quantity > 0
+                        ? TrendDirection.Buy
+                        : quantity < 0
+                            ? TrendDirection.Sell
+                            : dayBuyQuantity >= daySellQuantity
+                                ? TrendDirection.Buy
+                                : TrendDirection.Sell,
+                    IsClosed = isClosed,
+                    DayBuyQuantity = dayBuyQuantity,
+                    DaySellQuantity = daySellQuantity
+                });
+            }
+
+            return positions
+                .OrderBy(p => p.IsClosed)
+                .ThenBy(p => p.Symbol)
+                .ToList();
         }
         catch
         {

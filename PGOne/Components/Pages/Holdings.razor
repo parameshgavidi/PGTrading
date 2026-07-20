@@ -12,7 +12,7 @@
         <p class="text-secondary">
             @if (_activeTab == HoldingsTab.Intraday)
             {
-                <text>Open MIS (intraday) positions evaluated against the intraday trade framework.</text>
+                <text>MIS (intraday) positions for today — open and closed (squared-off). Open positions are evaluated against the intraday trade framework.</text>
             }
             else
             {
@@ -66,7 +66,7 @@
             <div class="empty-state">
                 @if (_activeTab == HoldingsTab.Intraday)
                 {
-                    <text>No open MIS positions. Intraday tab shows MIS (margin intraday) positions from your Zerodha account.</text>
+                    <text>No MIS positions today. Intraday tab shows open and closed MIS positions from your Zerodha account.</text>
                 }
                 else
                 {
@@ -78,6 +78,11 @@
         {
             <div class="holdings-summary">
                 <span class="summary-pill">@ActiveItems.Count total</span>
+                @if (_activeTab == HoldingsTab.Intraday)
+                {
+                    <span class="summary-pill">@ViewModel.IntradayOpenCount open</span>
+                    <span class="summary-pill">@ViewModel.IntradayClosedCount closed</span>
+                }
                 <span class="summary-pill buy">@ActiveSatisfiedCount Up</span>
                 <span class="summary-pill sell">@ActiveReviewCount Need review</span>
             </div>
@@ -93,32 +98,37 @@
                         <th>Today %</th>
                         <th>Overall %</th>
                         <th>Framework</th>
-                        <th>Stop Loss</th>
+                        <th>@(_activeTab == HoldingsTab.Intraday ? "P&L / Stop Loss" : "Stop Loss")</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var item in ActiveItems)
                     {
-                        <tr class="@(item.FrameworkSatisfied ? "aligned-row" : "review-row")">
+                        <tr class="@GetRowClass(item)">
                             <td><strong>@item.Symbol</strong></td>
                             <td><span class="exchange-badge">@item.Exchange</span></td>
-                            <td>@item.Quantity</td>
+                            <td>@(item.IsClosed ? "Sq off" : item.Quantity.ToString())</td>
                             <td>@item.AveragePrice.ToString("N2")</td>
                             <td>@item.LastPrice.ToString("N2")</td>
                             <td class="@(item.DayChangePercent >= 0 ? "buy" : "sell")">
-                                @(item.DayChangePercent >= 0 ? "+" : "")@item.DayChangePercent.ToString("N2")%
+                                @(item.IsClosed ? "—" : $"{(item.DayChangePercent >= 0 ? "+" : "")}{item.DayChangePercent:N2}%")
                             </td>
                             <td class="@(item.OverallChangePercent >= 0 ? "buy" : "sell")">
-                                @(item.OverallChangePercent >= 0 ? "+" : "")@item.OverallChangePercent.ToString("N2")%
+                                @(item.IsClosed ? "—" : $"{(item.OverallChangePercent >= 0 ? "+" : "")}{item.OverallChangePercent:N2}%")
                             </td>
                             <td>
-                                <span class="framework-badge @(item.FrameworkSatisfied ? "buy" : "sell")">
+                                <span class="framework-badge @GetFrameworkClass(item)">
                                     @item.FrameworkStatus
                                 </span>
-                                <span class="score-badge">@item.FrameworkScore%</span>
+                                @if (!item.IsClosed)
+                                {
+                                    <span class="score-badge">@item.FrameworkScore%</span>
+                                }
                             </td>
-                            <td class="@(item.FrameworkSatisfied ? "neutral" : "sell")">
-                                @(item.StopLossRecommendation ?? "—")
+                            <td class="@GetStopLossClass(item)">
+                                @(item.IsClosed
+                                    ? $"{(item.PnL >= 0 ? "+" : "")}{item.PnL:N2}"
+                                    : item.StopLossRecommendation ?? "—")
                             </td>
                         </tr>
                     }
@@ -164,6 +174,18 @@
   }
 
   private async Task RefreshAsync() => await ViewModel.RefreshAsync();
+
+  private static string GetRowClass(HoldingRow item) => item.IsClosed
+      ? "closed-row"
+      : item.FrameworkSatisfied ? "aligned-row" : "review-row";
+
+  private static string GetFrameworkClass(HoldingRow item) => item.IsClosed
+      ? "neutral"
+      : item.FrameworkSatisfied ? "buy" : "sell";
+
+  private static string GetStopLossClass(HoldingRow item) => item.IsClosed
+      ? item.PnL >= 0 ? "buy" : "sell"
+      : item.FrameworkSatisfied ? "neutral" : "sell";
 
   private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     => InvokeAsync(StateHasChanged);

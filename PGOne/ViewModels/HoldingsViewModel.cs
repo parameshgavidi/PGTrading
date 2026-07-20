@@ -20,8 +20,10 @@ public class HoldingsViewModel : INotifyPropertyChanged
     public IReadOnlyList<string> IntradayFrameworkConditions => _holdings.IntradayFrameworkConditions;
     public IReadOnlyList<string> LongTermFrameworkConditions => _holdings.LongTermFrameworkConditions;
 
-    public int IntradaySatisfiedCount => IntradayItems.Count(i => i.FrameworkSatisfied);
-    public int IntradayReviewCount => IntradayItems.Count(i => !i.FrameworkSatisfied);
+    public int IntradaySatisfiedCount => IntradayItems.Count(i => !i.IsClosed && i.FrameworkSatisfied);
+    public int IntradayReviewCount => IntradayItems.Count(i => !i.IsClosed && !i.FrameworkSatisfied);
+    public int IntradayOpenCount => IntradayItems.Count(i => !i.IsClosed);
+    public int IntradayClosedCount => IntradayItems.Count(i => i.IsClosed);
     public int LongTermSatisfiedCount => LongTermItems.Count(i => i.FrameworkSatisfied);
     public int LongTermReviewCount => LongTermItems.Count(i => !i.FrameworkSatisfied);
 
@@ -52,6 +54,8 @@ public class HoldingsViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ErrorMessage)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IntradaySatisfiedCount)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IntradayReviewCount)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IntradayOpenCount)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IntradayClosedCount)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LongTermSatisfiedCount)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LongTermReviewCount)));
     }

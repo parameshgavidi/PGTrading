@@ -10,6 +10,9 @@ public class Position
     public decimal LastPrice { get; set; }
     public decimal PnL { get; set; }
     public TrendDirection Side { get; set; }
+    public bool IsClosed { get; set; }
+    public int DayBuyQuantity { get; set; }
+    public int DaySellQuantity { get; set; }
 
     /// <summary>Backward-compatible alias for <see cref="Exchange"/>.</summary>
     public string Instrument

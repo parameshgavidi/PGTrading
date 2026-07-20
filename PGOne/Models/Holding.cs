@@ -24,4 +24,6 @@ public class HoldingRow
     public string FrameworkStatus { get; set; } = string.Empty;
     public string? StopLossRecommendation { get; set; }
     public int FrameworkScore { get; set; }
+    public bool IsClosed { get; set; }
+    public decimal PnL { get; set; }
 }
