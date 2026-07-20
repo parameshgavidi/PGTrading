@@ -526,6 +526,8 @@ html, body {
 .legend-color.sell { background: var(--sell); }
 .legend-color.candle-up { background: var(--buy); }
 .legend-color.candle-down { background: var(--sell); }
+.legend-color.keltner { background: rgba(120,144,255,0.7); }
+.legend-color.vwap { background: var(--gold); }
 
 code {
     background: #333;

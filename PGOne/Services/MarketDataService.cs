@@ -18,15 +18,23 @@ public class MarketDataService : IMarketDataService
 {
     private readonly IZerodhaService _zerodha;
     private readonly ISuperTrendService _superTrend;
+    private readonly IIndicatorService _indicators;
+    private readonly ISettingsService _settings;
     private System.Timers.Timer? _timer;
     private readonly Random _random = new(42);
 
     public event Action<string, decimal>? PriceUpdated;
 
-    public MarketDataService(IZerodhaService zerodha, ISuperTrendService superTrend)
+    public MarketDataService(
+        IZerodhaService zerodha,
+        ISuperTrendService superTrend,
+        IIndicatorService indicators,
+        ISettingsService settings)
     {
         _zerodha = zerodha;
         _superTrend = superTrend;
+        _indicators = indicators;
+        _settings = settings;
     }
 
     public bool IsMarketOpen => MarketHours.IsOpen();
@@ -49,10 +57,10 @@ public class MarketDataService : IMarketDataService
             var result = await _zerodha.GetHistoricalCandlesResultAsync(instrument, interval, count + WarmupBars);
             if (result.IsFromZerodha && result.Candles.Count > 0)
             {
-                var withSt = AttachSuperTrend(result.Candles);
-                var display = withSt.Count > count
-                    ? withSt.GetRange(withSt.Count - count, count)
-                    : withSt;
+                var withIndicators = AttachIndicators(result.Candles, interval);
+                var display = withIndicators.Count > count
+                    ? withIndicators.GetRange(withIndicators.Count - count, count)
+                    : withIndicators;
 
                 return new CandleSeriesResult
                 {
@@ -67,7 +75,7 @@ public class MarketDataService : IMarketDataService
 
         return new CandleSeriesResult
         {
-            Candles = AttachSuperTrend(await GenerateDemoCandlesAsync(instrument, interval, count)),
+            Candles = AttachIndicators(await GenerateDemoCandlesAsync(instrument, interval, count), interval),
             IsFromZerodha = false,
             Error = _zerodha.IsConnected ? "Using demo candles because Zerodha historical data was unavailable." : null
         };
@@ -114,6 +122,22 @@ public class MarketDataService : IMarketDataService
     {
         _timer?.Stop();
         _timer?.Dispose();
+    }
+
+    private List<Candle> AttachIndicators(List<Candle> candles, string interval)
+    {
+        AttachSuperTrend(candles);
+
+        // Keltner Channels + VWAP are used for the 5m range-bound playbook.
+        if (interval == "5m")
+        {
+            var cfg = _settings.Strategy;
+            _indicators.ApplyKeltner(candles, cfg.KeltnerEmaLength, cfg.KeltnerAtrLength,
+                cfg.KeltnerMultiplierInner, cfg.KeltnerMultiplierOuter);
+            _indicators.ApplyVwap(candles);
+        }
+
+        return candles;
     }
 
     private List<Candle> AttachSuperTrend(List<Candle> candles)

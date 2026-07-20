@@ -25,11 +25,15 @@ window.pgOneChart = {
         ctx.fillStyle = '#0A0A0A';
         ctx.fillRect(0, 0, width, height);
 
+        const num = (v) => (v == null ? null : Number(v));
+        const collect = (key) => candles.map(c => num(c[key])).filter(v => v != null && !Number.isNaN(v));
+
         const highs = candles.map(c => Number(c.high));
         const lows = candles.map(c => Number(c.low));
-        const stValues = candles.map(c => c.superTrend != null ? Number(c.superTrend) : null).filter(v => v != null && !Number.isNaN(v));
-        const maxPrice = Math.max(...highs, ...(stValues.length ? stValues : [0]));
-        const minPrice = Math.min(...lows, ...(stValues.length ? stValues : [Number.MAX_VALUE]));
+        // Include overlays in the price scaling so nothing is clipped.
+        const extra = [].concat(collect('superTrend'), collect('keltnerUpperOuter'), collect('keltnerLowerOuter'), collect('vwap'));
+        const maxPrice = Math.max(...highs, ...(extra.length ? extra : [Number.MIN_VALUE]));
+        const minPrice = Math.min(...lows, ...(extra.length ? extra : [Number.MAX_VALUE]));
         const priceRange = maxPrice - minPrice || 1;
         const candleWidth = Math.max(2, chartW / candles.length - 2);
 
@@ -53,7 +57,7 @@ window.pgOneChart = {
             ctx.fillText(price.toFixed(2), width - padding.right + 4, y + 4);
         }
 
-        // X-axis time labels (based on candle timestamps)
+        // X-axis time labels
         const labelCount = Math.min(6, candles.length);
         const step = Math.max(1, Math.floor(candles.length / labelCount));
         ctx.fillStyle = '#888';
@@ -76,6 +80,34 @@ window.pgOneChart = {
             }
             ctx.fillText(label, x, height - 8);
         }
+
+        // Helper: draw a continuous line for a value accessor
+        const drawLine = (key, color, dash) => {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.setLineDash(dash || []);
+            ctx.beginPath();
+            let started = false;
+            candles.forEach((c, i) => {
+                const v = num(c[key]);
+                if (v == null || Number.isNaN(v)) { started = false; return; }
+                const x = toX(i), y = toY(v);
+                if (!started) { ctx.moveTo(x, y); started = true; }
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+            ctx.setLineDash([]);
+        };
+
+        // Keltner Channels (drawn behind candles)
+        drawLine('keltnerUpperOuter', 'rgba(120,144,255,0.55)');
+        drawLine('keltnerUpperInner', 'rgba(120,144,255,0.35)');
+        drawLine('keltnerMid', 'rgba(120,144,255,0.45)', [4, 3]);
+        drawLine('keltnerLowerInner', 'rgba(120,144,255,0.35)');
+        drawLine('keltnerLowerOuter', 'rgba(120,144,255,0.55)');
+
+        // VWAP (yellow)
+        drawLine('vwap', '#D4AF37', [2, 2]);
 
         // Candles
         candles.forEach((candle, i) => {

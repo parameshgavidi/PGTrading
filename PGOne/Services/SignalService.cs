@@ -41,13 +41,38 @@ public class SignalService : ISignalService
         var trend15M = _superTrend.GetTrend(candles15M, config.SuperTrend15MPeriod, config.SuperTrend15MMultiplier);
         var trend5M = _superTrend.GetTrend(candles5M, config.SuperTrend5MPeriod, config.SuperTrend5MMultiplier);
 
-        // RSI and ADX on the higher (1H) timeframe so they align with the
-        // 1H chart the user compares against (TradingView RSI / ADX-60).
-        var rsi = _indicators.CalculateRsi(candles1H, config.RsiLength);
+        // Framework: 1H directional bias from RSI(28).
+        var rsiTrend = _indicators.CalculateRsi(candles1H, config.RsiTrendLength);
+        var rsiBias = rsiTrend > config.RsiBullThreshold ? TrendDirection.Buy
+            : rsiTrend < config.RsiBearThreshold ? TrendDirection.Sell
+            : TrendDirection.Neutral;
+
+        // ADX(14) on 1H → trend strength band.
         var adx = _indicators.CalculateAdx(candles1H, config.AdxLength);
+        var strength1H = adx < config.AdxWeakThreshold ? TrendStrength.Weak
+            : adx < config.AdxStrongThreshold ? TrendStrength.Moderate
+            : TrendStrength.Strong;
+
+        // RSI(14) shown in the panel + per-timeframe RSI for the reversal guard.
+        var rsi = _indicators.CalculateRsi(candles1H, config.RsiLength);
+        var rsi5M = _indicators.CalculateRsi(candles5M, config.RsiLength);
+        var rsi15M = _indicators.CalculateRsi(candles15M, config.RsiLength);
+
+        // Reversal guard: any timeframe RSI below the reversal threshold.
+        string? reversalReason = null;
+        if (rsi5M < config.RsiReversalThreshold) reversalReason = $"5m RSI {rsi5M:0} < {config.RsiReversalThreshold:0}";
+        else if (rsi15M < config.RsiReversalThreshold) reversalReason = $"15m RSI {rsi15M:0} < {config.RsiReversalThreshold:0}";
+        else if (rsiTrend < config.RsiReversalThreshold) reversalReason = $"1H RSI {rsiTrend:0} < {config.RsiReversalThreshold:0}";
+
+        // 5m VWAP context.
+        var vwap5M = candles5M.LastOrDefault(c => c.Vwap.HasValue)?.Vwap ?? 0m;
+        var last5MClose = candles5M.Count > 0 ? candles5M[^1].Close : 0m;
+        var aboveVwap = vwap5M > 0 && last5MClose >= vwap5M;
+
         var cpr = _indicators.GetCprBias(candlesDay.Count >= 2 ? candlesDay : candles1H);
 
-        var score = CalculateScore(trend1H, trend15M, trend5M, rsi, adx, cpr, config);
+        var isRangebound = rsiBias == TrendDirection.Neutral;
+        var score = CalculateScore(rsiBias, trend15M, trend5M, strength1H, aboveVwap, isRangebound);
 
         return new MultiTimeframeAnalysis
         {
@@ -55,10 +80,20 @@ public class SignalService : ISignalService
             Trend15M = trend15M,
             Trend5M = trend5M,
             Rsi = rsi,
+            RsiTrend = rsiTrend,
+            RsiBias = rsiBias,
             Adx = adx,
+            Strength1H = strength1H,
             Cpr = cpr,
+            Vwap5M = vwap5M,
+            AboveVwap = aboveVwap,
+            IsRangebound = isRangebound,
+            WaitForReversal = reversalReason is not null,
+            ReversalReason = reversalReason,
+            Rsi5M = rsi5M,
+            Rsi15M = rsi15M,
             OverallScore = score,
-            Strength = score >= 85 ? "Strong" : score >= 60 ? "Moderate" : "Weak"
+            Strength = strength1H.ToString()
         };
     }
 
@@ -69,81 +104,109 @@ public class SignalService : ISignalService
         var price = await _marketData.GetCurrentPriceAsync(MapInstrument(instrument));
         var strike = Math.Round(price / 50) * 50;
 
-        var aligned = analysis.Trend1H == analysis.Trend15M && analysis.Trend15M == analysis.Trend5M;
-        var trend = analysis.Trend5M;
-        var rsiOk = trend == TrendDirection.Buy ? analysis.Rsi > 55 : analysis.Rsi < 45;
-        var adxOk = analysis.Adx > config.MinimumAdx;
-
-        var reasons = new List<string>();
-        if (analysis.Trend1H != TrendDirection.Neutral)
-            reasons.Add($"✔ 1H SuperTrend {analysis.Trend1H}");
-        if (analysis.Trend15M != TrendDirection.Neutral)
-            reasons.Add($"✔ 15m SuperTrend {analysis.Trend15M}");
-        if (analysis.Trend5M != TrendDirection.Neutral)
-            reasons.Add($"✔ 5m Pullback Complete");
-        reasons.Add($"✔ RSI {(int)analysis.Rsi}");
-        reasons.Add($"✔ ADX {(int)analysis.Adx}");
-        reasons.Add($"✔ CPR {analysis.Cpr}");
-
-        var confidence = analysis.OverallScore;
-        string entry, strategy;
-
-        if (!aligned || !rsiOk || !adxOk || trend == TrendDirection.Neutral)
+        var reasons = new List<string>
         {
+            $"1H RSI({config.RsiTrendLength}) {analysis.RsiTrend:0} → {BiasLabel(analysis.RsiBias)}",
+            $"1H ADX {analysis.Adx:0} → {analysis.Strength1H} trend",
+            $"5m {(analysis.AboveVwap ? "above" : "below")} VWAP {analysis.Vwap5M:N0}",
+            $"CPR {analysis.Cpr}"
+        };
+
+        // 1) Reversal guard — RSI < 30 on any timeframe: stand aside.
+        if (analysis.WaitForReversal)
+        {
+            reasons.Insert(0, $"⚠ Possible reversal: {analysis.ReversalReason}");
+            return NoTrade(instrument, "Wait — possible reversal", analysis.OverallScore, reasons);
+        }
+
+        // 2) Range-bound (1H RSI 45–55): mean-reversion with Keltner Channels on 5m.
+        if (analysis.IsRangebound)
+        {
+            reasons.Insert(0, "Range-bound 1H → Keltner mean-reversion on 5m");
             return new Signal
             {
                 Instrument = instrument,
                 Trend = TrendDirection.Neutral,
-                Entry = "No Trade",
-                Strategy = "Wait for alignment",
-                StopLoss = "-",
-                Target = "-",
-                Confidence = confidence,
+                Entry = $"{strike:F0} straddle/IC",
+                Strategy = "Keltner (20,1.5)/(20,2) fade + VWAP",
+                StopLoss = "Beyond Keltner (20,2)",
+                Target = "Mid / VWAP",
+                Confidence = analysis.OverallScore,
                 Reasons = reasons
             };
         }
 
-        if (trend == TrendDirection.Buy)
+        // 3) Trending (1H RSI bias) — align 5m SuperTrend and VWAP with the bias.
+        var bias = analysis.RsiBias;
+        var stAligned = analysis.Trend5M == bias || analysis.Trend15M == bias;
+        var vwapAligned = bias == TrendDirection.Buy ? analysis.AboveVwap : !analysis.AboveVwap;
+        var strongEnough = analysis.Strength1H != TrendStrength.Weak;
+
+        if (!stAligned || !vwapAligned || !strongEnough)
         {
-            entry = $"{strike:F0} CE";
-            strategy = "Debit Spread";
+            if (!strongEnough) reasons.Add("✖ ADX weak (<18) — avoid trend trades");
+            if (!stAligned) reasons.Add("✖ 5m/15m SuperTrend not aligned with 1H bias");
+            if (!vwapAligned) reasons.Add("✖ 5m VWAP not aligned with bias");
+            return NoTrade(instrument, "Wait for alignment", analysis.OverallScore, reasons);
         }
-        else
-        {
-            entry = $"{strike:F0} PE";
-            strategy = "Credit Spread";
-        }
+
+        var (entry, strategy) = bias == TrendDirection.Buy
+            ? ($"{strike:F0} CE", "Debit Spread")
+            : ($"{strike:F0} PE", "Credit Spread");
 
         return new Signal
         {
             Instrument = instrument,
-            Trend = trend,
+            Trend = bias,
             Entry = entry,
             Strategy = strategy,
-            StopLoss = "Spread x2",
+            StopLoss = "Below 5m SuperTrend",
             Target = "Risk : Reward 1 : 2",
-            Confidence = confidence,
+            Confidence = analysis.OverallScore,
             Reasons = reasons
         };
     }
 
-    private static int CalculateScore(TrendDirection t1, TrendDirection t2, TrendDirection t3, decimal rsi, decimal adx, string cpr, StrategyConfig config)
+    private static Signal NoTrade(string instrument, string reason, int confidence, List<string> reasons) => new()
     {
-        var score = 50;
+        Instrument = instrument,
+        Trend = TrendDirection.Neutral,
+        Entry = "No Trade",
+        Strategy = reason,
+        StopLoss = "-",
+        Target = "-",
+        Confidence = confidence,
+        Reasons = reasons
+    };
 
-        if (t1 == t2 && t2 == t3 && t1 != TrendDirection.Neutral) score += 25;
-        else if (t1 == t2 || t2 == t3) score += 10;
+    private static string BiasLabel(TrendDirection bias) => bias switch
+    {
+        TrendDirection.Buy => "Bullish",
+        TrendDirection.Sell => "Bearish",
+        _ => "Neutral"
+    };
 
-        if (adx > config.MinimumAdx) score += 10;
-        if (adx > config.MinimumAdx + 5) score += 5;
+    private static int CalculateScore(TrendDirection bias, TrendDirection t15, TrendDirection t5, TrendStrength strength, bool aboveVwap, bool isRangebound)
+    {
+        if (isRangebound)
+            return 45;
 
-        if (t1 == TrendDirection.Buy && rsi > 55) score += 5;
-        if (t1 == TrendDirection.Sell && rsi < 45) score += 5;
+        var score = 40;
 
-        if (cpr == "Bullish" && t1 == TrendDirection.Buy) score += 5;
-        if (cpr == "Bearish" && t1 == TrendDirection.Sell) score += 5;
+        if (t15 == bias) score += 15;
+        if (t5 == bias) score += 15;
 
-        return Math.Min(score, 99);
+        score += strength switch
+        {
+            TrendStrength.Strong => 20,
+            TrendStrength.Moderate => 10,
+            _ => 0
+        };
+
+        var vwapAligned = bias == TrendDirection.Buy ? aboveVwap : !aboveVwap;
+        if (vwapAligned) score += 10;
+
+        return Math.Clamp(score, 0, 99);
     }
 
     private static string MapInstrument(string instrument) => instrument.ToUpper() switch
