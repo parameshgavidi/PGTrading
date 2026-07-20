@@ -1,22 +1,31 @@
 @page "/chart"
 @inject DashboardViewModel ViewModel
+@implements IDisposable
 
 <div class="page-container">
     <div class="card chart-full">
         <div class="chart-header">
-            <h2>NIFTY 50 — Live Chart</h2>
+            <div class="instrument-title-row">
+                <h2>NIFTY 50 — Chart</h2>
+                <span class="market-status @(ViewModel.IsMarketOpen ? "open" : "closed")">
+                    @ViewModel.MarketStatus
+                </span>
+            </div>
             <div class="price-row">
                 <span class="price">@ViewModel.NiftyPrice.ToString("N2")</span>
                 <span class="trend-badge @GetTrendClass(ViewModel.NiftyTrend)">@ViewModel.NiftyTrend</span>
             </div>
         </div>
-        <div class="chart-area large">
-            <canvas id="liveChart" width="1200" height="500"></canvas>
-        </div>
+        <CandlestickChart CanvasId="liveChart"
+                          Candles="ViewModel.ChartCandles"
+                          ChartVersion="ViewModel.ChartVersion"
+                          CssClass="large"
+                          Width="1200"
+                          Height="500" />
         <div class="timeframe-buttons">
             @foreach (var tf in new[] { "5m", "15m", "1H", "1D" })
             {
-                <button class="tf-btn @(ViewModel.SelectedTimeframe == tf ? "active" : "")"
+                <button class="btn tf-btn @(ViewModel.SelectedTimeframe == tf ? "active" : "")"
                         @onclick="() => ViewModel.ChangeTimeframeAsync(tf)">@tf</button>
             }
         </div>
@@ -42,4 +51,6 @@
     TrendDirection.Sell => "sell",
     _ => "neutral"
   };
+
+  public void Dispose() { }
 }

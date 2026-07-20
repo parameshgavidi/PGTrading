@@ -20,22 +20,31 @@
         <div class="chart-panel card">
             <div class="chart-header">
                 <div class="instrument-info">
-                    <h2>NIFTY 50</h2>
+                    <div class="instrument-title-row">
+                        <h2>NIFTY 50</h2>
+                        <span class="market-status @(ViewModel.IsMarketOpen ? "open" : "closed")">
+                            @ViewModel.MarketStatus
+                        </span>
+                    </div>
                     <div class="price-row">
                         <span class="price">@ViewModel.NiftyPrice.ToString("N2")</span>
-                        <span class="change positive">▲ +@ViewModel.NiftyChange.ToString("N2") (+@ViewModel.NiftyChangePercent%)</span>
+                        <span class="change @(ViewModel.NiftyChange >= 0 ? "positive" : "negative")">
+                            @(ViewModel.NiftyChange >= 0 ? "▲" : "▼") @Math.Abs(ViewModel.NiftyChange).ToString("N2") (@ViewModel.NiftyChangePercent%)
+                        </span>
                         <span class="trend-badge @GetTrendClass(ViewModel.NiftyTrend)">Trend: @ViewModel.NiftyTrend</span>
                     </div>
                 </div>
             </div>
-            <div class="chart-area">
-                <canvas id="priceChart" width="800" height="350"></canvas>
-            </div>
+            <CandlestickChart CanvasId="priceChart"
+                              Candles="ViewModel.ChartCandles"
+                              ChartVersion="ViewModel.ChartVersion"
+                              Width="800"
+                              Height="350" />
             <div class="timeframe-buttons">
                 @foreach (var tf in new[] { "5m", "15m", "1H" })
                 {
-                    <button class="tf-btn @(ViewModel.SelectedTimeframe == tf ? "active" : "")"
-                            @onclick="() => ViewModel.ChangeTimeframeAsync(tf)">@tf</button>
+                    <button class="btn tf-btn @(ViewModel.SelectedTimeframe == tf ? "active" : "")"
+                            @onclick="() => ChangeTimeframe(tf)">@tf</button>
                 }
             </div>
         </div>
@@ -97,11 +106,21 @@
   protected override async Task OnInitializedAsync()
   {
     await ViewModel.InitializeAsync();
-    ViewModel.PropertyChanged += (_, _) => InvokeAsync(StateHasChanged);
+    ViewModel.PropertyChanged += OnViewModelPropertyChanged;
 
     _refreshTimer = new System.Timers.Timer(30000);
     _refreshTimer.Elapsed += async (_, _) => await ViewModel.RefreshAsync();
     _refreshTimer.Start();
+  }
+
+  private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+  {
+    InvokeAsync(StateHasChanged);
+  }
+
+  private async Task ChangeTimeframe(string timeframe)
+  {
+    await ViewModel.ChangeTimeframeAsync(timeframe);
   }
 
   private static string GetTrendClass(TrendDirection trend) => trend switch
@@ -118,5 +137,9 @@
     _ => "⚪"
   };
 
-  public void Dispose() => _refreshTimer?.Dispose();
+  public void Dispose()
+  {
+    _refreshTimer?.Dispose();
+    ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+  }
 }
