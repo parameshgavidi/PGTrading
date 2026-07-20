@@ -193,14 +193,11 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    height: 100%;
 }
 
 .dashboard-top {
     display: flex;
     gap: 12px;
-    flex: 1;
-    min-height: 0;
 }
 
 .watchlist-panel {
@@ -223,7 +220,7 @@ html, body {
 .watchlist-row:hover { background: rgba(255,255,255,0.03); }
 .watchlist-row.favorite .symbol { color: var(--gold); }
 
-.chart-panel { flex: 1; display: flex; flex-direction: column; }
+.chart-panel { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
 .chart-header { margin-bottom: 8px; }
 
@@ -278,7 +275,8 @@ html, body {
     background: #0A0A0A;
     border-radius: 6px;
     position: relative;
-    height: 340px;
+    height: 360px;
+    flex-shrink: 0;
     overflow: hidden;
 }
 
