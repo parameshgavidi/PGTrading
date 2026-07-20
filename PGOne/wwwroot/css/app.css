@@ -477,6 +477,62 @@ html, body {
 
 .aligned-row { background: rgba(0,200,83,0.05) !important; }
 
+.review-row { background: rgba(255,82,82,0.04) !important; }
+
+.holdings-summary {
+    display: flex;
+    gap: 12px;
+    margin: 12px 0 16px;
+}
+
+.summary-pill {
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.summary-pill.buy {
+    background: rgba(0,200,83,0.12);
+    color: var(--buy);
+}
+
+.summary-pill.sell {
+    background: rgba(255,82,82,0.12);
+    color: var(--sell);
+}
+
+.holdings-banner {
+    margin: 12px 0;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.holdings-banner.warning {
+    background: rgba(255,193,7,0.1);
+    color: var(--gold);
+}
+
+.framework-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 6px;
+}
+
+.framework-badge.buy {
+    background: rgba(0,200,83,0.15);
+    color: var(--buy);
+}
+
+.framework-badge.sell {
+    background: rgba(255,82,82,0.15);
+    color: var(--sell);
+}
+
 .score-badge {
     background: rgba(0,200,83,0.15);
     color: var(--buy);

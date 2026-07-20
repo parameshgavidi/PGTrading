@@ -46,12 +46,14 @@ public static class MauiProgram
         builder.Services.AddSingleton<IIndicatorService, IndicatorService>();
         builder.Services.AddSingleton<ISignalService, SignalService>();
         builder.Services.AddSingleton<IWatchlistService, WatchlistService>();
+        builder.Services.AddSingleton<IHoldingsService, HoldingsService>();
         builder.Services.AddSingleton<IStrategyService, StrategyService>();
 
         builder.Services.AddSingleton<DashboardViewModel>();
         builder.Services.AddSingleton<StrategyViewModel>();
         builder.Services.AddSingleton<SignalViewModel>();
         builder.Services.AddSingleton<WatchlistViewModel>();
+        builder.Services.AddSingleton<HoldingsViewModel>();
         builder.Services.AddSingleton<SettingsViewModel>();
 
         return builder.Build();

@@ -1,0 +1,96 @@
+@page "/holdings"
+@inject HoldingsViewModel ViewModel
+@implements IDisposable
+
+<div class="page-container">
+    <div class="card">
+        <div class="card-header">
+            <h2>Holdings</h2>
+            <button class="btn btn-secondary" @onclick="RefreshAsync" disabled="@ViewModel.IsLoading">Refresh</button>
+        </div>
+
+        <p class="text-secondary">
+            Delivery holdings with framework status. Stocks marked <span class="buy">Up</span> satisfy the trade framework;
+            others show a stop-loss level to review.
+        </p>
+
+        @if (!ViewModel.IsConnected)
+        {
+            <div class="holdings-banner warning">
+                Showing demo holdings. Connect to Zerodha in Settings for live portfolio data.
+            </div>
+        }
+
+        @if (ViewModel.IsLoading)
+        {
+            <div class="scanning">Analyzing holdings against framework...</div>
+        }
+        else if (ViewModel.Items.Count == 0)
+        {
+            <div class="empty-state">No holdings found.</div>
+        }
+        else
+        {
+            <div class="holdings-summary">
+                <span class="summary-pill buy">@ViewModel.SatisfiedCount Up</span>
+                <span class="summary-pill sell">@ViewModel.ReviewCount Need review</span>
+            </div>
+
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Stock</th>
+                        <th>Qty</th>
+                        <th>Avg</th>
+                        <th>LTP</th>
+                        <th>Today %</th>
+                        <th>Overall %</th>
+                        <th>Framework</th>
+                        <th>Stop Loss</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in ViewModel.Items)
+                    {
+                        <tr class="@(item.FrameworkSatisfied ? "aligned-row" : "review-row")">
+                            <td><strong>@item.Symbol</strong></td>
+                            <td>@item.Quantity</td>
+                            <td>@item.AveragePrice.ToString("N2")</td>
+                            <td>@item.LastPrice.ToString("N2")</td>
+                            <td class="@(item.DayChangePercent >= 0 ? "buy" : "sell")">
+                                @(item.DayChangePercent >= 0 ? "+" : "")@item.DayChangePercent.ToString("N2")%
+                            </td>
+                            <td class="@(item.OverallChangePercent >= 0 ? "buy" : "sell")">
+                                @(item.OverallChangePercent >= 0 ? "+" : "")@item.OverallChangePercent.ToString("N2")%
+                            </td>
+                            <td>
+                                <span class="framework-badge @(item.FrameworkSatisfied ? "buy" : "sell")">
+                                    @item.FrameworkStatus
+                                </span>
+                                <span class="score-badge">@item.FrameworkScore%</span>
+                            </td>
+                            <td class="@(item.FrameworkSatisfied ? "neutral" : "sell")">
+                                @(item.StopLossRecommendation ?? "—")
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@code {
+  protected override async Task OnInitializedAsync()
+  {
+    ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+    await RefreshAsync();
+  }
+
+  private async Task RefreshAsync() => await ViewModel.RefreshAsync();
+
+  private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    => InvokeAsync(StateHasChanged);
+
+  public void Dispose() => ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+}
