@@ -209,15 +209,5 @@ public class SignalService : ISignalService
         return Math.Clamp(score, 0, 99);
     }
 
-    private static string MapInstrument(string instrument) => instrument.ToUpper() switch
-    {
-        "NIFTY" => "NSE:NIFTY 50",
-        "BANKNIFTY" => "NSE:NIFTY BANK",
-        "RELIANCE" => "NSE:RELIANCE",
-        "INFY" => "NSE:INFY",
-        "TCS" => "NSE:TCS",
-        "SBIN" => "NSE:SBIN",
-        "HDFCBANK" => "NSE:HDFCBANK",
-        _ => $"NSE:{instrument}"
-    };
+    private static string MapInstrument(string instrument) => InstrumentMapper.ToZerodhaKey(instrument);
 }

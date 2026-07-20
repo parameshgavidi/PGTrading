@@ -22,6 +22,9 @@ public class DashboardViewModel : INotifyPropertyChanged
     public List<WatchItem> Watchlist { get; private set; } = new();
     public List<Candle> ChartCandles { get; private set; } = new();
     public string SelectedTimeframe { get; set; } = "5m";
+    public string SelectedSymbol { get; private set; } = "NIFTY";
+    public string SelectedInstrument { get; private set; } = "NSE:NIFTY 50";
+    public string SelectedDisplayName => InstrumentMapper.ToDisplayName(SelectedSymbol);
     public int ChartVersion { get; private set; }
     public bool IsChartFromZerodha { get; private set; }
     public string? ChartDataMessage { get; private set; }
@@ -42,12 +45,28 @@ public class DashboardViewModel : INotifyPropertyChanged
     {
         await LoadChartAsync();
         await UpdatePriceAsync();
-        Analysis = await _signal.AnalyzeAsync("NIFTY");
-        CurrentSignal = await _signal.GenerateSignalAsync("NIFTY");
+        Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
+        CurrentSignal = await _signal.GenerateSignalAsync(SelectedSymbol);
         UpdateSelectedTrend();
         Watchlist = _watchlist.Items;
         Notify();
-        _marketData.StartStreaming();
+        _marketData.StartStreaming(SelectedInstrument);
+    }
+
+    public async Task SelectInstrumentAsync(string symbol)
+    {
+        if (string.Equals(SelectedSymbol, symbol, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        SelectedSymbol = symbol.ToUpper();
+        SelectedInstrument = InstrumentMapper.ToZerodhaKey(SelectedSymbol);
+        await LoadChartAsync();
+        await UpdatePriceAsync();
+        Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
+        CurrentSignal = await _signal.GenerateSignalAsync(SelectedSymbol);
+        UpdateSelectedTrend();
+        _marketData.StartStreaming(SelectedInstrument);
+        Notify();
     }
 
     public async Task ChangeTimeframeAsync(string timeframe)
@@ -63,8 +82,8 @@ public class DashboardViewModel : INotifyPropertyChanged
     {
         await LoadChartAsync();
         await UpdatePriceAsync();
-        Analysis = await _signal.AnalyzeAsync("NIFTY");
-        CurrentSignal = await _signal.GenerateSignalAsync("NIFTY");
+        Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
+        CurrentSignal = await _signal.GenerateSignalAsync(SelectedSymbol);
         UpdateSelectedTrend();
         Notify();
     }
@@ -72,7 +91,7 @@ public class DashboardViewModel : INotifyPropertyChanged
     private async Task LoadChartAsync()
     {
         var count = GetCandleCount(SelectedTimeframe);
-        var result = await _marketData.GetCandlesResultAsync("NSE:NIFTY 50", SelectedTimeframe, count);
+        var result = await _marketData.GetCandlesResultAsync(SelectedInstrument, SelectedTimeframe, count);
         ChartCandles = result.Candles;
         ChartVersion++;
         IsChartFromZerodha = result.IsFromZerodha;
@@ -104,7 +123,7 @@ public class DashboardViewModel : INotifyPropertyChanged
 
     private void OnPriceUpdated(string instrument, decimal price)
     {
-        if (instrument != "NSE:NIFTY 50")
+        if (instrument != SelectedInstrument)
             return;
 
         NiftyPrice = price;
@@ -113,7 +132,7 @@ public class DashboardViewModel : INotifyPropertyChanged
 
     private async Task UpdatePriceAsync()
     {
-        var quote = await _marketData.GetQuoteAsync("NSE:NIFTY 50");
+        var quote = await _marketData.GetQuoteAsync(SelectedInstrument);
         if (quote is { LastPrice: > 0 })
         {
             NiftyPrice = quote.LastPrice;
@@ -160,6 +179,9 @@ public class DashboardViewModel : INotifyPropertyChanged
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
         if (property != null) return;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedSymbol)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedDisplayName)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedInstrument)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Analysis)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentSignal)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Watchlist)));

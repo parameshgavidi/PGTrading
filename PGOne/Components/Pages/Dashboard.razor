@@ -9,7 +9,8 @@
             <div class="watchlist-items">
                 @foreach (var item in ViewModel.Watchlist)
                 {
-                    <div class="watchlist-row @(item.IsFavorite ? "favorite" : "")">
+                    <div class="watchlist-row @(item.IsFavorite ? "favorite" : "") @(ViewModel.SelectedSymbol == item.Symbol ? "selected" : "")"
+                         @onclick="() => SelectSymbol(item.Symbol)">
                         <span class="symbol">@(item.IsFavorite ? "★ " : "")@item.Symbol</span>
                         <span class="trend @GetTrendClass(item.Trend)">@item.Trend</span>
                     </div>
@@ -21,7 +22,7 @@
             <div class="chart-header">
                 <div class="instrument-info">
                     <div class="instrument-title-row">
-                        <h2>NIFTY 50</h2>
+                        <h2>@ViewModel.SelectedDisplayName</h2>
                         <span class="market-status @(ViewModel.IsMarketOpen ? "open" : "closed")">
                             @ViewModel.MarketStatus
                         </span>
@@ -145,6 +146,11 @@
   private async Task ChangeTimeframe(string timeframe)
   {
     await ViewModel.ChangeTimeframeAsync(timeframe);
+  }
+
+  private async Task SelectSymbol(string symbol)
+  {
+    await ViewModel.SelectInstrumentAsync(symbol);
   }
 
   private static string GetTrendClass(TrendDirection trend) => trend switch
