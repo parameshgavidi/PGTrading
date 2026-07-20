@@ -123,6 +123,159 @@
             </div>
         </div>
     </div>
+
+    <div class="dashboard-positions">
+        <div class="card">
+            <div class="card-header">
+                <h2>Positions</h2>
+                <button class="btn btn-secondary btn-sm" @onclick="RefreshPositionsAsync"
+                        disabled="@ViewModel.IsPositionsLoading">
+                    Refresh
+                </button>
+            </div>
+
+            @if (!ViewModel.IsConnected)
+            {
+                <div class="holdings-banner warning">Connect to Zerodha in Settings to view live positions.</div>
+            }
+            else if (ViewModel.IsPositionsLoading && ViewModel.Positions.Count == 0)
+            {
+                <div class="scanning">Loading positions...</div>
+            }
+            else if (ViewModel.Positions.Count == 0)
+            {
+                <div class="empty-state">No open positions.</div>
+            }
+            else
+            {
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Qty</th>
+                            <th>Avg Price</th>
+                            <th>LTP</th>
+                            <th>P&amp;L</th>
+                            <th>Side</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var pos in ViewModel.Positions)
+                        {
+                            <tr>
+                                <td><strong>@pos.Symbol</strong></td>
+                                <td>@pos.Quantity</td>
+                                <td>@pos.AveragePrice.ToString("N2")</td>
+                                <td>@pos.LastPrice.ToString("N2")</td>
+                                <td class="@(pos.PnL >= 0 ? "buy" : "sell")">@pos.PnL.ToString("N2")</td>
+                                <td class="@GetTrendClass(pos.Side)">@pos.Side</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>Intraday trailing stop loss</h2>
+                <button class="btn btn-secondary btn-sm" @onclick="RefreshTrailingStopAsync"
+                        disabled="@ViewModel.IsTrailingStopLoading">
+                    Refresh
+                </button>
+            </div>
+
+            <p class="text-secondary">
+                Open MIS positions — ST(7, 2.5) on 5m. Auto square-off when candle closes through SuperTrend.
+            </p>
+
+            <div class="framework-panel">
+                <div class="framework-panel-title">Trailing Stop — ST(7, 2.5) on 5m</div>
+                <ul class="framework-conditions">
+                    <li>Long (buy): exit when 5m candle <strong>closes below</strong> ST(7, 2.5)</li>
+                    <li>Short (sell): exit when 5m candle <strong>closes above</strong> ST(7, 2.5)</li>
+                    <li>Uses last completed 5m candle (not the live forming bar)</li>
+                    <li>Enable auto-exit to place MARKET square-off orders on breach</li>
+                </ul>
+                <div class="trailing-stop-controls">
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@ViewModel.IsTrailingStopMonitoring"
+                               @onchange="OnTrailingStopMonitoringChanged" />
+                        Auto-exit on ST breach
+                    </label>
+                    @if (!string.IsNullOrEmpty(ViewModel.TrailingStopStatusMessage))
+                    {
+                        <span class="trailing-stop-status">@ViewModel.TrailingStopStatusMessage</span>
+                    }
+                </div>
+            </div>
+
+            @if (!ViewModel.IsConnected)
+            {
+                <div class="holdings-banner warning">Connect to Zerodha in Settings for MIS trailing stop.</div>
+            }
+            else if (ViewModel.IsTrailingStopLoading && ViewModel.TrailingStopItems.Count == 0)
+            {
+                <div class="scanning">Loading open MIS positions...</div>
+            }
+            else if (ViewModel.TrailingStopItems.Count == 0)
+            {
+                <div class="empty-state">No open MIS positions to trail.</div>
+            }
+            else
+            {
+                <div class="holdings-summary">
+                    <span class="summary-pill">@ViewModel.TrailingStopMonitoringCount open</span>
+                    @if (ViewModel.TrailingStopTriggeredCount > 0)
+                    {
+                        <span class="summary-pill sell">@ViewModel.TrailingStopTriggeredCount exit signal</span>
+                    }
+                    @if (ViewModel.IsTrailingStopMonitoring)
+                    {
+                        <span class="summary-pill buy">Auto-exit on</span>
+                    }
+                </div>
+
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Stock</th>
+                            <th>Exch</th>
+                            <th>Side</th>
+                            <th>Qty</th>
+                            <th>LTP</th>
+                            <th>ST (7, 2.5)</th>
+                            <th>Last 5m close</th>
+                            <th>P&amp;L</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in ViewModel.TrailingStopItems)
+                        {
+                            <tr class="@GetTrailingRowClass(item)">
+                                <td><strong>@item.Symbol</strong></td>
+                                <td><span class="exchange-badge">@item.Exchange</span></td>
+                                <td class="@(item.Side == TrendDirection.Buy ? "buy" : "sell")">@item.Side</td>
+                                <td>@item.Quantity</td>
+                                <td>@item.LastPrice.ToString("N2")</td>
+                                <td>@item.SuperTrendLevel.ToString("N2")</td>
+                                <td>@item.LastClosedPrice.ToString("N2")</td>
+                                <td class="@(item.PnL >= 0 ? "buy" : "sell")">@item.PnL.ToString("N2")</td>
+                                <td>
+                                    <span class="framework-badge @GetTrailingStatusClass(item)">@item.Status</span>
+                                    @if (!string.IsNullOrEmpty(item.Detail))
+                                    {
+                                        <div class="trailing-detail">@item.Detail</div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
 </div>
 
 @code {
@@ -146,6 +299,16 @@
   private async Task ChangeTimeframe(string timeframe)
   {
     await ViewModel.ChangeTimeframeAsync(timeframe);
+  }
+
+  private Task RefreshPositionsAsync() => ViewModel.RefreshPositionsAsync();
+
+  private Task RefreshTrailingStopAsync() => ViewModel.RefreshTrailingStopAsync();
+
+  private async Task OnTrailingStopMonitoringChanged(ChangeEventArgs e)
+  {
+    var enabled = e.Value is true;
+    await ViewModel.SetTrailingStopMonitoringAsync(enabled);
   }
 
   private async Task SelectSymbol(string symbol)
@@ -173,6 +336,14 @@
     TrendDirection.Sell => "Bearish",
     _ => "Neutral"
   };
+
+  private static string GetTrailingRowClass(TrailingStopRow item) => item.ExitPlaced
+      ? "closed-row"
+      : item.IsTriggered ? "review-row" : "aligned-row";
+
+  private static string GetTrailingStatusClass(TrailingStopRow item) => item.ExitPlaced
+      ? "neutral"
+      : item.IsTriggered ? "sell" : "buy";
 
   public void Dispose()
   {
