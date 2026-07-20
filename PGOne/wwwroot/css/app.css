@@ -1,15 +1,21 @@
 /* PG One Trading App - Dark Theme */
 
 :root {
-    --bg: #121212;
-    --card: #1E1E1E;
-    --card-border: #2A2A2A;
+    --bg: #0A0A0A;
+    --bg-elevated: #121212;
+    --card: #161616;
+    --card-border: #2A2418;
+    --card-border-gold: rgba(212, 175, 55, 0.22);
     --buy: #00C853;
     --sell: #FF1744;
     --text: #FFFFFF;
-    --text-secondary: #B0B0B0;
+    --text-secondary: #B8B0A0;
     --accent: #2196F3;
     --gold: #D4AF37;
+    --gold-light: #F0D060;
+    --gold-dark: #A67C00;
+    --gold-glow: rgba(212, 175, 55, 0.18);
+    --gold-gradient: linear-gradient(135deg, #F0D060 0%, #D4AF37 45%, #A67C00 100%);
     --sidebar-width: 220px;
 }
 
@@ -21,7 +27,10 @@
 
 html, body {
     font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: var(--bg);
+    background:
+        radial-gradient(ellipse at 20% 0%, rgba(212, 175, 55, 0.06) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 100%, rgba(212, 175, 55, 0.04) 0%, transparent 50%),
+        var(--bg);
     color: var(--text);
     height: 100%;
     overflow: hidden;
@@ -41,8 +50,9 @@ html, body {
 /* Sidebar */
 .sidebar {
     width: var(--sidebar-width);
-    background: #0D0D0D;
-    border-right: 1px solid var(--card-border);
+    background: linear-gradient(180deg, #0D0D0D 0%, #080808 100%);
+    border-right: 1px solid var(--card-border-gold);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.45);
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
@@ -51,7 +61,8 @@ html, body {
 .sidebar-header {
     padding: 20px 12px 16px;
     text-align: center;
-    border-bottom: 1px solid var(--card-border);
+    border-bottom: 1px solid var(--card-border-gold);
+    background: linear-gradient(180deg, rgba(212, 175, 55, 0.06) 0%, transparent 100%);
 }
 
 .sidebar-logo {
@@ -60,6 +71,7 @@ html, body {
     max-width: 196px;
     height: auto;
     margin: 0 auto;
+    filter: drop-shadow(0 4px 14px rgba(212, 175, 55, 0.28));
 }
 
 .sidebar-brand {
@@ -96,21 +108,22 @@ html, body {
 }
 
 .nav-item:hover {
-    background: rgba(255,255,255,0.05);
-    color: var(--text);
+    background: rgba(212, 175, 55, 0.06);
+    color: var(--gold-light);
 }
 
 .nav-item.active {
-    background: rgba(33, 150, 243, 0.1);
-    color: var(--accent);
-    border-left-color: var(--accent);
+    background: rgba(212, 175, 55, 0.1);
+    color: var(--gold-light);
+    border-left-color: var(--gold);
+    box-shadow: inset 0 0 20px rgba(212, 175, 55, 0.04);
 }
 
 .nav-icon { font-size: 16px; }
 
 .sidebar-footer {
     padding: 12px 16px;
-    border-top: 1px solid var(--card-border);
+    border-top: 1px solid var(--card-border-gold);
 }
 
 .connection-status {
@@ -142,14 +155,20 @@ html, body {
     justify-content: space-between;
     align-items: center;
     padding: 12px 20px;
-    background: var(--card);
-    border-bottom: 1px solid var(--card-border);
+    background: linear-gradient(90deg, var(--card) 0%, #1A1814 100%);
+    border-bottom: 1px solid var(--card-border-gold);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
     flex-shrink: 0;
 }
 
 .page-title {
     font-size: 16px;
     font-weight: 600;
+    background: var(--gold-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 0.02em;
 }
 
 .top-bar-right {
@@ -162,7 +181,7 @@ html, body {
 .connection-badge.connected { color: var(--buy); }
 .connection-badge.disconnected { color: var(--sell); }
 
-.clock { color: var(--text-secondary); }
+.clock { color: var(--gold-light); font-variant-numeric: tabular-nums; }
 
 .content-area {
     flex: 1;
@@ -172,10 +191,12 @@ html, body {
 
 /* Cards */
 .card {
-    background: var(--card);
-    border: 1px solid var(--card-border);
-    border-radius: 8px;
+    background: linear-gradient(160deg, var(--card) 0%, #12100E 100%);
+    border: 1px solid var(--card-border-gold);
+    border-top: 2px solid rgba(212, 175, 55, 0.35);
+    border-radius: 10px;
     padding: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
 .card-header {
@@ -190,6 +211,10 @@ html, body {
 .card-header h2 {
     font-size: 18px;
     font-weight: 600;
+    background: var(--gold-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 /* Dashboard Layout */
@@ -316,7 +341,7 @@ html, body {
     justify-content: center;
 }
 
-.zoom-btn:hover { background: var(--accent); border-color: var(--accent); }
+.zoom-btn:hover { background: var(--gold); border-color: var(--gold); color: #1A1408; }
 
 .timeframe-buttons {
     display: flex;
@@ -346,9 +371,9 @@ html, body {
 }
 
 .tf-btn.active, .tf-btn:hover {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: white;
+    background: var(--gold-gradient);
+    border-color: var(--gold);
+    color: #1A1408;
 }
 
 .dashboard-bottom {
@@ -402,12 +427,22 @@ html, body {
     cursor: pointer;
     font-size: 14px;
     font-weight: 500;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
-.btn:hover { opacity: 0.85; }
-.btn-primary { background: var(--accent); color: white; }
-.btn-secondary { background: #333; color: var(--text); }
+.btn:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-primary {
+    background: var(--gold-gradient);
+    color: #1A1408;
+    font-weight: 600;
+    box-shadow: 0 4px 14px rgba(212, 175, 55, 0.28);
+}
+.btn-primary:hover { box-shadow: 0 6px 18px rgba(212, 175, 55, 0.38); }
+.btn-secondary {
+    background: #252018;
+    color: var(--gold-light);
+    border: 1px solid var(--card-border-gold);
+}
 .btn-danger { background: var(--sell); color: white; }
 .btn-large { padding: 12px 32px; font-size: 16px; width: 100%; margin-top: 16px; }
 .btn-sm { padding: 4px 10px; font-size: 11px; }
@@ -439,7 +474,8 @@ html, body {
 
 .form-input:focus {
     outline: none;
-    border-color: var(--accent);
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px var(--gold-glow);
 }
 
 .checkbox-row label { width: 120px; }
@@ -468,9 +504,10 @@ html, body {
 .data-table th {
     text-align: left;
     padding: 10px 12px;
-    color: var(--text-secondary);
-    border-bottom: 1px solid var(--card-border);
+    color: var(--gold-light);
+    border-bottom: 1px solid var(--card-border-gold);
     font-weight: 500;
+    letter-spacing: 0.02em;
 }
 
 .data-table td {
@@ -555,24 +592,38 @@ html, body {
 
 .holdings-tab.active,
 .holdings-tab:hover {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: white;
+    background: var(--gold-gradient);
+    border-color: var(--gold);
+    color: #1A1408;
 }
 
 .framework-panel {
     margin-bottom: 16px;
     padding: 12px 14px;
-    border: 1px solid var(--card-border);
+    border: 1px solid var(--card-border-gold);
+    border-left: 3px solid var(--gold);
     border-radius: 8px;
-    background: rgba(255,255,255,0.02);
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.05) 0%, rgba(255,255,255,0.02) 100%);
 }
 
 .framework-panel-title {
     font-size: 13px;
     font-weight: 600;
-    color: var(--text-secondary);
+    color: var(--gold-light);
     margin-bottom: 8px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.framework-note {
+    margin: 0 0 10px;
+    font-size: 12px;
+    font-style: italic;
+    color: var(--text-secondary);
+}
+
+.framework-note strong {
+    color: var(--gold-light);
 }
 
 .framework-conditions {
@@ -674,8 +725,8 @@ html, body {
 
 /* Settings */
 .settings-card { max-width: 600px; }
-.settings-section { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--card-border); }
-.settings-section h3 { font-size: 16px; margin-bottom: 12px; }
+.settings-section { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--card-border-gold); }
+.settings-section h3 { font-size: 16px; margin-bottom: 12px; color: var(--gold-light); }
 .zerodha-connect { margin-top: 16px; padding: 16px; background: #0A0A0A; border-radius: 6px; }
 .zerodha-connect h4 { margin-bottom: 8px; }
 .button-row { display: flex; gap: 8px; margin-top: 12px; }
@@ -683,11 +734,11 @@ html, body {
 /* Utility */
 .page-container { max-width: 100%; }
 .text-secondary { color: var(--text-secondary); font-size: 13px; }
-.status-message { margin-top: 12px; padding: 10px; background: #0A0A0A; border-radius: 6px; font-size: 13px; }
+.status-message { margin-top: 12px; padding: 10px; background: #0A0A0A; border-radius: 6px; font-size: 13px; border-left: 3px solid var(--gold); }
 .status-message.success { color: var(--buy); }
 .status-message.error { color: var(--sell); }
 .empty-state { text-align: center; padding: 40px; color: var(--text-secondary); }
-.scanning { padding: 20px; text-align: center; color: var(--accent); }
+.scanning { padding: 20px; text-align: center; color: var(--gold-light); }
 
 .chart-legend {
     display: flex;
@@ -752,4 +803,37 @@ code {
     padding: 10px 14px;
     white-space: pre-wrap;
     border-top: 2px solid #ff5252;
+}
+
+/* Loading screen */
+.loading-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+    background:
+        radial-gradient(ellipse at 50% 30%, rgba(212, 175, 55, 0.12) 0%, transparent 60%),
+        var(--bg);
+}
+
+.loading-logo {
+    width: 160px;
+    height: auto;
+    margin-bottom: 20px;
+    filter: drop-shadow(0 6px 20px rgba(212, 175, 55, 0.35));
+    animation: logo-pulse 2.4s ease-in-out infinite;
+}
+
+.loading-text {
+    color: var(--gold-light);
+    font-size: 14px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+@keyframes logo-pulse {
+    0%, 100% { filter: drop-shadow(0 6px 20px rgba(212, 175, 55, 0.35)); }
+    50% { filter: drop-shadow(0 8px 28px rgba(212, 175, 55, 0.55)); }
 }
