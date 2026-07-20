@@ -24,9 +24,13 @@
        screen race condition / DEP0700). -->
   <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
     <WindowsPackageType>None</WindowsPackageType>
-    <EnableMsixTooling>false</EnableMsixTooling>
+    <!-- Required for dotnet build/CLI: uses modern PRI tasks from the Windows App SDK
+         NuGet package instead of legacy VS-only ExpandPriContent tasks. Still unpackaged
+         because WindowsPackageType is None and GenerateAppxPackageOnBuild is false. -->
+    <EnableMsixTooling>true</EnableMsixTooling>
     <GenerateAppxPackageOnBuild>false</GenerateAppxPackageOnBuild>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <WindowsAppSDKBootstrapAutoInitializeOptions_OnPackageIdentity_NoOp>true</WindowsAppSDKBootstrapAutoInitializeOptions_OnPackageIdentity_NoOp>
     <RuntimeIdentifierOverride>win-x64</RuntimeIdentifierOverride>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <!-- Prevents WindowsAppSDK's MrtCore.PriGen.targets from defaulting to a
