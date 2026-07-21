@@ -1,0 +1,138 @@
+@page "/sentiment"
+@inject SentimentViewModel ViewModel
+@implements IDisposable
+
+<div class="page-container">
+    <div class="card">
+        <div class="card-header">
+            <h2>Sentiment Analysis — NSE Stocks</h2>
+            <div class="button-row">
+                <button class="btn btn-secondary" @onclick="ScanTopTenAsync" disabled="@ViewModel.IsScanning">
+                    Scan Top 10
+                </button>
+                <button class="btn btn-primary" @onclick="ScanAllAsync" disabled="@ViewModel.IsScanning">
+                    @(ViewModel.IsScanning ? "Scanning..." : "Scan Nifty 50")
+                </button>
+            </div>
+        </div>
+
+        <p class="text-secondary">
+            Fetches recent Google News headlines for each NSE stock and predicts sentiment using
+            <strong>FinBERT</strong> (ProsusAI/finbert) via the free Hugging Face Inference API —
+            the same model commonly used in Python <code>transformers</code> pipelines.
+        </p>
+
+        @if (!string.IsNullOrEmpty(ViewModel.ProgressMessage))
+        {
+            <div class="status-message">@ViewModel.ProgressMessage</div>
+        }
+
+        @if (ViewModel.Results.Count > 0)
+        {
+            <div class="sentiment-summary">
+                <span class="summary-pill buy">Bullish: @ViewModel.BullishCount</span>
+                <span class="summary-pill sell">Bearish: @ViewModel.BearishCount</span>
+                <span class="summary-pill neutral">Neutral: @ViewModel.NeutralCount</span>
+            </div>
+
+            <table class="data-table sentiment-table">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Prediction</th>
+                        <th>Confidence</th>
+                        <th>+ve</th>
+                        <th>-ve</th>
+                        <th>Neutral</th>
+                        <th>News</th>
+                        <th>Headlines</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in ViewModel.Results)
+                    {
+                        <tr>
+                            <td><strong>@row.Symbol</strong></td>
+                            <td class="@GetPredictionClass(row.Prediction)">
+                                <span class="sentiment-badge @GetPredictionClass(row.Prediction)">
+                                    @GetPredictionLabel(row.Prediction)
+                                </span>
+                            </td>
+                            <td>@(row.Confidence > 0 ? $"{row.Confidence:P0}" : "—")</td>
+                            <td class="buy">@row.PositiveCount</td>
+                            <td class="sell">@row.NegativeCount</td>
+                            <td class="neutral">@row.NeutralCount</td>
+                            <td>@row.NewsCount</td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(row.Error))
+                                {
+                                    <span class="text-secondary">@row.Error</span>
+                                }
+                                else if (row.Headlines.Count > 0)
+                                {
+                                    <ul class="sentiment-headlines">
+                                        @foreach (var headline in row.Headlines)
+                                        {
+                                            <li>
+                                                <span class="@GetLabelClass(headline.Label)">@headline.Label</span>
+                                                <span class="headline-text">@headline.Headline</span>
+                                                <span class="headline-score">(@headline.Score:P0})</span>
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                                else
+                                {
+                                    <span class="text-secondary">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else if (!ViewModel.IsScanning)
+        {
+            <div class="empty-state">
+                Click <strong>Scan Nifty 50</strong> to analyze sentiment for top Nifty stocks.
+                Optional: add a free Hugging Face API token in Settings for higher rate limits.
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+    }
+
+    private async Task ScanAllAsync() => await ViewModel.ScanAsync();
+    private async Task ScanTopTenAsync() => await ViewModel.ScanTopTenAsync();
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+        InvokeAsync(StateHasChanged);
+
+    private static string GetPredictionLabel(SentimentPrediction prediction) => prediction switch
+    {
+        SentimentPrediction.Bullish => "Bullish",
+        SentimentPrediction.Bearish => "Bearish",
+        _ => "Neutral"
+    };
+
+    private static string GetPredictionClass(SentimentPrediction prediction) => prediction switch
+    {
+        SentimentPrediction.Bullish => "buy",
+        SentimentPrediction.Bearish => "sell",
+        _ => "neutral"
+    };
+
+    private static string GetLabelClass(string label) => label.ToLowerInvariant() switch
+    {
+        "positive" => "buy",
+        "negative" => "sell",
+        _ => "neutral"
+    };
+
+    public void Dispose() => ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+}
