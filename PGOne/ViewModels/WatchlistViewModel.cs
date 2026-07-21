@@ -118,26 +118,26 @@ public class WatchlistViewModel : INotifyPropertyChanged, IDisposable
 
     public async Task<string?> PlaceMisMarketOrderAsync(StockScanRow row)
     {
-        var orderId = await _intradayScanner.PlaceOrderAsync(row);
+        var result = await _intradayScanner.PlaceOrderAsync(row);
 
-        row.OrderMessage = orderId is not null
-            ? $"MIS MARKET BUY placed — order {orderId}"
-            : "Order failed — check Zerodha connection";
+        row.OrderMessage = result.IsSuccess
+            ? $"MIS MARKET BUY placed — order {result.OrderId}"
+            : result.ErrorMessage ?? "Order failed — check Zerodha connection";
 
         Notify(nameof(IntradayScanItems));
-        return orderId;
+        return result.OrderId;
     }
 
     public async Task<string?> PlaceCncMarketOrderAsync(StockScanRow row)
     {
-        var orderId = await _longTermScanner.PlaceOrderAsync(row);
+        var result = await _longTermScanner.PlaceOrderAsync(row);
 
-        row.OrderMessage = orderId is not null
-            ? $"CNC MARKET BUY placed — order {orderId}"
-            : "Order failed — check Zerodha connection";
+        row.OrderMessage = result.IsSuccess
+            ? $"CNC MARKET BUY placed — order {result.OrderId}"
+            : result.ErrorMessage ?? "Order failed — check Zerodha connection";
 
         Notify(nameof(LongTermScanItems));
-        return orderId;
+        return result.OrderId;
     }
 
     private void OnWatchlistUpdated()

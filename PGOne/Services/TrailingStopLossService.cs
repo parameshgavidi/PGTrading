@@ -218,25 +218,25 @@ public class TrailingStopLossService : ITrailingStopLossService, IDisposable
         var transactionType = position.Quantity > 0 ? "SELL" : "BUY";
         var quantity = Math.Abs(position.Quantity);
 
-        var orderId = await _zerodha.PlaceOrderAsync(
+        var result = await _zerodha.PlaceOrderAsync(
             position.Exchange,
             position.Symbol,
             transactionType,
             quantity,
             "MARKET");
 
-        if (orderId is not null)
+        if (result.IsSuccess)
         {
             _exitedKeys.Add(key);
             row.ExitPlaced = true;
             row.Status = "Exit placed";
-            row.Detail = $"Order {orderId} — {transactionType} {quantity} @ MARKET";
+            row.Detail = $"Order {result.OrderId} — {transactionType} {quantity} @ MARKET";
             StatusMessage = $"Exit placed for {position.Symbol}: {transactionType} {quantity}";
         }
         else
         {
-            row.Detail = "Exit signal — order placement failed";
-            StatusMessage = $"Failed to place exit for {position.Symbol}";
+            row.Detail = result.ErrorMessage ?? "Exit signal — order placement failed";
+            StatusMessage = $"Failed to place exit for {position.Symbol}: {result.ErrorMessage}";
         }
     }
 

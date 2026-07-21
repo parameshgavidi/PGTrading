@@ -9,7 +9,7 @@ public interface ILongTermScannerService
     bool IsScanning { get; }
     string? ProgressMessage { get; }
     Task ScanAsync();
-    Task<string?> PlaceOrderAsync(StockScanRow row);
+    Task<OrderPlacementResult> PlaceOrderAsync(StockScanRow row);
 }
 
 public class LongTermScannerService : ILongTermScannerService
@@ -107,7 +107,7 @@ public class LongTermScannerService : ILongTermScannerService
         }
     }
 
-    public Task<string?> PlaceOrderAsync(StockScanRow row) =>
+    public Task<OrderPlacementResult> PlaceOrderAsync(StockScanRow row) =>
         _zerodha.PlaceOrderAsync(row.Exchange, row.Symbol, "BUY", row.Quantity, "MARKET", product: "CNC");
 
     private async Task<Dictionary<string, decimal>> FetchQuotesBatchedAsync(IReadOnlyList<string> symbols)

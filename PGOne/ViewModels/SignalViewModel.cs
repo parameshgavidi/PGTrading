@@ -43,16 +43,16 @@ public class SignalViewModel : INotifyPropertyChanged
             return;
         }
 
-        var orderId = await _zerodha.PlaceOrderAsync(
+        var result = await _zerodha.PlaceOrderAsync(
             "NFO",
             CurrentSignal.Entry.Replace(" ", ""),
             CurrentSignal.Trend == TrendDirection.Buy ? "BUY" : "SELL",
             1,
             "MARKET");
 
-        PlaceOrderMessage = orderId != null
-            ? $"Order placed! ID: {orderId}"
-            : "Order placement failed.";
+        PlaceOrderMessage = result.IsSuccess
+            ? $"Order placed! ID: {result.OrderId}"
+            : result.ErrorMessage ?? "Order placement failed.";
         Notify(nameof(PlaceOrderMessage));
     }
 
