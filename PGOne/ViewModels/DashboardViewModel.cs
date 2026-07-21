@@ -133,10 +133,21 @@ public class DashboardViewModel : INotifyPropertyChanged
             IsPositionsLoading = false;
             Notify(nameof(Positions));
             Notify(nameof(IsPositionsLoading));
+            Notify(nameof(IsConnected));
         }
     }
 
-    public async Task RefreshTrailingStopAsync() => await _trailingStop.RefreshAsync();
+    public async Task RefreshTrailingStopAsync()
+    {
+        await _trailingStop.RefreshAsync();
+        TrailingStopItems = _trailingStop.Items.ToList();
+        Notify(nameof(TrailingStopItems));
+        Notify(nameof(IsTrailingStopLoading));
+        Notify(nameof(TrailingStopStatusMessage));
+        Notify(nameof(IsTrailingStopMonitoring));
+        Notify(nameof(TrailingStopTriggeredCount));
+        Notify(nameof(TrailingStopMonitoringCount));
+    }
 
     public async Task SetTrailingStopMonitoringAsync(bool enabled)
         => await _trailingStop.SetMonitoringAsync(enabled);

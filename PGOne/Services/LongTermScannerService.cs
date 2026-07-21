@@ -107,8 +107,18 @@ public class LongTermScannerService : ILongTermScannerService
         }
     }
 
-    public Task<OrderPlacementResult> PlaceOrderAsync(StockScanRow row) =>
-        _zerodha.PlaceOrderAsync(row.Exchange, row.Symbol, "BUY", row.Quantity, "MARKET", product: "CNC");
+    public async Task<OrderPlacementResult> PlaceOrderAsync(StockScanRow row)
+    {
+        var limitPrice = row.LastPrice;
+        if (limitPrice <= 0)
+            limitPrice = await _zerodha.GetLtpAsync($"{row.Exchange}:{row.Symbol}");
+
+        if (limitPrice <= 0)
+            return OrderPlacementResult.Fail("Could not fetch price for limit order.");
+
+        return await _zerodha.PlaceOrderAsync(
+            row.Exchange, row.Symbol, "BUY", row.Quantity, "LIMIT", limitPrice, "CNC");
+    }
 
     private async Task<Dictionary<string, decimal>> FetchQuotesBatchedAsync(IReadOnlyList<string> symbols)
     {

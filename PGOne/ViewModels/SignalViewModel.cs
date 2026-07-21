@@ -43,12 +43,22 @@ public class SignalViewModel : INotifyPropertyChanged
             return;
         }
 
+        var tradingsymbol = CurrentSignal.Entry.Replace(" ", "");
+        var ltp = await _zerodha.GetLtpAsync($"NFO:{tradingsymbol}");
+        if (ltp <= 0)
+        {
+            PlaceOrderMessage = "Could not fetch price for limit order.";
+            Notify(nameof(PlaceOrderMessage));
+            return;
+        }
+
         var result = await _zerodha.PlaceOrderAsync(
             "NFO",
-            CurrentSignal.Entry.Replace(" ", ""),
+            tradingsymbol,
             CurrentSignal.Trend == TrendDirection.Buy ? "BUY" : "SELL",
             1,
-            "MARKET");
+            "LIMIT",
+            ltp);
 
         PlaceOrderMessage = result.IsSuccess
             ? $"Order placed! ID: {result.OrderId}"

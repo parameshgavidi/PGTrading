@@ -218,20 +218,29 @@ public class TrailingStopLossService : ITrailingStopLossService, IDisposable
         var transactionType = position.Quantity > 0 ? "SELL" : "BUY";
         var quantity = Math.Abs(position.Quantity);
 
+        var limitPrice = row.LastPrice > 0 ? row.LastPrice : position.LastPrice;
+        if (limitPrice <= 0)
+        {
+            row.Detail = "Exit signal — could not fetch price for limit order";
+            StatusMessage = $"Failed to place exit for {position.Symbol}: no price available";
+            return;
+        }
+
         var result = await _zerodha.PlaceOrderAsync(
             position.Exchange,
             position.Symbol,
             transactionType,
             quantity,
-            "MARKET");
+            "LIMIT",
+            limitPrice);
 
         if (result.IsSuccess)
         {
             _exitedKeys.Add(key);
             row.ExitPlaced = true;
             row.Status = "Exit placed";
-            row.Detail = $"Order {result.OrderId} — {transactionType} {quantity} @ MARKET";
-            StatusMessage = $"Exit placed for {position.Symbol}: {transactionType} {quantity}";
+            row.Detail = $"Order {result.OrderId} — {transactionType} {quantity} @ LIMIT {limitPrice:N2}";
+            StatusMessage = $"Exit placed for {position.Symbol}: {transactionType} {quantity} @ {limitPrice:N2}";
         }
         else
         {

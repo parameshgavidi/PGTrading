@@ -62,5 +62,6 @@
   {
     _connected = ZerodhaService.IsConnected;
     _orders = await ZerodhaService.GetOrdersAsync();
+    await InvokeAsync(StateHasChanged);
   }
 }

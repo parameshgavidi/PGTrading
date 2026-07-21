@@ -121,7 +121,7 @@ public class WatchlistViewModel : INotifyPropertyChanged, IDisposable
         var result = await _intradayScanner.PlaceOrderAsync(row);
 
         row.OrderMessage = result.IsSuccess
-            ? $"MIS MARKET BUY placed — order {result.OrderId}"
+            ? $"MIS LIMIT BUY placed @ {row.LastPrice:N2} — order {result.OrderId}"
             : result.ErrorMessage ?? "Order failed — check Zerodha connection";
 
         Notify(nameof(IntradayScanItems));
@@ -133,7 +133,7 @@ public class WatchlistViewModel : INotifyPropertyChanged, IDisposable
         var result = await _longTermScanner.PlaceOrderAsync(row);
 
         row.OrderMessage = result.IsSuccess
-            ? $"CNC MARKET BUY placed — order {result.OrderId}"
+            ? $"CNC LIMIT BUY placed @ {row.LastPrice:N2} — order {result.OrderId}"
             : result.ErrorMessage ?? "Order failed — check Zerodha connection";
 
         Notify(nameof(LongTermScanItems));

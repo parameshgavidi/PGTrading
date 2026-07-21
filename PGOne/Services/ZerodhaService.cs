@@ -509,6 +509,9 @@ public class ZerodhaService : IZerodhaService
         if (quantity <= 0)
             return OrderPlacementResult.Fail("Order quantity must be at least 1.");
 
+        if (orderType == "LIMIT" && !price.HasValue)
+            return OrderPlacementResult.Fail("Limit orders require a price.");
+
         var formData = new Dictionary<string, string>
         {
             ["exchange"] = exchange,
