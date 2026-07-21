@@ -148,6 +148,10 @@
             }
             else
             {
+                @if (ViewModel.IsPositionsLoading)
+                {
+                    <div class="status-message">Refreshing positions...</div>
+                }
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -195,7 +199,7 @@
                     <li>Long (buy): exit when 5m candle <strong>closes below</strong> ST(7, 2.5)</li>
                     <li>Short (sell): exit when 5m candle <strong>closes above</strong> ST(7, 2.5)</li>
                     <li>Uses last completed 5m candle (not the live forming bar)</li>
-                    <li>Enable auto-exit to place MARKET square-off orders on breach</li>
+                    <li>Enable auto-exit to place LIMIT square-off orders on breach</li>
                 </ul>
                 <div class="trailing-stop-controls">
                     <label class="checkbox-label">
@@ -224,6 +228,10 @@
             }
             else
             {
+                @if (ViewModel.IsTrailingStopLoading)
+                {
+                    <div class="status-message">Refreshing trailing stop data...</div>
+                }
                 <div class="holdings-summary">
                     <span class="summary-pill">@ViewModel.TrailingStopMonitoringCount open</span>
                     @if (ViewModel.TrailingStopTriggeredCount > 0)
@@ -287,7 +295,7 @@
     ViewModel.PropertyChanged += OnViewModelPropertyChanged;
 
     _refreshTimer = new System.Timers.Timer(30000);
-    _refreshTimer.Elapsed += async (_, _) => await ViewModel.RefreshAsync();
+    _refreshTimer.Elapsed += (_, _) => _ = InvokeAsync(async () => await ViewModel.RefreshAsync());
     _refreshTimer.Start();
   }
 
@@ -301,9 +309,17 @@
     await ViewModel.ChangeTimeframeAsync(timeframe);
   }
 
-  private Task RefreshPositionsAsync() => ViewModel.RefreshPositionsAsync();
+  private async Task RefreshPositionsAsync()
+  {
+    await ViewModel.RefreshPositionsAsync();
+    await InvokeAsync(StateHasChanged);
+  }
 
-  private Task RefreshTrailingStopAsync() => ViewModel.RefreshTrailingStopAsync();
+  private async Task RefreshTrailingStopAsync()
+  {
+    await ViewModel.RefreshTrailingStopAsync();
+    await InvokeAsync(StateHasChanged);
+  }
 
   private async Task OnTrailingStopMonitoringChanged(ChangeEventArgs e)
   {

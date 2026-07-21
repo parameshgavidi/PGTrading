@@ -23,7 +23,7 @@ public interface IZerodhaService
     Task<List<Position>> GetMisPositionsAsync(bool includeClosed = true);
     Task<List<Holding>> GetHoldingsAsync();
     Task<List<Order>> GetOrdersAsync();
-    Task<string?> PlaceOrderAsync(string exchange, string tradingsymbol, string transactionType, int quantity, string orderType, decimal? price = null, string product = "MIS");
+    Task<OrderPlacementResult> PlaceOrderAsync(string exchange, string tradingsymbol, string transactionType, int quantity, string orderType, decimal? price = null, string product = "MIS");
     Task<IReadOnlyList<string>> GetNseEquitySymbolsAsync();
     void Disconnect();
 }
@@ -494,7 +494,7 @@ public class ZerodhaService : IZerodhaService
         }
     }
 
-    public async Task<string?> PlaceOrderAsync(
+    public async Task<OrderPlacementResult> PlaceOrderAsync(
         string exchange,
         string tradingsymbol,
         string transactionType,
@@ -504,7 +504,13 @@ public class ZerodhaService : IZerodhaService
         string product = "MIS")
     {
         if (!IsConnected)
-            return null;
+            return OrderPlacementResult.Fail("Not connected to Zerodha. Connect in Settings and try again.");
+
+        if (quantity <= 0)
+            return OrderPlacementResult.Fail("Order quantity must be at least 1.");
+
+        if (orderType == "LIMIT" && !price.HasValue)
+            return OrderPlacementResult.Fail("Limit orders require a price.");
 
         var formData = new Dictionary<string, string>
         {
@@ -520,17 +526,43 @@ public class ZerodhaService : IZerodhaService
         if (price.HasValue)
             formData["price"] = price.Value.ToString("F2");
 
-        var request = CreateRequest(HttpMethod.Post, "/orders/regular");
-        request.Content = new FormUrlEncodedContent(formData);
+        if (orderType is "MARKET" or "SL-M")
+            formData["market_protection"] = "-1";
 
-        var response = await _http.SendAsync(request);
-        var json = await response.Content.ReadAsStringAsync();
+        try
+        {
+            var request = CreateRequest(HttpMethod.Post, "/orders/regular");
+            request.Content = new FormUrlEncodedContent(formData);
 
-        if (!response.IsSuccessStatusCode)
-            return null;
+            var response = await _http.SendAsync(request);
+            var json = await response.Content.ReadAsStringAsync();
 
-        using var doc = JsonDocument.Parse(json);
-        return doc.RootElement.GetProperty("data").GetProperty("order_id").GetString();
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = TryReadKiteError(json)
+                    ?? $"Order rejected (HTTP {(int)response.StatusCode}).";
+                return OrderPlacementResult.Fail(error);
+            }
+
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("status", out var status)
+                && status.GetString() is "error")
+            {
+                var error = TryReadKiteError(json) ?? "Order rejected by Zerodha.";
+                return OrderPlacementResult.Fail(error);
+            }
+
+            var orderId = root.GetProperty("data").GetProperty("order_id").GetString();
+            return string.IsNullOrEmpty(orderId)
+                ? OrderPlacementResult.Fail("Order placed but no order ID was returned.")
+                : OrderPlacementResult.Ok(orderId);
+        }
+        catch (Exception ex)
+        {
+            return OrderPlacementResult.Fail($"Order placement error: {ex.Message}");
+        }
     }
 
     public async Task<IReadOnlyList<string>> GetNseEquitySymbolsAsync()

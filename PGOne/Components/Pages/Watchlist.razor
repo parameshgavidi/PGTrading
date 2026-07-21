@@ -108,7 +108,7 @@
                     ViewModel.IsIntradayScanning,
                     ScanNotional.Intraday,
                     "intraday framework",
-                    "MIS MARKET",
+                    "MIS LIMIT",
                     PlaceMisOrderAsync);
                 break;
 
@@ -123,7 +123,7 @@
                         <li>Long (buy): exit when 5m candle <strong>closes below</strong> ST(7, 2.5)</li>
                         <li>Short (sell): exit when 5m candle <strong>closes above</strong> ST(7, 2.5)</li>
                         <li>Uses last completed 5m candle (not the live forming bar)</li>
-                        <li>Enable auto-exit to place MARKET square-off orders on breach</li>
+                        <li>Enable auto-exit to place LIMIT square-off orders on breach</li>
                     </ul>
                     <div class="trailing-stop-controls">
                         <label class="checkbox-label">
@@ -239,7 +239,7 @@
                     ViewModel.IsLongTermScanning,
                     ScanNotional.LongTerm,
                     "long-term framework",
-                    "CNC MARKET",
+                    "CNC LIMIT",
                     PlaceCncOrderAsync);
                 break;
 
