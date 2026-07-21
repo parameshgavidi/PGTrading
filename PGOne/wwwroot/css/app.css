@@ -230,9 +230,26 @@ html, body {
 }
 
 .watchlist-panel {
-    width: 200px;
+    width: 220px;
     flex-shrink: 0;
     overflow-y: auto;
+    max-height: 520px;
+}
+
+.watchlist-section + .watchlist-section {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--card-border);
+}
+
+.watchlist-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    padding: 0 4px;
 }
 
 .watchlist-items { display: flex; flex-direction: column; }

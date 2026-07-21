@@ -21,7 +21,8 @@ public class DashboardViewModel : INotifyPropertyChanged
     public TrendDirection NiftyTrend { get; private set; } = TrendDirection.Neutral;
     public MultiTimeframeAnalysis Analysis { get; private set; } = new();
     public Signal CurrentSignal { get; private set; } = new();
-    public List<WatchItem> Watchlist { get; private set; } = new();
+    public List<WatchItem> IndexWatchlist { get; private set; } = new();
+    public List<WatchItem> Top10Watchlist { get; private set; } = new();
     public List<Candle> ChartCandles { get; private set; } = new();
     public List<Position> Positions { get; private set; } = new();
     public List<TrailingStopRow> TrailingStopItems { get; private set; } = new();
@@ -59,7 +60,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         _trailingStop = trailingStop;
 
         _marketData.PriceUpdated += OnPriceUpdated;
-        _watchlist.WatchlistUpdated += () => { Watchlist = _watchlist.TopWeightageItems; Notify(); };
+        _watchlist.WatchlistUpdated += OnWatchlistUpdated;
         _trailingStop.Updated += OnTrailingStopUpdated;
     }
 
@@ -71,7 +72,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         CurrentSignal = await _signal.GenerateSignalAsync(SelectedSymbol);
         UpdateSelectedTrend();
         await _watchlist.RefreshTopWeightageAsync();
-        Watchlist = _watchlist.TopWeightageItems;
+        SyncWatchlists();
         await RefreshPositionsAsync();
         await _trailingStop.RefreshAsync();
         TrailingStopItems = _trailingStop.Items.ToList();
@@ -192,6 +193,18 @@ public class DashboardViewModel : INotifyPropertyChanged
         Notify(nameof(NiftyPrice));
     }
 
+    private void OnWatchlistUpdated()
+    {
+        SyncWatchlists();
+        Notify();
+    }
+
+    private void SyncWatchlists()
+    {
+        IndexWatchlist = _watchlist.IndexItems;
+        Top10Watchlist = _watchlist.Top10WeightItems;
+    }
+
     private void OnTrailingStopUpdated()
     {
         TrailingStopItems = _trailingStop.Items.ToList();
@@ -254,7 +267,8 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedInstrument)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Analysis)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentSignal)));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Watchlist)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IndexWatchlist)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Top10Watchlist)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ChartCandles)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ChartVersion)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsMarketOpen)));
