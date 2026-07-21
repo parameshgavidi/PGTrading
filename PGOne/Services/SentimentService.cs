@@ -35,18 +35,19 @@ public class SentimentService : ISentimentService
     private const int MaxRetries = 3;
 
     private readonly ISettingsService _settings;
+    private readonly INseSymbolResolver _nseSymbols;
     private readonly HttpClient _http;
     private readonly List<StockSentimentResult> _results = new();
-    private NiftyStockDirectory? _stockDirectory;
 
     public bool IsScanning { get; private set; }
     public string? ProgressMessage { get; private set; }
     public IReadOnlyList<StockSentimentResult> Results => _results;
     public event Action? Updated;
 
-    public SentimentService(ISettingsService settings)
+    public SentimentService(ISettingsService settings, INseSymbolResolver nseSymbols)
     {
         _settings = settings;
+        _nseSymbols = nseSymbols;
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
         _http.DefaultRequestHeaders.UserAgent.ParseAdd(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
@@ -67,13 +68,13 @@ public class SentimentService : ISentimentService
             return;
 
         await _settings.LoadAsync();
-        _stockDirectory ??= await NiftyStockDirectory.LoadAsync();
+        await _nseSymbols.EnsureLoadedAsync(cancellationToken);
 
         IsScanning = true;
         _results.Clear();
         ProgressMessage = mode == ScanMode.NewsFeeds
-            ? "Fetching news from MoneyControl, ET, LiveMint, Google News..."
-            : "Starting symbol-based sentiment scan...";
+            ? $"Fetching news from MoneyControl, ET, LiveMint, Google News ({_nseSymbols.SymbolCount:N0} NSE symbols loaded)..."
+            : "Starting NSE symbol sentiment scan...";
         NotifyUpdated();
 
         try
@@ -170,7 +171,7 @@ public class SentimentService : ISentimentService
             {
                 var articleText = await DownloadArticleTextAsync(entry.Link, cancellationToken);
                 var combinedText = $"{entry.Title}\n{articleText}";
-                var symbols = _stockDirectory!.ResolveSymbolsInText(combinedText).ToList();
+                var symbols = _nseSymbols.ResolveSymbolsInText(combinedText).ToList();
                 if (symbols.Count == 0)
                     continue;
 

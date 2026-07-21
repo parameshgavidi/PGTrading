@@ -20,10 +20,10 @@
         </div>
 
         <p class="text-secondary">
-            Matches your Python workflow: fetches news from <strong>MoneyControl</strong>, <strong>Economic Times</strong>,
-            <strong>LiveMint</strong>, and <strong>Google News</strong>, extracts NSE stock mentions with fuzzy matching,
-            downloads article text, and classifies sentiment as <strong>Bullish / Bearish / Neutral</strong> using
-            free <strong>FinBERT</strong> (ProsusAI/finbert) via Hugging Face.
+            Scans <strong>MoneyControl</strong>, <strong>Economic Times</strong>, <strong>LiveMint</strong>, and
+            <strong>Google News</strong> RSS feeds, matches mentioned stocks against the live
+            <strong>NSE equity list</strong>, and classifies sentiment using
+            <strong>FinBERT</strong> (ProsusAI/finbert) — the leading free financial NLP model.
         </p>
 
         @if (!string.IsNullOrEmpty(ViewModel.ProgressMessage))
@@ -125,9 +125,9 @@
         else if (!ViewModel.IsScanning)
         {
             <div class="empty-state">
-                Click <strong>Scan News Feeds</strong> to analyze stocks mentioned across MoneyControl, ET, LiveMint, and Google News.
-                Use <strong>Scan Nifty 50</strong> for symbol-specific Google News coverage.
-                Optional: add a free Hugging Face API token in Settings for higher rate limits.
+                Click <strong>Scan News Feeds</strong> to discover NSE stocks mentioned across MoneyControl, ET, LiveMint, and Google News.
+                Use <strong>Scan Nifty 50</strong> for targeted symbol coverage.
+                Optional: add a free Hugging Face API token in Settings for higher FinBERT rate limits.
             </div>
         }
     </div>
