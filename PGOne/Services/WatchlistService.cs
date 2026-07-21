@@ -45,7 +45,7 @@ public class WatchlistService : IWatchlistService
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            var instruments = uniqueSymbols.Select(InstrumentMapper.ToZerodhaKey).ToArray();
+            var instruments = uniqueSymbols.Select(s => InstrumentMapper.ToZerodhaKey(s)).ToArray();
             var quotes = await _zerodha.GetQuotesAsync(instruments);
 
             IndexItems = await BuildWatchItemsAsync(indexSymbols, quotes, markFavorites: true);
