@@ -17,7 +17,11 @@ public static class NiftyConstituents
     ];
 
     /// <summary>Top 10 Nifty 50 stocks by approximate index weight.</summary>
-    public static IReadOnlyList<string> Top10Weightage { get; } = TopWeightage.Take(10).ToList();
+    public static IReadOnlyList<string> Top10Weightage { get; } =
+    [
+        "HDFCBANK", "RELIANCE", "ICICIBANK", "INFY", "ITC", "LT", "TCS",
+        "AXISBANK", "KOTAKBANK", "SBIN"
+    ];
 
     /// <summary>Key indices shown on the dashboard watchlist.</summary>
     public static IReadOnlyList<string> DashboardIndices { get; } =
