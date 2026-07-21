@@ -28,4 +28,12 @@ public static class InstrumentMapper
         "SENSEX" => "SENSEX",
         _ => symbol
     };
+
+    public static string ToIndexShortName(string symbol) => symbol.ToUpper() switch
+    {
+        "NIFTY" => "NIFTY 50",
+        "BANKNIFTY" => "BANK",
+        "SENSEX" => "SENSEX",
+        _ => ToDisplayName(symbol)
+    };
 }

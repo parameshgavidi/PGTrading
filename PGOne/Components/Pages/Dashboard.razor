@@ -1,4 +1,5 @@
 @page "/"
+@using PGOne.Services
 @inject DashboardViewModel ViewModel
 @implements IDisposable
 
@@ -12,8 +13,15 @@
                     {
                         <div class="watchlist-row favorite @(ViewModel.SelectedSymbol == item.Symbol ? "selected" : "")"
                              @onclick="() => SelectSymbol(item.Symbol)">
-                            <span class="symbol">★ @item.Name</span>
-                            <span class="trend @GetTrendClass(item.Trend)">@item.Trend</span>
+                            <div class="watchlist-row-main">
+                                <span class="symbol">@InstrumentMapper.ToIndexShortName(item.Symbol)</span>
+                                <span class="bs-badge @GetTrendClass(item.Trend)">@GetBadgeLabel(item.Trend)</span>
+                            </div>
+                            <div class="watchlist-row-meta">
+                                <span class="index-change @(item.ChangePercent >= 0 ? "positive" : "negative")">
+                                    @(item.ChangePercent >= 0 ? "+" : "")@item.ChangePercent.ToString("N2")%
+                                </span>
+                            </div>
                         </div>
                     }
                 </div>
@@ -26,8 +34,20 @@
                     {
                         <div class="watchlist-row @(ViewModel.SelectedSymbol == item.Symbol ? "selected" : "")"
                              @onclick="() => SelectSymbol(item.Symbol)">
-                            <span class="symbol">@($"{item.Rank}. {item.Name}")</span>
-                            <span class="trend @GetTrendClass(item.Trend)">@item.Trend</span>
+                            <div class="watchlist-row-main">
+                                <span class="symbol">@item.Symbol</span>
+                                <span class="bs-badge @GetTrendClass(item.Trend)">@GetBadgeLabel(item.Trend)</span>
+                            </div>
+                            <div class="watchlist-row-meta">
+                                <span class="index-change @(item.ChangePercent >= 0 ? "positive" : "negative")">
+                                    @(item.ChangePercent >= 0 ? "+" : "")@item.ChangePercent.ToString("N2")%
+                                </span>
+                                @if (item.Weight > 0)
+                                {
+                                    <span class="weight-label">@item.Weight.ToString("N1")%</span>
+                                }
+                                <span class="sparkline @(item.ChangePercent >= 0 ? "up" : item.ChangePercent < 0 ? "down" : "")">@item.Sparkline</span>
+                            </div>
                         </div>
                     }
                 </div>
@@ -48,7 +68,7 @@
                         <span class="change @(ViewModel.NiftyChange >= 0 ? "positive" : "negative")">
                             @(ViewModel.NiftyChange >= 0 ? "▲" : "▼") @Math.Abs(ViewModel.NiftyChange).ToString("N2") (@ViewModel.NiftyChangePercent%)
                         </span>
-                        <span class="trend-badge @GetTrendClass(ViewModel.NiftyTrend)">Trend: @ViewModel.NiftyTrend</span>
+                        <span class="bs-badge @GetTrendClass(ViewModel.NiftyTrend)">@GetBadgeLabel(ViewModel.NiftyTrend)</span>
                     </div>
                 </div>
             </div>
@@ -56,8 +76,8 @@
                               Candles="ViewModel.ChartCandles"
                               ChartVersion="ViewModel.ChartVersion"
                               Timeframe="ViewModel.SelectedTimeframe"
-                              Width="800"
-                              Height="350" />
+                              Width="900"
+                              Height="420" />
             <div class="timeframe-buttons">
                 @foreach (var tf in new[] { "5m", "15m", "1H" })
                 {
@@ -75,6 +95,24 @@
             {
                 <div class="chart-meta">Last bar: @ViewModel.LastCandleSummary</div>
             }
+        </div>
+
+        <div class="ai-insight-panel card">
+            <div class="ai-insight-title">AI Analysis</div>
+            <div class="ai-check-list">
+                <div class="ai-check pass">Trend @ViewModel.Analysis.Strength</div>
+                <div class="ai-check pass">ADX @(ViewModel.Analysis.Adx >= 25 ? "Rising" : ViewModel.Analysis.Adx.ToString("N0"))</div>
+                <div class="ai-check pass">RSI @ViewModel.Analysis.Rsi.ToString("N0")</div>
+                <div class="ai-check pass">SuperTrend @GetSuperTrendLabel(ViewModel.Analysis.Trend5M)</div>
+            </div>
+            <div class="ai-probability">
+                <div class="ai-probability-label">Probability</div>
+                <div class="ai-probability-value">@ViewModel.Analysis.OverallScore%</div>
+            </div>
+            <div class="ai-suggested">
+                <div class="ai-suggested-label">Suggested</div>
+                <div class="ai-suggested-action">@GetSuggestedAction()</div>
+            </div>
         </div>
     </div>
 
@@ -136,6 +174,18 @@
                 <div class="signal-check">Entry : @ViewModel.CurrentSignal.Entry</div>
                 <div class="signal-check">Plan : @ViewModel.CurrentSignal.Strategy</div>
                 <div class="signal-check">Confidence : @ViewModel.CurrentSignal.Confidence%</div>
+            </div>
+        </div>
+
+        <div class="news-panel card">
+            <div class="card-header">News</div>
+            <div class="news-list">
+                @foreach (var headline in _newsHeadlines)
+                {
+                    <div class="news-item @headline.SentimentClass">
+                        @headline.Icon @headline.Text
+                    </div>
+                }
             </div>
         </div>
     </div>
@@ -305,6 +355,14 @@
 @code {
   private System.Timers.Timer? _refreshTimer;
 
+  private readonly List<NewsHeadline> _newsHeadlines =
+  [
+      new("🟢", "Reliance jumps after earnings", "bullish"),
+      new("🔴", "US Futures fall", "bearish"),
+      new("🟢", "RBI keeps rates unchanged", "bullish"),
+      new("🟡", "Infosys announces buyback plan", "neutral-news")
+  ];
+
   protected override async Task OnInitializedAsync()
   {
     await ViewModel.InitializeAsync();
@@ -355,6 +413,28 @@
     _ => "neutral"
   };
 
+  private static string GetBadgeLabel(TrendDirection trend) => trend switch
+  {
+    TrendDirection.Buy => "🟢 BUY",
+    TrendDirection.Sell => "🔴 SELL",
+    _ => "⚪ NEUTRAL"
+  };
+
+  private static string GetSuperTrendLabel(TrendDirection trend) => trend switch
+  {
+    TrendDirection.Buy => "Bullish",
+    TrendDirection.Sell => "Bearish",
+    _ => "Neutral"
+  };
+
+  private string GetSuggestedAction() => ViewModel.CurrentSignal.Trend switch
+  {
+    TrendDirection.Buy => "BUY ON DIP",
+    TrendDirection.Sell => "SELL ON RALLY",
+    _ when ViewModel.Analysis.WaitForReversal => "WAIT",
+    _ => "HOLD / NEUTRAL"
+  };
+
   private static string GetTrendIcon(TrendDirection trend) => trend switch
   {
     TrendDirection.Buy => "🟢",
@@ -376,6 +456,8 @@
   private static string GetTrailingStatusClass(TrailingStopRow item) => item.ExitPlaced
       ? "neutral"
       : item.IsTriggered ? "sell" : "buy";
+
+  private sealed record NewsHeadline(string Icon, string Text, string SentimentClass);
 
   public void Dispose()
   {

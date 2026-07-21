@@ -4,12 +4,12 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
 
     <Color x:Key="Background">#121212</Color>
-    <Color x:Key="Card">#1E1E1E</Color>
+    <Color x:Key="Card">#1A1A1A</Color>
     <Color x:Key="Buy">#00C853</Color>
-    <Color x:Key="Sell">#FF1744</Color>
-    <Color x:Key="TextPrimary">#FFFFFF</Color>
-    <Color x:Key="TextSecondary">#B0B0B0</Color>
-    <Color x:Key="AccentBlue">#2196F3</Color>
+    <Color x:Key="Sell">#FF5252</Color>
+    <Color x:Key="TextPrimary">#F5F5F5</Color>
+    <Color x:Key="TextSecondary">#AAAAAA</Color>
+    <Color x:Key="AccentBlue">#D4AF37</Color>
     <Color x:Key="Gold">#D4AF37</Color>
 
 </ResourceDictionary>

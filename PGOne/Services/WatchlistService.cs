@@ -78,16 +78,21 @@ public class WatchlistService : IWatchlistService
                 ? await _signal.AnalyzeAsync(symbol)
                 : new MultiTimeframeAnalysis();
 
+            var changePct = NiftyWeights.GetDemoChangePercent(symbol);
+            var trend = analysis.Trend5M;
+
             items.Add(new WatchItem
             {
                 Symbol = symbol,
                 Name = InstrumentMapper.ToDisplayName(symbol),
                 Rank = i + 1,
                 LastPrice = price,
-                Change = 0m,
-                ChangePercent = 0m,
-                Trend = analysis.Trend5M,
-                IsFavorite = markFavorites
+                Change = price > 0 ? price * changePct / 100m : 0m,
+                ChangePercent = changePct,
+                Trend = trend,
+                IsFavorite = markFavorites,
+                Weight = NiftyWeights.GetWeight(symbol),
+                Sparkline = SparklineHelper.Generate(trend, changePct)
             });
         }
 
