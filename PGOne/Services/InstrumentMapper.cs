@@ -36,4 +36,12 @@ public static class InstrumentMapper
         "SENSEX" => "SENSEX",
         _ => ToDisplayName(symbol)
     };
+
+    public static string FromZerodhaKey(string instrument) => instrument.ToUpper() switch
+    {
+        "NSE:NIFTY 50" => "NIFTY",
+        "NSE:NIFTY BANK" => "BANKNIFTY",
+        "BSE:SENSEX" => "SENSEX",
+        _ => instrument.Contains(':') ? instrument.Split(':', 2)[1] : instrument
+    };
 }

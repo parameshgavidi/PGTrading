@@ -1,4 +1,6 @@
 @namespace PGOne.Components.Layout
+@inject NavigationManager Navigation
+@implements IDisposable
 
 <div class="nav-menu">
     <NavLink class="nav-item" href="" Match="NavLinkMatch.All">
@@ -10,7 +12,7 @@
     <NavLink class="nav-item" href="scanner">
         <span class="nav-icon">🔍</span> Scanner
     </NavLink>
-    <NavLink class="nav-item" href="sentiment">
+    <NavLink class="nav-item" href="sentiment#news">
         <span class="nav-icon">📰</span> News
     </NavLink>
     <NavLink class="nav-item" href="sentiment">
@@ -32,3 +34,15 @@
         <span class="nav-icon">⚙</span> Settings
     </NavLink>
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) =>
+        InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
+}

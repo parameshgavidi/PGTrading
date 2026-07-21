@@ -162,6 +162,13 @@ html, body {
 }
 
 .page-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.02em;
+}
+
+.page-heading {
     font-size: var(--font-page-title);
     font-weight: 600;
     color: var(--text);
@@ -253,8 +260,18 @@ html, body {
     gap: 6px;
 }
 
+.ai-check::before {
+    font-weight: 700;
+    width: 14px;
+    flex-shrink: 0;
+}
+
 .ai-check.pass { color: var(--text); }
-.ai-check.pass::before { content: "✓"; color: var(--buy); font-weight: 700; }
+.ai-check.pass::before { content: "✓"; color: var(--buy); }
+.ai-check.warn { color: var(--text); }
+.ai-check.warn::before { content: "!"; color: #FFB74D; }
+.ai-check.fail { color: var(--text-secondary); }
+.ai-check.fail::before { content: "✗"; color: var(--sell); }
 
 .ai-probability {
     margin: 12px 0;
@@ -273,9 +290,12 @@ html, body {
 .ai-probability-value {
     font-size: 36px;
     font-weight: 700;
-    color: var(--buy);
     line-height: 1;
 }
+
+.ai-probability-value.high { color: var(--buy); }
+.ai-probability-value.mid { color: var(--gold); }
+.ai-probability-value.low { color: var(--sell); }
 
 .ai-suggested {
     margin-top: auto;
@@ -292,11 +312,24 @@ html, body {
 .ai-suggested-action {
     font-size: var(--font-normal);
     font-weight: 700;
-    color: var(--gold);
     letter-spacing: 0.04em;
 }
 
+.ai-suggested-action.buy { color: var(--buy); }
+.ai-suggested-action.sell { color: var(--sell); }
+.ai-suggested-action.wait { color: #FFB74D; }
+.ai-suggested-action.neutral { color: var(--gold); }
+
 .news-panel { flex: 1; min-width: 0; }
+
+.news-link {
+    font-size: var(--font-secondary);
+    color: var(--gold);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.news-link:hover { text-decoration: underline; }
 
 .news-list {
     display: flex;
@@ -484,7 +517,7 @@ html, body {
     overflow: hidden;
 }
 
-.chart-area.large { height: 580px; }
+.chart-area.large { height: 540px; }
 
 .chart-area canvas { display: block; cursor: crosshair; }
 

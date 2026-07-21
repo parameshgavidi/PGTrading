@@ -22,4 +22,25 @@ public static class SparklineHelper
 
         return new string(chars);
     }
+
+    public static string GenerateFromCloses(IReadOnlyList<decimal> closes)
+    {
+        if (closes.Count == 0)
+            return "▃▃▃▃▃▃";
+
+        if (closes.Count == 1)
+            return new string('▃', 6);
+
+        var min = closes.Min();
+        var max = closes.Max();
+        var range = max - min;
+        if (range == 0)
+            return new string('▄', 6);
+
+        return string.Concat(closes.Select(close =>
+        {
+            var idx = (int)Math.Round((close - min) / range * (Blocks.Length - 1));
+            return Blocks[Math.Clamp(idx, 0, Blocks.Length - 1)];
+        }));
+    }
 }

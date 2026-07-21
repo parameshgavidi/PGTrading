@@ -86,19 +86,9 @@
     _scanning = false;
   }
 
-  private static string GetTrendClass(TrendDirection trend) => trend switch
-  {
-    TrendDirection.Buy => "buy",
-    TrendDirection.Sell => "sell",
-    _ => "neutral"
-  };
+  private static string GetTrendClass(TrendDirection trend) => TrendUi.GetClass(trend);
 
-  private static string GetBadgeLabel(TrendDirection trend) => trend switch
-  {
-    TrendDirection.Buy => "🟢 BUY",
-    TrendDirection.Sell => "🔴 SELL",
-    _ => "⚪ NEUTRAL"
-  };
+  private static string GetBadgeLabel(TrendDirection trend) => TrendUi.GetBadgeLabel(trend);
 
   private static MarkupString RenderStars(ScanResult result)
   {

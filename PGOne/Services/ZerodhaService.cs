@@ -19,6 +19,7 @@ public interface IZerodhaService
     Task<List<Candle>> GetHistoricalCandlesAsync(string instrument, string interval, int count = 100);
     Task<CandleSeriesResult> GetHistoricalCandlesResultAsync(string instrument, string interval, int count = 100);
     Task<Dictionary<string, decimal>> GetQuotesAsync(string[] instruments);
+    Task<Dictionary<string, InstrumentQuote>> GetInstrumentQuotesAsync(string[] instruments);
     Task<List<Position>> GetPositionsAsync(string? product = null);
     Task<List<Position>> GetMisPositionsAsync(bool includeClosed = true);
     Task<List<Holding>> GetHoldingsAsync();
@@ -265,6 +266,47 @@ public class ZerodhaService : IZerodhaService
         catch
         {
             return GetDemoQuotes(instruments);
+        }
+    }
+
+    public async Task<Dictionary<string, InstrumentQuote>> GetInstrumentQuotesAsync(string[] instruments)
+    {
+        if (!IsConnected)
+            return GetDemoInstrumentQuotes(instruments);
+
+        try
+        {
+            var query = string.Join("&", instruments.Select(i => $"i={Uri.EscapeDataString(i)}"));
+            var request = CreateRequest(HttpMethod.Get, $"/quote?{query}");
+            var response = await _http.SendAsync(request);
+            var json = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                return GetDemoInstrumentQuotes(instruments);
+
+            using var doc = JsonDocument.Parse(json);
+            var result = new Dictionary<string, InstrumentQuote>();
+            var data = doc.RootElement.GetProperty("data");
+
+            foreach (var prop in data.EnumerateObject())
+            {
+                var item = prop.Value;
+                var ohlc = item.GetProperty("ohlc");
+                result[prop.Name] = new InstrumentQuote
+                {
+                    LastPrice = item.GetProperty("last_price").GetDecimal(),
+                    Open = ohlc.GetProperty("open").GetDecimal(),
+                    High = ohlc.GetProperty("high").GetDecimal(),
+                    Low = ohlc.GetProperty("low").GetDecimal(),
+                    PreviousClose = ohlc.GetProperty("close").GetDecimal()
+                };
+            }
+
+            return result;
+        }
+        catch
+        {
+            return GetDemoInstrumentQuotes(instruments);
         }
     }
 
@@ -719,5 +761,30 @@ public class ZerodhaService : IZerodhaService
         };
 
         return instruments.ToDictionary(i => i, i => demo.GetValueOrDefault(i, 1000m));
+    }
+
+    private static Dictionary<string, InstrumentQuote> GetDemoInstrumentQuotes(string[] instruments)
+    {
+        var prices = GetDemoQuotes(instruments);
+        var result = new Dictionary<string, InstrumentQuote>();
+
+        foreach (var instrument in instruments)
+        {
+            var symbol = InstrumentMapper.FromZerodhaKey(instrument);
+            var changePct = NiftyWeights.GetDemoChangePercent(symbol);
+            var last = prices.GetValueOrDefault(instrument, 1000m);
+            var previous = changePct != 0 ? last / (1 + changePct / 100m) : last;
+
+            result[instrument] = new InstrumentQuote
+            {
+                LastPrice = last,
+                Open = previous,
+                High = Math.Max(last, previous),
+                Low = Math.Min(last, previous),
+                PreviousClose = previous
+            };
+        }
+
+        return result;
     }
 }

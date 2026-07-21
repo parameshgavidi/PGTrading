@@ -1,0 +1,7 @@
+@namespace PGOne.Components
+
+<span class="bs-badge @TrendUi.GetClass(Trend)">@TrendUi.GetBadgeLabel(Trend)</span>
+
+@code {
+    [Parameter] public TrendDirection Trend { get; set; }
+}
