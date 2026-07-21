@@ -585,6 +585,95 @@ html, body {
     color: var(--sell);
 }
 
+.summary-pill.neutral {
+    background: rgba(184,176,160,0.12);
+    color: var(--text-secondary);
+}
+
+.sentiment-summary {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 12px 0 16px;
+}
+
+.sentiment-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.sentiment-badge.buy {
+    background: rgba(0,200,83,0.15);
+    color: var(--buy);
+}
+
+.sentiment-badge.sell {
+    background: rgba(255,82,82,0.15);
+    color: var(--sell);
+}
+
+.sentiment-badge.neutral {
+    background: rgba(184,176,160,0.12);
+    color: var(--text-secondary);
+}
+
+.sentiment-table td {
+    vertical-align: top;
+}
+
+.sentiment-headlines {
+    margin: 0;
+    padding-left: 16px;
+    font-size: 12px;
+    line-height: 1.6;
+    max-width: 520px;
+}
+
+.sentiment-headlines li {
+    margin-bottom: 6px;
+}
+
+.sentiment-headlines .headline-text {
+    color: var(--text-secondary);
+    margin-left: 6px;
+}
+
+.sentiment-headlines .headline-score {
+    color: var(--text-secondary);
+    font-size: 11px;
+    margin-left: 4px;
+}
+
+.sentiment-reason {
+    max-width: 280px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.headline-reason {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding-left: 4px;
+    border-left: 2px solid var(--card-border-gold);
+}
+
+.source-tag {
+    display: inline-block;
+    margin-right: 6px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    background: rgba(212, 175, 55, 0.12);
+    color: var(--gold-light);
+}
+
 .holdings-banner {
     margin: 12px 0;
     padding: 10px 12px;

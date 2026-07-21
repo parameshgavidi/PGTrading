@@ -55,6 +55,7 @@ public class SettingsService : ISettingsService
         Settings.SoundNotifications = settings.SoundNotifications;
         Settings.TelegramBotToken = settings.TelegramBotToken;
         Settings.TelegramChatId = settings.TelegramChatId;
+        Settings.HuggingFaceApiToken = settings.HuggingFaceApiToken;
     }
 
     public async Task SaveSettingsAsync()

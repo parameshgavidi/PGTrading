@@ -1,0 +1,171 @@
+@page "/sentiment"
+@inject SentimentViewModel ViewModel
+@implements IDisposable
+
+<div class="page-container">
+    <div class="card">
+        <div class="card-header">
+            <h2>Sentiment Analysis — NSE Stocks</h2>
+            <div class="button-row">
+                <button class="btn btn-secondary" @onclick="ScanTopTenAsync" disabled="@ViewModel.IsScanning">
+                    Scan Top 10
+                </button>
+                <button class="btn btn-secondary" @onclick="ScanSymbolsAsync" disabled="@ViewModel.IsScanning">
+                    Scan Nifty 50
+                </button>
+                <button class="btn btn-primary" @onclick="ScanNewsFeedsAsync" disabled="@ViewModel.IsScanning">
+                    @(ViewModel.IsScanning ? "Scanning..." : "Scan News Feeds")
+                </button>
+            </div>
+        </div>
+
+        <p class="text-secondary">
+            Scans <strong>MoneyControl</strong>, <strong>Economic Times</strong>, <strong>LiveMint</strong>, and
+            <strong>Google News</strong> RSS feeds, matches mentioned stocks against the live
+            <strong>NSE equity list</strong>, and classifies sentiment using
+            <strong>FinBERT</strong> (ProsusAI/finbert) — the leading free financial NLP model.
+        </p>
+
+        @if (!string.IsNullOrEmpty(ViewModel.ProgressMessage))
+        {
+            <div class="status-message">@ViewModel.ProgressMessage</div>
+        }
+
+        @if (ViewModel.Results.Count > 0)
+        {
+            <div class="sentiment-summary">
+                <span class="summary-pill buy">Bullish: @ViewModel.BullishCount</span>
+                <span class="summary-pill sell">Bearish: @ViewModel.BearishCount</span>
+                <span class="summary-pill neutral">Neutral: @ViewModel.NeutralCount</span>
+            </div>
+
+            <table class="data-table sentiment-table">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Prediction</th>
+                        <th>Confidence</th>
+                        <th>Reason</th>
+                        <th>Sources</th>
+                        <th>+ve</th>
+                        <th>-ve</th>
+                        <th>Neutral</th>
+                        <th>News</th>
+                        <th>Articles</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in ViewModel.Results)
+                    {
+                        <tr>
+                            <td><strong>@row.Symbol</strong></td>
+                            <td class="@GetPredictionClass(row.Prediction)">
+                                <span class="sentiment-badge @GetPredictionClass(row.Prediction)">
+                                    @GetPredictionLabel(row.Prediction)
+                                </span>
+                            </td>
+                            <td>@(row.Confidence > 0 ? $"{row.Confidence:P0}" : "—")</td>
+                            <td class="sentiment-reason">
+                                @if (!string.IsNullOrEmpty(row.Reason))
+                                {
+                                    @row.Reason
+                                }
+                                else
+                                {
+                                    <span class="text-secondary">—</span>
+                                }
+                            </td>
+                            <td>
+                                @if (row.Sources.Count > 0)
+                                {
+                                    <span>@string.Join(", ", row.Sources)</span>
+                                }
+                                else
+                                {
+                                    <span class="text-secondary">—</span>
+                                }
+                            </td>
+                            <td class="buy">@row.PositiveCount</td>
+                            <td class="sell">@row.NegativeCount</td>
+                            <td class="neutral">@row.NeutralCount</td>
+                            <td>@row.NewsCount</td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(row.Error))
+                                {
+                                    <span class="text-secondary">@row.Error</span>
+                                }
+                                else if (row.Headlines.Count > 0)
+                                {
+                                    <ul class="sentiment-headlines">
+                                        @foreach (var headline in row.Headlines)
+                                        {
+                                            <li>
+                                                <span class="source-tag">@headline.Source</span>
+                                                <span class="@GetLabelClass(headline.Label)">@headline.Label</span>
+                                                <span class="headline-text">@headline.Headline</span>
+                                                <span class="headline-score">(@headline.Score:P0})</span>
+                                                @if (!string.IsNullOrEmpty(headline.Reason))
+                                                {
+                                                    <div class="headline-reason">@headline.Reason</div>
+                                                }
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                                else
+                                {
+                                    <span class="text-secondary">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else if (!ViewModel.IsScanning)
+        {
+            <div class="empty-state">
+                Click <strong>Scan News Feeds</strong> to discover NSE stocks mentioned across MoneyControl, ET, LiveMint, and Google News.
+                Use <strong>Scan Nifty 50</strong> for targeted symbol coverage.
+                Optional: add a free Hugging Face API token in Settings for higher FinBERT rate limits.
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+    }
+
+    private async Task ScanNewsFeedsAsync() => await ViewModel.ScanNewsFeedsAsync();
+    private async Task ScanSymbolsAsync() => await ViewModel.ScanSymbolsAsync();
+    private async Task ScanTopTenAsync() => await ViewModel.ScanTopTenAsync();
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+        InvokeAsync(StateHasChanged);
+
+    private static string GetPredictionLabel(SentimentPrediction prediction) => prediction switch
+    {
+        SentimentPrediction.Bullish => "Bullish",
+        SentimentPrediction.Bearish => "Bearish",
+        _ => "Neutral"
+    };
+
+    private static string GetPredictionClass(SentimentPrediction prediction) => prediction switch
+    {
+        SentimentPrediction.Bullish => "buy",
+        SentimentPrediction.Bearish => "sell",
+        _ => "neutral"
+    };
+
+    private static string GetLabelClass(string label) => label.ToLowerInvariant() switch
+    {
+        "positive" => "buy",
+        "negative" => "sell",
+        _ => "neutral"
+    };
+
+    public void Dispose() => ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+}
