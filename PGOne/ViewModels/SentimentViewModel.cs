@@ -25,10 +25,12 @@ public class SentimentViewModel : INotifyPropertyChanged, IDisposable
     public int BearishCount => Results.Count(r => r.Prediction == SentimentPrediction.Bearish);
     public int NeutralCount => Results.Count(r => r.Prediction == SentimentPrediction.Neutral);
 
-    public async Task ScanAsync() => await _sentiment.ScanAsync();
+    public async Task ScanNewsFeedsAsync() => await _sentiment.ScanNewsFeedsAsync();
+
+    public async Task ScanSymbolsAsync() => await _sentiment.ScanSymbolsAsync();
 
     public async Task ScanTopTenAsync() =>
-        await _sentiment.ScanAsync(NiftyConstituents.Top10Weightage);
+        await _sentiment.ScanSymbolsAsync(NiftyConstituents.Top10Weightage);
 
     private void OnSentimentUpdated()
     {

@@ -10,16 +10,20 @@
                 <button class="btn btn-secondary" @onclick="ScanTopTenAsync" disabled="@ViewModel.IsScanning">
                     Scan Top 10
                 </button>
-                <button class="btn btn-primary" @onclick="ScanAllAsync" disabled="@ViewModel.IsScanning">
-                    @(ViewModel.IsScanning ? "Scanning..." : "Scan Nifty 50")
+                <button class="btn btn-secondary" @onclick="ScanSymbolsAsync" disabled="@ViewModel.IsScanning">
+                    Scan Nifty 50
+                </button>
+                <button class="btn btn-primary" @onclick="ScanNewsFeedsAsync" disabled="@ViewModel.IsScanning">
+                    @(ViewModel.IsScanning ? "Scanning..." : "Scan News Feeds")
                 </button>
             </div>
         </div>
 
         <p class="text-secondary">
-            Fetches recent Google News headlines for each NSE stock and predicts sentiment using
-            <strong>FinBERT</strong> (ProsusAI/finbert) via the free Hugging Face Inference API —
-            the same model commonly used in Python <code>transformers</code> pipelines.
+            Matches your Python workflow: fetches news from <strong>MoneyControl</strong>, <strong>Economic Times</strong>,
+            <strong>LiveMint</strong>, and <strong>Google News</strong>, extracts NSE stock mentions with fuzzy matching,
+            downloads article text, and classifies sentiment as <strong>Bullish / Bearish / Neutral</strong> using
+            free <strong>FinBERT</strong> (ProsusAI/finbert) via Hugging Face.
         </p>
 
         @if (!string.IsNullOrEmpty(ViewModel.ProgressMessage))
@@ -41,11 +45,13 @@
                         <th>Symbol</th>
                         <th>Prediction</th>
                         <th>Confidence</th>
+                        <th>Reason</th>
+                        <th>Sources</th>
                         <th>+ve</th>
                         <th>-ve</th>
                         <th>Neutral</th>
                         <th>News</th>
-                        <th>Headlines</th>
+                        <th>Articles</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -59,6 +65,26 @@
                                 </span>
                             </td>
                             <td>@(row.Confidence > 0 ? $"{row.Confidence:P0}" : "—")</td>
+                            <td class="sentiment-reason">
+                                @if (!string.IsNullOrEmpty(row.Reason))
+                                {
+                                    @row.Reason
+                                }
+                                else
+                                {
+                                    <span class="text-secondary">—</span>
+                                }
+                            </td>
+                            <td>
+                                @if (row.Sources.Count > 0)
+                                {
+                                    <span>@string.Join(", ", row.Sources)</span>
+                                }
+                                else
+                                {
+                                    <span class="text-secondary">—</span>
+                                }
+                            </td>
                             <td class="buy">@row.PositiveCount</td>
                             <td class="sell">@row.NegativeCount</td>
                             <td class="neutral">@row.NeutralCount</td>
@@ -74,9 +100,14 @@
                                         @foreach (var headline in row.Headlines)
                                         {
                                             <li>
+                                                <span class="source-tag">@headline.Source</span>
                                                 <span class="@GetLabelClass(headline.Label)">@headline.Label</span>
                                                 <span class="headline-text">@headline.Headline</span>
                                                 <span class="headline-score">(@headline.Score:P0})</span>
+                                                @if (!string.IsNullOrEmpty(headline.Reason))
+                                                {
+                                                    <div class="headline-reason">@headline.Reason</div>
+                                                }
                                             </li>
                                         }
                                     </ul>
@@ -94,7 +125,8 @@
         else if (!ViewModel.IsScanning)
         {
             <div class="empty-state">
-                Click <strong>Scan Nifty 50</strong> to analyze sentiment for top Nifty stocks.
+                Click <strong>Scan News Feeds</strong> to analyze stocks mentioned across MoneyControl, ET, LiveMint, and Google News.
+                Use <strong>Scan Nifty 50</strong> for symbol-specific Google News coverage.
                 Optional: add a free Hugging Face API token in Settings for higher rate limits.
             </div>
         }
@@ -107,7 +139,8 @@
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
-    private async Task ScanAllAsync() => await ViewModel.ScanAsync();
+    private async Task ScanNewsFeedsAsync() => await ViewModel.ScanNewsFeedsAsync();
+    private async Task ScanSymbolsAsync() => await ViewModel.ScanSymbolsAsync();
     private async Task ScanTopTenAsync() => await ViewModel.ScanTopTenAsync();
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
