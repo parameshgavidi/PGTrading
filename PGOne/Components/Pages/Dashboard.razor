@@ -222,16 +222,16 @@
             {
                 <div class="scanning">Loading open MIS positions...</div>
             }
-            else if (ViewModel.IsTrailingStopLoading)
-            {
-                <div class="status-message">Refreshing trailing stop data...</div>
-            }
             else if (ViewModel.TrailingStopItems.Count == 0)
             {
                 <div class="empty-state">No open MIS positions to trail.</div>
             }
             else
             {
+                @if (ViewModel.IsTrailingStopLoading)
+                {
+                    <div class="status-message">Refreshing trailing stop data...</div>
+                }
                 <div class="holdings-summary">
                     <span class="summary-pill">@ViewModel.TrailingStopMonitoringCount open</span>
                     @if (ViewModel.TrailingStopTriggeredCount > 0)
