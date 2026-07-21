@@ -112,6 +112,8 @@ public class DashboardViewModel : INotifyPropertyChanged
         Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
         CurrentSignal = await _signal.GenerateSignalAsync(SelectedSymbol);
         UpdateSelectedTrend();
+        await _watchlist.RefreshTopWeightageAsync();
+        SyncWatchlists();
         await RefreshPositionsAsync();
         await _trailingStop.RefreshAsync();
         TrailingStopItems = _trailingStop.Items.ToList();

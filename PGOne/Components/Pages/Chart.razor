@@ -6,14 +6,17 @@
     <div class="card chart-full">
         <div class="chart-header">
             <div class="instrument-title-row">
-                <h2>@ViewModel.SelectedDisplayName — Chart</h2>
+                <h2 class="page-heading">@ViewModel.SelectedDisplayName</h2>
                 <span class="market-status @(ViewModel.IsMarketOpen ? "open" : "closed")">
                     @ViewModel.MarketStatus
                 </span>
             </div>
             <div class="price-row">
                 <span class="price">@ViewModel.NiftyPrice.ToString("N2")</span>
-                <span class="trend-badge @GetTrendClass(ViewModel.NiftyTrend)">@ViewModel.NiftyTrend</span>
+                <span class="change @(ViewModel.NiftyChange >= 0 ? "positive" : "negative")">
+                    @(ViewModel.NiftyChange >= 0 ? "+" : "")@ViewModel.NiftyChangePercent.ToString("N2")%
+                </span>
+                <TrendBadge Trend="ViewModel.NiftyTrend" />
             </div>
         </div>
         <CandlestickChart CanvasId="liveChart"
@@ -22,7 +25,7 @@
                           Timeframe="ViewModel.SelectedTimeframe"
                           CssClass="large"
                           Width="1200"
-                          Height="500" />
+                          Height="520" />
         <div class="timeframe-buttons">
             @foreach (var tf in new[] { "5m", "15m", "1H", "1D" })
             {
@@ -50,13 +53,6 @@
     await ViewModel.InitializeAsync();
     ViewModel.PropertyChanged += (_, _) => InvokeAsync(StateHasChanged);
   }
-
-  private static string GetTrendClass(TrendDirection trend) => trend switch
-  {
-    TrendDirection.Buy => "buy",
-    TrendDirection.Sell => "sell",
-    _ => "neutral"
-  };
 
   public void Dispose() { }
 }

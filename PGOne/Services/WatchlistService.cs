@@ -2,16 +2,6 @@ using PGOne.Models;
 
 namespace PGOne.Services;
 
-public interface IWatchlistService
-{
-    List<WatchItem> IndexItems { get; }
-    List<WatchItem> Top10WeightItems { get; }
-    List<WatchItem> TopWeightageItems { get; }
-    bool IsLoading { get; }
-    event Action? WatchlistUpdated;
-    Task RefreshTopWeightageAsync();
-}
-
 public class WatchlistService : IWatchlistService
 {
     private readonly IZerodhaService _zerodha;
@@ -49,11 +39,12 @@ public class WatchlistService : IWatchlistService
             for (var i = 0; i < uniqueSymbols.Count; i++)
                 instruments[i] = InstrumentMapper.ToZerodhaKey(uniqueSymbols[i]);
 
-            var quotes = await _zerodha.GetQuotesAsync(instruments);
+            var quotes = await _zerodha.GetInstrumentQuotesAsync(instruments);
+            var sparklines = await BuildSparklinesAsync(top10Symbols);
 
-            IndexItems = await BuildWatchItemsAsync(indexSymbols, quotes, markFavorites: true);
-            Top10WeightItems = await BuildWatchItemsAsync(top10Symbols, quotes);
-            TopWeightageItems = await BuildWatchItemsAsync(allStockSymbols, quotes);
+            IndexItems = await BuildWatchItemsAsync(indexSymbols, quotes, sparklines, markFavorites: true);
+            Top10WeightItems = await BuildWatchItemsAsync(top10Symbols, quotes, sparklines);
+            TopWeightageItems = await BuildWatchItemsAsync(allStockSymbols, quotes, sparklines);
         }
         finally
         {
@@ -62,9 +53,32 @@ public class WatchlistService : IWatchlistService
         }
     }
 
+    private async Task<Dictionary<string, string>> BuildSparklinesAsync(IReadOnlyList<string> symbols)
+    {
+        var sparklines = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var tasks = symbols.Select(async symbol =>
+        {
+            try
+            {
+                var instrument = InstrumentMapper.ToZerodhaKey(symbol);
+                var candles = await _zerodha.GetHistoricalCandlesAsync(instrument, "5m", 8);
+                var closes = candles.Select(c => c.Close).ToList();
+                sparklines[symbol] = SparklineHelper.GenerateFromCloses(closes);
+            }
+            catch
+            {
+                sparklines[symbol] = string.Empty;
+            }
+        });
+
+        await Task.WhenAll(tasks);
+        return sparklines;
+    }
+
     private async Task<List<WatchItem>> BuildWatchItemsAsync(
         IReadOnlyList<string> symbols,
-        Dictionary<string, decimal> quotes,
+        Dictionary<string, InstrumentQuote> quotes,
+        Dictionary<string, string> sparklines,
         bool markFavorites = false)
     {
         var items = new List<WatchItem>();
@@ -73,10 +87,17 @@ public class WatchlistService : IWatchlistService
         {
             var symbol = symbols[i];
             var instrument = InstrumentMapper.ToZerodhaKey(symbol);
-            var price = quotes.GetValueOrDefault(instrument, 0m);
+            quotes.TryGetValue(instrument, out var quote);
+            var price = quote?.LastPrice ?? 0m;
             var analysis = price > 0
                 ? await _signal.AnalyzeAsync(symbol)
                 : new MultiTimeframeAnalysis();
+
+            var changePct = quote?.ChangePercent ?? NiftyWeights.GetDemoChangePercent(symbol);
+            var trend = analysis.Trend5M;
+            sparklines.TryGetValue(symbol, out var sparkline);
+            if (string.IsNullOrEmpty(sparkline))
+                sparkline = SparklineHelper.Generate(trend, changePct);
 
             items.Add(new WatchItem
             {
@@ -84,10 +105,12 @@ public class WatchlistService : IWatchlistService
                 Name = InstrumentMapper.ToDisplayName(symbol),
                 Rank = i + 1,
                 LastPrice = price,
-                Change = 0m,
-                ChangePercent = 0m,
-                Trend = analysis.Trend5M,
-                IsFavorite = markFavorites
+                Change = quote?.Change ?? 0m,
+                ChangePercent = changePct,
+                Trend = trend,
+                IsFavorite = markFavorites,
+                Weight = NiftyWeights.GetWeight(symbol),
+                Sparkline = sparkline
             });
         }
 

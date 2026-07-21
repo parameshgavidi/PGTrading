@@ -82,8 +82,8 @@ window.pgOneChart = (function () {
         const { canvas, candles, timeframe } = st;
 
         const container = canvas.parentElement;
-        const cssW = Math.max((container ? container.clientWidth : canvas.clientWidth) - 8, 320);
-        const cssH = Math.max((container ? container.clientHeight : canvas.clientHeight) - 8, 240);
+        const cssW = Math.max((container ? container.clientWidth : canvas.clientWidth) - 4, 320);
+        const cssH = Math.max((container ? container.clientHeight : canvas.clientHeight) - 4, 240);
 
         // High-DPI crisp rendering.
         const dpr = window.devicePixelRatio || 1;
@@ -97,12 +97,12 @@ window.pgOneChart = (function () {
 
         const width = cssW;
         const height = cssH;
-        const padding = { top: 18, right: 68, bottom: 30, left: 12 };
+        const padding = { top: 10, right: 52, bottom: 22, left: 6 };
         const chartW = width - padding.left - padding.right;
         const chartH = height - padding.top - padding.bottom;
 
         ctx.clearRect(0, 0, width, height);
-        ctx.fillStyle = '#0A0A0A';
+        ctx.fillStyle = '#121212';
         ctx.fillRect(0, 0, width, height);
 
         // Viewport slice
@@ -128,7 +128,7 @@ window.pgOneChart = (function () {
         ctx.textBaseline = 'middle';
         for (let i = 0; i <= 4; i++) {
             const y = padding.top + (chartH / 4) * i;
-            ctx.strokeStyle = '#1C1C1C';
+            ctx.strokeStyle = '#2A2A2A';
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(padding.left, y);
@@ -136,7 +136,7 @@ window.pgOneChart = (function () {
             ctx.stroke();
 
             const price = maxPrice - (priceRange / 4) * i;
-            ctx.fillStyle = '#B8B8B8';
+            ctx.fillStyle = '#AAAAAA';
             ctx.font = '12px "Segoe UI", sans-serif';
             ctx.textAlign = 'left';
             ctx.fillText(price.toFixed(2), width - padding.right + 6, y);
@@ -201,7 +201,7 @@ window.pgOneChart = (function () {
             const high = Number(candle.high);
             const low = Number(candle.low);
             const isUp = close >= open;
-            const color = isUp ? '#00C853' : '#FF1744';
+            const color = isUp ? '#00C853' : '#FF5252';
 
             ctx.strokeStyle = color;
             ctx.lineWidth = 1;
@@ -231,7 +231,7 @@ window.pgOneChart = (function () {
             const stv = candle.superTrend != null ? Number(candle.superTrend) : null;
             if (stv == null || Number.isNaN(stv)) { flush(); return; }
             const close = Number(candle.close);
-            const color = close >= stv ? '#00C853' : '#FF1744';
+            const color = close >= stv ? '#00C853' : '#FF5252';
             const point = { x: toX(i), y: toY(stv) };
             if (!segment || segment.color !== color) { flush(); segment = { color: color, points: [point] }; }
             else segment.points.push(point);

@@ -19,6 +19,7 @@
             <thead>
                 <tr>
                     <th>Symbol</th>
+                    <th>Rating</th>
                     <th>Price</th>
                     <th>1H</th>
                     <th>15m</th>
@@ -34,14 +35,15 @@
                 {
                     <tr class="@(result.Aligned ? "aligned-row" : "")">
                         <td><strong>@result.Symbol</strong></td>
+                        <td><span class="scanner-stars">@RenderStars(result)</span></td>
                         <td>@result.Price.ToString("N2")</td>
-                        <td class="@GetTrendClass(result.Trend1H)">@result.Trend1H</td>
-                        <td class="@GetTrendClass(result.Trend15M)">@result.Trend15M</td>
-                        <td class="@GetTrendClass(result.Trend5M)">@result.Trend5M</td>
+                        <td class="@GetTrendClass(result.Trend1H)">@GetBadgeLabel(result.Trend1H)</td>
+                        <td class="@GetTrendClass(result.Trend15M)">@GetBadgeLabel(result.Trend15M)</td>
+                        <td class="@GetTrendClass(result.Trend5M)">@GetBadgeLabel(result.Trend5M)</td>
                         <td>@result.Rsi</td>
                         <td>@result.Adx</td>
                         <td><span class="score-badge">@result.Score%</span></td>
-                        <td class="@GetTrendClass(result.Signal)">@(result.Aligned ? result.Signal.ToString() : "—")</td>
+                        <td class="@GetTrendClass(result.Signal)">@(result.Aligned ? GetBadgeLabel(result.Signal) : "—")</td>
                     </tr>
                 }
             </tbody>
@@ -84,12 +86,24 @@
     _scanning = false;
   }
 
-  private static string GetTrendClass(TrendDirection trend) => trend switch
+  private static string GetTrendClass(TrendDirection trend) => TrendUi.GetClass(trend);
+
+  private static string GetBadgeLabel(TrendDirection trend) => TrendUi.GetBadgeLabel(trend);
+
+  private static MarkupString RenderStars(ScanResult result)
   {
-    TrendDirection.Buy => "buy",
-    TrendDirection.Sell => "sell",
-    _ => "neutral"
-  };
+    var stars = 1;
+    if (result.Score >= 40) stars = 2;
+    if (result.Score >= 55) stars = 3;
+    if (result.Score >= 70) stars = 4;
+    if (result.Aligned && result.Score >= 75) stars = 5;
+    if (result.Trend1H == result.Trend15M && result.Trend15M == result.Trend5M && result.Trend5M != TrendDirection.Neutral)
+      stars = Math.Max(stars, 4);
+
+    var filled = new string('★', stars);
+    var empty = new string('★', 5 - stars);
+    return new MarkupString($"{filled}<span class=\"dim\">{empty}</span>");
+  }
 
   private class ScanResult
   {

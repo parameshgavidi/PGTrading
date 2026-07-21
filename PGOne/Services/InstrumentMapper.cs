@@ -28,4 +28,20 @@ public static class InstrumentMapper
         "SENSEX" => "SENSEX",
         _ => symbol
     };
+
+    public static string ToIndexShortName(string symbol) => symbol.ToUpper() switch
+    {
+        "NIFTY" => "NIFTY 50",
+        "BANKNIFTY" => "BANK",
+        "SENSEX" => "SENSEX",
+        _ => ToDisplayName(symbol)
+    };
+
+    public static string FromZerodhaKey(string instrument) => instrument.ToUpper() switch
+    {
+        "NSE:NIFTY 50" => "NIFTY",
+        "NSE:NIFTY BANK" => "BANKNIFTY",
+        "BSE:SENSEX" => "SENSEX",
+        _ => instrument.Contains(':') ? instrument.Split(':', 2)[1] : instrument
+    };
 }

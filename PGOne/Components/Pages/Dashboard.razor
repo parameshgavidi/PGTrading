@@ -1,5 +1,7 @@
 @page "/"
+@using PGOne.Services
 @inject DashboardViewModel ViewModel
+@inject SentimentViewModel SentimentViewModel
 @implements IDisposable
 
 <div class="dashboard">
@@ -12,8 +14,15 @@
                     {
                         <div class="watchlist-row favorite @(ViewModel.SelectedSymbol == item.Symbol ? "selected" : "")"
                              @onclick="() => SelectSymbol(item.Symbol)">
-                            <span class="symbol">★ @item.Name</span>
-                            <span class="trend @GetTrendClass(item.Trend)">@item.Trend</span>
+                            <div class="watchlist-row-main">
+                                <span class="symbol">@InstrumentMapper.ToIndexShortName(item.Symbol)</span>
+                                <span class="bs-badge @TrendUi.GetClass(item.Trend)">@TrendUi.GetBadgeLabel(item.Trend)</span>
+                            </div>
+                            <div class="watchlist-row-meta">
+                                <span class="index-change @(item.ChangePercent >= 0 ? "positive" : "negative")">
+                                    @(item.ChangePercent >= 0 ? "+" : "")@item.ChangePercent.ToString("N2")%
+                                </span>
+                            </div>
                         </div>
                     }
                 </div>
@@ -26,8 +35,20 @@
                     {
                         <div class="watchlist-row @(ViewModel.SelectedSymbol == item.Symbol ? "selected" : "")"
                              @onclick="() => SelectSymbol(item.Symbol)">
-                            <span class="symbol">@($"{item.Rank}. {item.Name}")</span>
-                            <span class="trend @GetTrendClass(item.Trend)">@item.Trend</span>
+                            <div class="watchlist-row-main">
+                                <span class="symbol">@item.Symbol</span>
+                                <span class="bs-badge @TrendUi.GetClass(item.Trend)">@TrendUi.GetBadgeLabel(item.Trend)</span>
+                            </div>
+                            <div class="watchlist-row-meta">
+                                <span class="index-change @(item.ChangePercent >= 0 ? "positive" : "negative")">
+                                    @(item.ChangePercent >= 0 ? "+" : "")@item.ChangePercent.ToString("N2")%
+                                </span>
+                                @if (item.Weight > 0)
+                                {
+                                    <span class="weight-label">@item.Weight.ToString("N1")%</span>
+                                }
+                                <span class="sparkline @(item.ChangePercent >= 0 ? "up" : item.ChangePercent < 0 ? "down" : "")">@item.Sparkline</span>
+                            </div>
                         </div>
                     }
                 </div>
@@ -48,7 +69,7 @@
                         <span class="change @(ViewModel.NiftyChange >= 0 ? "positive" : "negative")">
                             @(ViewModel.NiftyChange >= 0 ? "▲" : "▼") @Math.Abs(ViewModel.NiftyChange).ToString("N2") (@ViewModel.NiftyChangePercent%)
                         </span>
-                        <span class="trend-badge @GetTrendClass(ViewModel.NiftyTrend)">Trend: @ViewModel.NiftyTrend</span>
+                        <TrendBadge Trend="ViewModel.NiftyTrend" />
                     </div>
                 </div>
             </div>
@@ -56,8 +77,8 @@
                               Candles="ViewModel.ChartCandles"
                               ChartVersion="ViewModel.ChartVersion"
                               Timeframe="ViewModel.SelectedTimeframe"
-                              Width="800"
-                              Height="350" />
+                              Width="900"
+                              Height="420" />
             <div class="timeframe-buttons">
                 @foreach (var tf in new[] { "5m", "15m", "1H" })
                 {
@@ -76,6 +97,9 @@
                 <div class="chart-meta">Last bar: @ViewModel.LastCandleSummary</div>
             }
         </div>
+
+        <AiInsightPanel Analysis="ViewModel.Analysis"
+                        SuggestedAction="@AiInsightHelper.GetSuggestedAction(ViewModel.CurrentSignal, ViewModel.Analysis)" />
     </div>
 
     <div class="dashboard-bottom">
@@ -84,19 +108,19 @@
             <table class="analysis-table">
                 <tr>
                     <td>1H Bias — RSI(28) @ViewModel.Analysis.RsiTrend</td>
-                    <td class="@GetTrendClass(ViewModel.Analysis.RsiBias)">@GetTrendIcon(ViewModel.Analysis.RsiBias) @BiasLabel(ViewModel.Analysis.RsiBias)</td>
+                    <td class="@TrendUi.GetClass(ViewModel.Analysis.RsiBias)">@TrendUi.GetIcon(ViewModel.Analysis.RsiBias) @TrendUi.GetBiasLabel(ViewModel.Analysis.RsiBias)</td>
                 </tr>
                 <tr>
                     <td>1 Hour SuperTrend</td>
-                    <td class="@GetTrendClass(ViewModel.Analysis.Trend1H)">@GetTrendIcon(ViewModel.Analysis.Trend1H) @ViewModel.Analysis.Trend1H</td>
+                    <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend1H)">@TrendUi.GetIcon(ViewModel.Analysis.Trend1H) @ViewModel.Analysis.Trend1H</td>
                 </tr>
                 <tr>
                     <td>15 Min SuperTrend</td>
-                    <td class="@GetTrendClass(ViewModel.Analysis.Trend15M)">@GetTrendIcon(ViewModel.Analysis.Trend15M) @ViewModel.Analysis.Trend15M</td>
+                    <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend15M)">@TrendUi.GetIcon(ViewModel.Analysis.Trend15M) @ViewModel.Analysis.Trend15M</td>
                 </tr>
                 <tr>
                     <td>5 Min SuperTrend</td>
-                    <td class="@GetTrendClass(ViewModel.Analysis.Trend5M)">@GetTrendIcon(ViewModel.Analysis.Trend5M) @ViewModel.Analysis.Trend5M</td>
+                    <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend5M)">@TrendUi.GetIcon(ViewModel.Analysis.Trend5M) @ViewModel.Analysis.Trend5M</td>
                 </tr>
                 <tr>
                     <td>ADX(14) 1H</td>
@@ -130,12 +154,27 @@
                 <div class="signal-check sell">⚠ Reversal risk: @ViewModel.Analysis.ReversalReason</div>
             }
             <div class="signal-checks">
-                <div class="signal-check">Bias : @BiasLabel(ViewModel.Analysis.RsiBias) (RSI28 @ViewModel.Analysis.RsiTrend)</div>
+                <div class="signal-check">Bias : @TrendUi.GetBiasLabel(ViewModel.Analysis.RsiBias) (RSI28 @ViewModel.Analysis.RsiTrend)</div>
                 <div class="signal-check">Strength : @ViewModel.Analysis.Strength1H (ADX @ViewModel.Analysis.Adx)</div>
                 <div class="signal-check">5m VWAP : @(ViewModel.Analysis.AboveVwap ? "Bullish" : "Bearish")</div>
                 <div class="signal-check">Entry : @ViewModel.CurrentSignal.Entry</div>
                 <div class="signal-check">Plan : @ViewModel.CurrentSignal.Strategy</div>
                 <div class="signal-check">Confidence : @ViewModel.CurrentSignal.Confidence%</div>
+            </div>
+        </div>
+
+        <div class="news-panel card">
+            <div class="card-header">
+                <span>News</span>
+                <a class="news-link" href="sentiment#news">View all →</a>
+            </div>
+            <div class="news-list">
+                @foreach (var headline in GetNewsHeadlines())
+                {
+                    <div class="news-item">
+                        @headline.Icon @headline.Text
+                    </div>
+                }
             </div>
         </div>
     </div>
@@ -305,20 +344,48 @@
 @code {
   private System.Timers.Timer? _refreshTimer;
 
+  private readonly List<NewsHeadline> _fallbackHeadlines =
+  [
+      new("🟢", "Reliance jumps after earnings"),
+      new("🔴", "US Futures fall"),
+      new("🟢", "RBI keeps rates unchanged"),
+      new("🟡", "Infosys announces buyback plan")
+  ];
+
   protected override async Task OnInitializedAsync()
   {
     await ViewModel.InitializeAsync();
     ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+    SentimentViewModel.PropertyChanged += OnSentimentPropertyChanged;
 
     _refreshTimer = new System.Timers.Timer(30000);
     _refreshTimer.Elapsed += (_, _) => _ = InvokeAsync(async () => await ViewModel.RefreshAsync());
     _refreshTimer.Start();
   }
 
-  private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
-  {
+  private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
     InvokeAsync(StateHasChanged);
+
+  private void OnSentimentPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+    InvokeAsync(StateHasChanged);
+
+  private IEnumerable<NewsHeadline> GetNewsHeadlines()
+  {
+    var live = SentimentViewModel.Results
+        .SelectMany(r => r.Headlines)
+        .Take(4)
+        .Select(h => new NewsHeadline(GetHeadlineIcon(h.Label), h.Headline))
+        .ToList();
+
+    return live.Count > 0 ? live : _fallbackHeadlines;
   }
+
+  private static string GetHeadlineIcon(string label) => label.ToLowerInvariant() switch
+  {
+      "positive" => "🟢",
+      "negative" => "🔴",
+      _ => "🟡"
+  };
 
   private async Task ChangeTimeframe(string timeframe)
   {
@@ -348,26 +415,7 @@
     await ViewModel.SelectInstrumentAsync(symbol);
   }
 
-  private static string GetTrendClass(TrendDirection trend) => trend switch
-  {
-    TrendDirection.Buy => "buy",
-    TrendDirection.Sell => "sell",
-    _ => "neutral"
-  };
-
-  private static string GetTrendIcon(TrendDirection trend) => trend switch
-  {
-    TrendDirection.Buy => "🟢",
-    TrendDirection.Sell => "🔴",
-    _ => "⚪"
-  };
-
-  private static string BiasLabel(TrendDirection bias) => bias switch
-  {
-    TrendDirection.Buy => "Bullish",
-    TrendDirection.Sell => "Bearish",
-    _ => "Neutral"
-  };
+  private static string GetTrendClass(TrendDirection trend) => TrendUi.GetClass(trend);
 
   private static string GetTrailingRowClass(TrailingStopRow item) => item.ExitPlaced
       ? "closed-row"
@@ -377,9 +425,12 @@
       ? "neutral"
       : item.IsTriggered ? "sell" : "buy";
 
+  private sealed record NewsHeadline(string Icon, string Text);
+
   public void Dispose()
   {
     _refreshTimer?.Dispose();
     ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+    SentimentViewModel.PropertyChanged -= OnSentimentPropertyChanged;
   }
 }

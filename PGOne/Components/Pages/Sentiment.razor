@@ -3,6 +3,21 @@
 @implements IDisposable
 
 <div class="page-container">
+    @if (ViewModel.Results.Count > 0)
+    {
+        <div class="card" id="news" style="margin-bottom: 12px;">
+            <div class="card-header">Market Headlines</div>
+            <div class="news-list">
+                @foreach (var headline in GetTopHeadlines())
+                {
+                    <div class="news-item">
+                        @GetHeadlineIcon(headline.Label) @headline.Headline
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
     <div class="card">
         <div class="card-header">
             <h2>Sentiment Analysis — NSE Stocks</h2>
@@ -166,6 +181,18 @@
         "negative" => "sell",
         _ => "neutral"
     };
+
+    private static string GetHeadlineIcon(string label) => label.ToLowerInvariant() switch
+    {
+        "positive" => "🟢",
+        "negative" => "🔴",
+        _ => "🟡"
+    };
+
+    private IEnumerable<NewsSentimentItem> GetTopHeadlines() =>
+        ViewModel.Results
+            .SelectMany(r => r.Headlines)
+            .Take(8);
 
     public void Dispose() => ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
 }

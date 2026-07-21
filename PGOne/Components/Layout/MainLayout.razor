@@ -2,12 +2,14 @@
 @using PGOne.Services
 @inherits LayoutComponentBase
 @inject IZerodhaService ZerodhaService
+@inject NavigationManager Navigation
 @implements IDisposable
 
 <div class="app-shell">
     <aside class="sidebar">
         <div class="sidebar-header">
-            <img src="images/pgone_logo.png" alt="PG one — Trade Smart. Stay Ahead." class="sidebar-logo" />
+            <div class="sidebar-brand"><span class="brand-pg">PG</span> <span class="brand-one">one</span></div>
+            <div class="sidebar-tagline">Trade Smart. Stay Ahead.</div>
         </div>
         <NavMenu />
         <div class="sidebar-footer">
@@ -50,6 +52,8 @@
     {
         _isConnected = ZerodhaService.IsConnected;
         ZerodhaService.ConnectionChanged += OnConnectionChanged;
+        Navigation.LocationChanged += OnNavigationChanged;
+        UpdatePageTitle();
 
         _timer = new System.Timers.Timer(1000);
         _timer.Elapsed += (_, _) =>
@@ -66,9 +70,37 @@
         InvokeAsync(StateHasChanged);
     }
 
+    private void OnNavigationChanged(object? sender, LocationChangedEventArgs e) =>
+        InvokeAsync(() =>
+        {
+            UpdatePageTitle();
+            StateHasChanged();
+        });
+
+    private void UpdatePageTitle()
+    {
+        var path = Navigation.ToBaseRelativePath(Navigation.Uri).Trim('/').ToLowerInvariant();
+        _pageTitle = path switch
+        {
+            "" or "dashboard" => "Dashboard",
+            "chart" => "Live Market",
+            "scanner" => "Scanner",
+            "sentiment" => Navigation.Uri.Contains("#news", StringComparison.OrdinalIgnoreCase) ? "News" : "Sentiment",
+            "signals" => "Signals",
+            "positions" => "Positions",
+            "orders" => "Orders",
+            "watchlist" => "Watchlist",
+            "settings" => "Settings",
+            "holdings" => "Holdings",
+            "strategy" => "Strategy",
+            _ => "PG One"
+        };
+    }
+
     public void Dispose()
     {
         ZerodhaService.ConnectionChanged -= OnConnectionChanged;
+        Navigation.LocationChanged -= OnNavigationChanged;
         _timer?.Dispose();
     }
 }
