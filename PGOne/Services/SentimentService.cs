@@ -34,6 +34,20 @@ public class SentimentService : ISentimentService
     private const int MaxArticleChars = 900;
     private const int MaxRetries = 3;
 
+    private static readonly string[] PositiveTerms =
+    [
+        "surge", "rally", "gain", "gains", "profit", "growth", "upgrade", "beat", "strong", "bullish",
+        "rise", "rises", "rose", "rising", "jump", "outperform", "record high", "boost", "positive", "expand",
+        "momentum", "recovery", "upside", "buy", "accumulate"
+    ];
+
+    private static readonly string[] NegativeTerms =
+    [
+        "crash", "fall", "falls", "fell", "drop", "drops", "loss", "decline", "downgrade", "miss", "weak",
+        "bearish", "plunge", "cut", "warning", "slump", "tumble", "negative", "fraud", "concern", "selloff",
+        "underperform", "downside", "sell", "reduce"
+    ];
+
     private readonly ISettingsService _settings;
     private readonly INseSymbolResolver _nseSymbols;
     private readonly HttpClient _http;
@@ -69,6 +83,13 @@ public class SentimentService : ISentimentService
 
         await _settings.LoadAsync();
         await _nseSymbols.EnsureLoadedAsync(cancellationToken);
+
+        var hasToken = !string.IsNullOrWhiteSpace(_settings.Settings.HuggingFaceApiToken);
+        if (!hasToken)
+        {
+            ProgressMessage = "No Hugging Face token — using keyword fallback. Add a free token in Settings for FinBERT.";
+            NotifyUpdated();
+        }
 
         IsScanning = true;
         _results.Clear();
@@ -266,7 +287,13 @@ public class SentimentService : ISentimentService
             return result;
         }
 
-        var predictions = await AnalyzeTextsAsync(uniqueTexts, cancellationToken);
+        var analysis = await AnalyzeTextsAsync(uniqueTexts, cancellationToken);
+        if (analysis.UsedKeywordFallback)
+        {
+            result.Warning = string.IsNullOrWhiteSpace(_settings.Settings.HuggingFaceApiToken)
+                ? "Keyword fallback (add a free Hugging Face token in Settings for FinBERT)."
+                : "Keyword fallback (check Hugging Face token permissions in Settings).";
+        }
 
         foreach (var mention in mentions)
         {
@@ -275,11 +302,11 @@ public class SentimentService : ISentimentService
                 continue;
 
             var predictionIndex = uniqueTexts.IndexOf(text);
-            if (predictionIndex < 0 || predictionIndex >= predictions.Count || predictions[predictionIndex] is null)
+            if (predictionIndex < 0 || predictionIndex >= analysis.Predictions.Count || analysis.Predictions[predictionIndex] is null)
                 continue;
 
-            var prediction = predictions[predictionIndex]!.Value;
-            var reason = BuildReason(prediction.Label, mention.Title, mention.Source, text);
+            var prediction = analysis.Predictions[predictionIndex]!.Value;
+            var reason = BuildReason(prediction.Label, mention.Title, mention.Source, text, analysis.UsedKeywordFallback);
 
             result.Headlines.Add(new NewsSentimentItem
             {
@@ -308,7 +335,7 @@ public class SentimentService : ISentimentService
         if (result.Headlines.Count == 0)
         {
             result.Prediction = SentimentPrediction.Neutral;
-            result.Error = "FinBERT analysis unavailable. Add a free Hugging Face token in Settings.";
+            result.Error = analysis.Error ?? "Sentiment analysis unavailable.";
             return result;
         }
 
@@ -372,7 +399,7 @@ public class SentimentService : ISentimentService
             ?? $"News from {string.Join(", ", result.Sources)} indicates {result.Prediction.ToString().ToLowerInvariant()} tone.";
     }
 
-    private static string BuildReason(string label, string title, string source, string articleText)
+    private static string BuildReason(string label, string title, string source, string articleText, bool keywordFallback)
     {
         var snippet = ExtractReasonSnippet(articleText, title);
         var sentiment = label.ToLowerInvariant() switch
@@ -382,7 +409,8 @@ public class SentimentService : ISentimentService
             _ => "Neutral"
         };
 
-        return $"[{source}] {sentiment} tone — {snippet}";
+        var engine = keywordFallback ? "Keyword" : "FinBERT";
+        return $"[{source}] {sentiment} tone ({engine}) — {snippet}";
     }
 
     private static string ExtractReasonSnippet(string articleText, string fallbackTitle)
@@ -463,10 +491,35 @@ public class SentimentService : ISentimentService
         return Regex.Replace(text, @"\s+", " ").Trim();
     }
 
-    private async Task<List<(string Label, double Score)?>> AnalyzeTextsAsync(
+    private async Task<TextAnalysisResult> AnalyzeTextsAsync(
         IReadOnlyList<string> texts,
         CancellationToken cancellationToken)
     {
+        var finbert = await TryAnalyzeWithFinBertAsync(texts, cancellationToken);
+        if (finbert is not null && finbert.Any(p => p is not null))
+            return new TextAnalysisResult(finbert, UsedKeywordFallback: false);
+
+        var token = _settings.Settings.HuggingFaceApiToken?.Trim();
+        var error = string.IsNullOrEmpty(token)
+            ? "Hugging Face token missing."
+            : finbert is null
+                ? "FinBERT request failed."
+                : "FinBERT returned no predictions.";
+
+        return new TextAnalysisResult(
+            texts.Select(AnalyzeTextWithKeywords).ToList(),
+            UsedKeywordFallback: true,
+            Error: error);
+    }
+
+    private async Task<List<(string Label, double Score)?>?> TryAnalyzeWithFinBertAsync(
+        IReadOnlyList<string> texts,
+        CancellationToken cancellationToken)
+    {
+        var token = _settings.Settings.HuggingFaceApiToken?.Trim();
+        if (string.IsNullOrEmpty(token))
+            return null;
+
         for (var attempt = 0; attempt < MaxRetries; attempt++)
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, HuggingFaceApiUrl);
@@ -483,9 +536,7 @@ public class SentimentService : ISentimentService
                 Encoding.UTF8,
                 "application/json");
 
-            var token = _settings.Settings.HuggingFaceApiToken?.Trim();
-            if (!string.IsNullOrEmpty(token))
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             using var response = await _http.SendAsync(request, cancellationToken);
 
@@ -496,13 +547,32 @@ public class SentimentService : ISentimentService
             }
 
             if (!response.IsSuccessStatusCode)
-                return texts.Select(_ => ((string Label, double Score)?)null).ToList();
+                return null;
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
-            return ParseFinBertBatchResponse(json, texts.Count);
+            var parsed = ParseFinBertBatchResponse(json, texts.Count);
+            return parsed.Any(p => p is not null) ? parsed : null;
         }
 
-        return texts.Select(_ => ((string Label, double Score)?)null).ToList();
+        return null;
+    }
+
+    private static (string Label, double Score) AnalyzeTextWithKeywords(string text)
+    {
+        var lower = text.ToLowerInvariant();
+        var positiveHits = PositiveTerms.Count(term => lower.Contains(term, StringComparison.Ordinal));
+        var negativeHits = NegativeTerms.Count(term => lower.Contains(term, StringComparison.Ordinal));
+
+        if (positiveHits == 0 && negativeHits == 0)
+            return ("neutral", 0.55);
+
+        if (positiveHits > negativeHits)
+            return ("positive", Math.Min(0.92, 0.55 + (positiveHits - negativeHits) * 0.08));
+
+        if (negativeHits > positiveHits)
+            return ("negative", Math.Min(0.92, 0.55 + (negativeHits - positiveHits) * 0.08));
+
+        return ("neutral", 0.5);
     }
 
     private static List<(string Label, double Score)?> ParseFinBertBatchResponse(string json, int expectedCount)
@@ -559,6 +629,23 @@ public class SentimentService : ISentimentService
     {
         NewsFeeds,
         Symbols
+    }
+
+    private sealed class TextAnalysisResult
+    {
+        public TextAnalysisResult(
+            List<(string Label, double Score)?> predictions,
+            bool usedKeywordFallback,
+            string? error = null)
+        {
+            Predictions = predictions;
+            UsedKeywordFallback = usedKeywordFallback;
+            Error = error;
+        }
+
+        public List<(string Label, double Score)?> Predictions { get; }
+        public bool UsedKeywordFallback { get; }
+        public string? Error { get; }
     }
 
     private sealed class FeedEntry

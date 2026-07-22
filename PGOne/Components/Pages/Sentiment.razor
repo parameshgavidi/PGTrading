@@ -109,27 +109,34 @@
                                 {
                                     <span class="text-secondary">@row.Error</span>
                                 }
-                                else if (row.Headlines.Count > 0)
-                                {
-                                    <ul class="sentiment-headlines">
-                                        @foreach (var headline in row.Headlines)
-                                        {
-                                            <li>
-                                                <span class="source-tag">@headline.Source</span>
-                                                <span class="@GetLabelClass(headline.Label)">@headline.Label</span>
-                                                <span class="headline-text">@headline.Headline</span>
-                                                <span class="headline-score">(@headline.Score:P0})</span>
-                                                @if (!string.IsNullOrEmpty(headline.Reason))
-                                                {
-                                                    <div class="headline-reason">@headline.Reason</div>
-                                                }
-                                            </li>
-                                        }
-                                    </ul>
-                                }
                                 else
                                 {
-                                    <span class="text-secondary">—</span>
+                                    @if (!string.IsNullOrEmpty(row.Warning))
+                                    {
+                                        <div class="text-secondary" style="margin-bottom: 6px;">@row.Warning</div>
+                                    }
+                                    @if (row.Headlines.Count > 0)
+                                    {
+                                        <ul class="sentiment-headlines">
+                                            @foreach (var headline in row.Headlines)
+                                            {
+                                                <li>
+                                                    <span class="source-tag">@headline.Source</span>
+                                                    <span class="@GetLabelClass(headline.Label)">@headline.Label</span>
+                                                    <span class="headline-text">@headline.Headline</span>
+                                                    <span class="headline-score">(@headline.Score:P0})</span>
+                                                    @if (!string.IsNullOrEmpty(headline.Reason))
+                                                    {
+                                                        <div class="headline-reason">@headline.Reason</div>
+                                                    }
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-secondary">—</span>
+                                    }
                                 }
                             </td>
                         </tr>
@@ -142,7 +149,7 @@
             <div class="empty-state">
                 Click <strong>Scan News Feeds</strong> to discover NSE stocks mentioned across MoneyControl, ET, LiveMint, and Google News.
                 Use <strong>Scan Nifty 50</strong> for targeted symbol coverage.
-                Optional: add a free Hugging Face API token in Settings for higher FinBERT rate limits.
+                Add a free Hugging Face token in <strong>Settings</strong> for FinBERT analysis (keyword fallback is used without a token).
             </div>
         }
     </div>
