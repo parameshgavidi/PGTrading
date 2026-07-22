@@ -79,8 +79,10 @@
         <div class="settings-section">
             <h3>Sentiment Analysis (FinBERT)</h3>
             <p class="text-secondary">
-                Optional free token from <a href="https://huggingface.co/settings/tokens" target="_blank">huggingface.co</a>
-                improves Hugging Face Inference API rate limits for the Sentiment tab.
+                A free token from <a href="https://huggingface.co/settings/tokens" target="_blank">huggingface.co</a>
+                is required for FinBERT. Create a fine-grained token with
+                <strong>Make calls to Inference Providers</strong> permission, then paste it below and save.
+                Without a token, sentiment scans use a basic keyword fallback.
             </p>
             <div class="form-row">
                 <label>Hugging Face API Token</label>

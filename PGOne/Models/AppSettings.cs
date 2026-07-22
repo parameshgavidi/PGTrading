@@ -14,6 +14,6 @@ public class AppSettings
     public bool SoundNotifications { get; set; } = true;
     public string TelegramBotToken { get; set; } = string.Empty;
     public string TelegramChatId { get; set; } = string.Empty;
-    /// <summary>Optional free token from huggingface.co/settings/tokens for FinBERT rate limits.</summary>
+    /// <summary>Required free token from huggingface.co/settings/tokens for FinBERT sentiment analysis.</summary>
     public string HuggingFaceApiToken { get; set; } = string.Empty;
 }
