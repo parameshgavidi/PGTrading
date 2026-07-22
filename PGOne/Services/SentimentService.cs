@@ -28,7 +28,7 @@ public class SentimentService : ISentimentService
     ];
 
     private const string FinBertModel = "ProsusAI/finbert";
-    private const string HuggingFaceApiUrl = $"https://api-inference.huggingface.co/models/{FinBertModel}";
+    private const string HuggingFaceApiUrl = $"https://router.huggingface.co/hf-inference/models/{FinBertModel}";
     private const int EntriesPerFeed = 10;
     private const int HeadlinesPerStock = 5;
     private const int MaxArticleChars = 900;
