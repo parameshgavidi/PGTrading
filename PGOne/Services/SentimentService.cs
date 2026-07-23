@@ -507,7 +507,7 @@ public class SentimentService : ISentimentService
                 : "FinBERT returned no predictions.";
 
         return new TextAnalysisResult(
-            texts.Select(AnalyzeTextWithKeywords).ToList(),
+            texts.Select(text => ((string Label, double Score)?)AnalyzeTextWithKeywords(text)).ToList(),
             usedKeywordFallback: true,
             error: error);
     }
