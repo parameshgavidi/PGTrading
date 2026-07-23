@@ -46,12 +46,28 @@
             <div class="status-message">@ViewModel.ProgressMessage</div>
         }
 
+        @if (!ViewModel.IsConnected && ViewModel.Results.Count > 0)
+        {
+            <div class="holdings-banner warning">Connect to Zerodha in Settings to place orders.</div>
+        }
+
         @if (ViewModel.Results.Count > 0)
         {
-            <div class="sentiment-summary">
-                <span class="summary-pill buy">Bullish: @ViewModel.BullishCount</span>
-                <span class="summary-pill sell">Bearish: @ViewModel.BearishCount</span>
-                <span class="summary-pill neutral">Neutral: @ViewModel.NeutralCount</span>
+            <div class="sentiment-toolbar">
+                <div class="sentiment-summary">
+                    <span class="summary-pill buy">Bullish: @ViewModel.BullishCount</span>
+                    <span class="summary-pill sell">Bearish: @ViewModel.BearishCount</span>
+                    <span class="summary-pill neutral">Neutral: @ViewModel.NeutralCount</span>
+                </div>
+                <div class="sentiment-filter">
+                    <label for="sentiment-filter">Filter</label>
+                    <select id="sentiment-filter" class="form-input" @bind="_filter" @bind:after="OnFilterChanged">
+                        <option value="@SentimentFilter.All">All (@ViewModel.Results.Count)</option>
+                        <option value="@SentimentFilter.Bullish">Bullish (@ViewModel.BullishCount)</option>
+                        <option value="@SentimentFilter.Bearish">Bearish (@ViewModel.BearishCount)</option>
+                        <option value="@SentimentFilter.Neutral">Neutral (@ViewModel.NeutralCount)</option>
+                    </select>
+                </div>
             </div>
 
             <table class="data-table sentiment-table">
@@ -67,10 +83,11 @@
                         <th>Neutral</th>
                         <th>News</th>
                         <th>Articles</th>
+                        <th>Order</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var row in ViewModel.Results)
+                    @foreach (var row in ViewModel.FilteredResults)
                     {
                         <tr>
                             <td><strong>@row.Symbol</strong></td>
@@ -139,6 +156,24 @@
                                     }
                                 }
                             </td>
+                            <td class="sentiment-order-cell">
+                                @if (row.Prediction != SentimentPrediction.Neutral)
+                                {
+                                    <button class="btn btn-primary btn-sm"
+                                            disabled="@(!ViewModel.IsConnected)"
+                                            @onclick="() => OpenOrderModal(row)">
+                                        Place Order
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span class="text-secondary">—</span>
+                                }
+                                @if (!string.IsNullOrEmpty(row.OrderMessage))
+                                {
+                                    <div class="order-message">@row.OrderMessage</div>
+                                }
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -155,15 +190,114 @@
     </div>
 </div>
 
+@if (_showOrderModal && _selectedRow is not null)
+{
+    <div class="modal-overlay" @onclick="CloseOrderModal">
+        <div class="modal-card" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Place Limit Order</h3>
+                <button class="modal-close" @onclick="CloseOrderModal">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-detail-row">
+                    <span class="label">Symbol</span>
+                    <span class="value"><strong>@_selectedRow.Symbol</strong></span>
+                </div>
+                <div class="modal-detail-row">
+                    <span class="label">Side</span>
+                    <span class="value @GetPredictionClass(_selectedRow.Prediction)">
+                        @(_selectedRow.Prediction == SentimentPrediction.Bullish ? "BUY" : "SELL")
+                    </span>
+                </div>
+                <div class="modal-detail-row">
+                    <span class="label">Type</span>
+                    <span class="value">LIMIT MIS (NSE)</span>
+                </div>
+                <div class="form-row">
+                    <label for="order-qty">Quantity</label>
+                    <input id="order-qty"
+                           type="number"
+                           min="1"
+                           class="form-input"
+                           @bind="_orderQuantity"
+                           @bind:event="oninput" />
+                </div>
+                @if (!string.IsNullOrEmpty(_orderMessage))
+                {
+                    <div class="status-message">@_orderMessage</div>
+                }
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" @onclick="CloseOrderModal">Cancel</button>
+                <button class="btn btn-primary"
+                        disabled="@_isPlacingOrder"
+                        @onclick="SubmitOrderAsync">
+                    @(_isPlacingOrder ? "Placing..." : "Place Order")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
+    private SentimentFilter _filter = SentimentFilter.All;
+    private bool _showOrderModal;
+    private bool _isPlacingOrder;
+    private StockSentimentResult? _selectedRow;
+    private int _orderQuantity = 1;
+    private string _orderMessage = string.Empty;
+
     protected override void OnInitialized()
     {
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        _filter = ViewModel.Filter;
+    }
+
+    private void OnFilterChanged()
+    {
+        ViewModel.Filter = _filter;
     }
 
     private async Task ScanNewsFeedsAsync() => await ViewModel.ScanNewsFeedsAsync();
     private async Task ScanSymbolsAsync() => await ViewModel.ScanSymbolsAsync();
     private async Task ScanTopTenAsync() => await ViewModel.ScanTopTenAsync();
+
+    private void OpenOrderModal(StockSentimentResult row)
+    {
+        _selectedRow = row;
+        _orderQuantity = 1;
+        _orderMessage = string.Empty;
+        _showOrderModal = true;
+    }
+
+    private void CloseOrderModal()
+    {
+        _showOrderModal = false;
+        _selectedRow = null;
+        _orderMessage = string.Empty;
+        _isPlacingOrder = false;
+    }
+
+    private async Task SubmitOrderAsync()
+    {
+        if (_selectedRow is null)
+            return;
+
+        _isPlacingOrder = true;
+        _orderMessage = string.Empty;
+
+        try
+        {
+            var (success, message) = await ViewModel.PlaceOrderAsync(_selectedRow, _orderQuantity);
+            _orderMessage = message;
+            if (success)
+                CloseOrderModal();
+        }
+        finally
+        {
+            _isPlacingOrder = false;
+        }
+    }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
         InvokeAsync(StateHasChanged);

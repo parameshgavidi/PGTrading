@@ -32,4 +32,5 @@ public class StockSentimentResult
     public List<NewsSentimentItem> Headlines { get; set; } = new();
     public string? Error { get; set; }
     public string? Warning { get; set; }
+    public string? OrderMessage { get; set; }
 }
