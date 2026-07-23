@@ -107,6 +107,12 @@
             <div class="card-header">Multi Timeframe Analysis</div>
             <table class="analysis-table">
                 <tr>
+                    <td>Overall Score</td>
+                    <td class="@GetOverallScoreClass(ViewModel.Analysis)">
+                        @ViewModel.Analysis.OverallScore% — @ViewModel.Analysis.Strength
+                    </td>
+                </tr>
+                <tr>
                     <td>1H Bias — RSI(28) @ViewModel.Analysis.RsiTrend</td>
                     <td class="@TrendUi.GetClass(ViewModel.Analysis.RsiBias)">@TrendUi.GetIcon(ViewModel.Analysis.RsiBias) @TrendUi.GetBiasLabel(ViewModel.Analysis.RsiBias)</td>
                 </tr>
@@ -139,12 +145,6 @@
                     <td>@ViewModel.Analysis.Cpr</td>
                 </tr>
             </table>
-        </div>
-
-        <div class="score-panel card">
-            <div class="card-header">Overall Score</div>
-            <div class="score-value">@ViewModel.Analysis.OverallScore%</div>
-            <div class="score-strength">@ViewModel.Analysis.Strength</div>
         </div>
 
         <div class="signal-panel card">
@@ -416,6 +416,13 @@
   }
 
   private static string GetTrendClass(TrendDirection trend) => TrendUi.GetClass(trend);
+
+  private static string GetOverallScoreClass(MultiTimeframeAnalysis analysis) => analysis.Strength1H switch
+  {
+      TrendStrength.Strong => "buy",
+      TrendStrength.Moderate => "neutral",
+      _ => "sell"
+  };
 
   private static string GetTrailingRowClass(TrailingStopRow item) => item.ExitPlaced
       ? "closed-row"

@@ -252,8 +252,9 @@ html, body {
 .ai-check-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 16px;
+    gap: 6px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
 }
 
 .ai-check {
@@ -300,6 +301,18 @@ html, body {
 .ai-probability-value.high { color: var(--buy); }
 .ai-probability-value.mid { color: var(--gold); }
 .ai-probability-value.low { color: var(--sell); }
+
+.ai-probability-strength {
+    margin-top: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.ai-probability-strength.strong { color: var(--buy); }
+.ai-probability-strength.moderate { color: var(--gold); }
+.ai-probability-strength.weak { color: var(--sell); }
 
 .ai-suggested {
     margin-top: 12px;
@@ -598,8 +611,7 @@ html, body {
     flex-shrink: 0;
 }
 
-.analysis-panel { flex: 2; }
-.score-panel { flex: 0.5; text-align: center; }
+.analysis-panel { flex: 2.5; }
 .signal-panel { flex: 1.5; }
 
 .analysis-table {
