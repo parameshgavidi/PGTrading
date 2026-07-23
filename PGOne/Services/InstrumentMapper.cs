@@ -44,4 +44,21 @@ public static class InstrumentMapper
         "BSE:SENSEX" => "SENSEX",
         _ => instrument.Contains(':') ? instrument.Split(':', 2)[1] : instrument
     };
+
+    public static string ResolveStInstrument(string symbol, string exchange)
+    {
+        if (!exchange.Equals("NFO", StringComparison.OrdinalIgnoreCase))
+            return ToZerodhaKey(symbol, exchange);
+
+        if (symbol.StartsWith("BANKNIFTY", StringComparison.OrdinalIgnoreCase))
+            return "NSE:NIFTY BANK";
+        if (symbol.StartsWith("FINNIFTY", StringComparison.OrdinalIgnoreCase))
+            return "NSE:NIFTY FIN SERVICE";
+        if (symbol.StartsWith("MIDCPNIFTY", StringComparison.OrdinalIgnoreCase))
+            return "NSE:NIFTY MID SELECT";
+        if (symbol.StartsWith("NIFTY", StringComparison.OrdinalIgnoreCase))
+            return "NSE:NIFTY 50";
+
+        return ToZerodhaKey(symbol, exchange);
+    }
 }

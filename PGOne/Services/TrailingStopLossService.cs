@@ -126,7 +126,7 @@ public class TrailingStopLossService : ITrailingStopLossService, IDisposable
 
     private async Task<TrailingStopRow> BuildRowAsync(Position position)
     {
-        var instrument = InstrumentMapper.ToZerodhaKey(position.Symbol, position.Exchange);
+        var instrument = InstrumentMapper.ResolveStInstrument(position.Symbol, position.Exchange);
         var candles = await _marketData.GetCandlesAsync(
             instrument,
             TrailingStopDefaults.Interval,

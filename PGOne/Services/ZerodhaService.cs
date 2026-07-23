@@ -25,6 +25,7 @@ public interface IZerodhaService
     Task<List<Holding>> GetHoldingsAsync();
     Task<List<Order>> GetOrdersAsync();
     Task<OrderPlacementResult> PlaceOrderAsync(string exchange, string tradingsymbol, string transactionType, int quantity, string orderType, decimal? price = null, string product = "MIS");
+    Task<NfoOptionInstrument?> ResolveOptionSymbolAsync(string underlying, decimal strike, string optionType);
     Task<IReadOnlyList<string>> GetNseEquitySymbolsAsync();
     void Disconnect();
 }
@@ -37,6 +38,7 @@ public class ZerodhaService : IZerodhaService
     private const string LoginUrl = "https://kite.zerodha.com/connect/login";
 
     private List<string>? _nseEquitySymbols;
+    private List<NfoOptionInstrument>? _nfoOptions;
 
     public bool IsConnected { get; private set; }
     public string? UserId { get; private set; }
@@ -605,6 +607,134 @@ public class ZerodhaService : IZerodhaService
         {
             return OrderPlacementResult.Fail($"Order placement error: {ex.Message}");
         }
+    }
+
+    public async Task<NfoOptionInstrument?> ResolveOptionSymbolAsync(string underlying, decimal strike, string optionType)
+    {
+        if (!IsConnected)
+            return null;
+
+        var options = await LoadNfoOptionsAsync();
+        if (options.Count == 0)
+            return null;
+
+        var normalizedUnderlying = underlying.Trim().ToUpperInvariant();
+        var normalizedType = optionType.Trim().ToUpperInvariant();
+        var today = DateTime.Today;
+
+        return options
+            .Where(o =>
+                o.OptionType.Equals(normalizedType, StringComparison.OrdinalIgnoreCase)
+                && o.Strike == strike
+                && o.Expiry.Date >= today
+                && MatchesUnderlying(o.TradingSymbol, normalizedUnderlying))
+            .OrderBy(o => o.Expiry)
+            .ThenBy(o => o.TradingSymbol, StringComparer.Ordinal)
+            .FirstOrDefault();
+    }
+
+    private async Task<List<NfoOptionInstrument>> LoadNfoOptionsAsync()
+    {
+        if (_nfoOptions is not null)
+            return _nfoOptions;
+
+        if (!IsConnected)
+            return [];
+
+        try
+        {
+            var request = CreateRequest(HttpMethod.Get, "/instruments");
+            var response = await _http.SendAsync(request);
+            var csv = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                return [];
+
+            var options = new List<NfoOptionInstrument>();
+            using var reader = new StringReader(csv);
+            _ = reader.ReadLine();
+
+            while (reader.ReadLine() is { } line)
+            {
+                var parts = ParseCsvLine(line);
+                if (parts.Length < 12)
+                    continue;
+
+                var exchange = parts[11].Trim('"');
+                var instrumentType = parts[9].Trim('"');
+                if (!exchange.Equals("NFO", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (!instrumentType.Equals("CE", StringComparison.OrdinalIgnoreCase)
+                    && !instrumentType.Equals("PE", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (!DateTime.TryParse(parts[5].Trim('"'), CultureInfo.InvariantCulture, DateTimeStyles.None, out var expiry))
+                    continue;
+
+                if (!decimal.TryParse(parts[6].Trim('"'), NumberStyles.Any, CultureInfo.InvariantCulture, out var strike))
+                    continue;
+
+                if (!int.TryParse(parts[8].Trim('"'), NumberStyles.Integer, CultureInfo.InvariantCulture, out var lotSize))
+                    lotSize = 1;
+
+                options.Add(new NfoOptionInstrument
+                {
+                    TradingSymbol = parts[2].Trim('"'),
+                    LotSize = lotSize,
+                    Expiry = expiry,
+                    Strike = strike,
+                    OptionType = instrumentType.ToUpperInvariant()
+                });
+            }
+
+            _nfoOptions = options;
+            return _nfoOptions;
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private static bool MatchesUnderlying(string tradingSymbol, string underlying) =>
+        underlying switch
+        {
+            "NIFTY" => tradingSymbol.StartsWith("NIFTY", StringComparison.OrdinalIgnoreCase)
+                && !tradingSymbol.StartsWith("BANKNIFTY", StringComparison.OrdinalIgnoreCase),
+            "BANKNIFTY" => tradingSymbol.StartsWith("BANKNIFTY", StringComparison.OrdinalIgnoreCase),
+            "FINNIFTY" => tradingSymbol.StartsWith("FINNIFTY", StringComparison.OrdinalIgnoreCase),
+            "MIDCPNIFTY" => tradingSymbol.StartsWith("MIDCPNIFTY", StringComparison.OrdinalIgnoreCase),
+            _ => tradingSymbol.StartsWith(underlying, StringComparison.OrdinalIgnoreCase)
+        };
+
+    private static string[] ParseCsvLine(string line)
+    {
+        var parts = new List<string>();
+        var current = new StringBuilder();
+        var inQuotes = false;
+
+        foreach (var ch in line)
+        {
+            if (ch == '"')
+            {
+                inQuotes = !inQuotes;
+                current.Append(ch);
+                continue;
+            }
+
+            if (ch == ',' && !inQuotes)
+            {
+                parts.Add(current.ToString());
+                current.Clear();
+                continue;
+            }
+
+            current.Append(ch);
+        }
+
+        parts.Add(current.ToString());
+        return parts.ToArray();
     }
 
     public async Task<IReadOnlyList<string>> GetNseEquitySymbolsAsync()
