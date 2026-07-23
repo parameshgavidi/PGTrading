@@ -5,8 +5,10 @@
 @implements IDisposable
 
 <div class="dashboard">
-    <div class="dashboard-top">
-        <div class="watchlist-panel card">
+    <div class="dashboard-body">
+        <div class="dashboard-main">
+            <div class="dashboard-top">
+                <div class="watchlist-panel card">
             <div class="watchlist-section">
                 <div class="watchlist-section-title">Indices</div>
                 <div class="watchlist-items">
@@ -97,86 +99,90 @@
                 <div class="chart-meta">Last bar: @ViewModel.LastCandleSummary</div>
             }
         </div>
-
-        <AiInsightPanel Analysis="ViewModel.Analysis"
-                        SuggestedAction="@AiInsightHelper.GetSuggestedAction(ViewModel.CurrentSignal, ViewModel.Analysis)" />
-    </div>
-
-    <div class="dashboard-bottom">
-        <div class="analysis-panel card">
-            <div class="card-header">Multi Timeframe Analysis</div>
-            <table class="analysis-table">
-                <tr>
-                    <td>Probability</td>
-                    <td class="@GetOverallScoreClass(ViewModel.Analysis)">
-                        @ViewModel.Analysis.OverallScore% — @ViewModel.Analysis.Strength
-                    </td>
-                </tr>
-                <tr>
-                    <td>1H Bias — RSI(28) @ViewModel.Analysis.RsiTrend</td>
-                    <td class="@TrendUi.GetClass(ViewModel.Analysis.RsiBias)">@TrendUi.GetIcon(ViewModel.Analysis.RsiBias) @TrendUi.GetBiasLabel(ViewModel.Analysis.RsiBias)</td>
-                </tr>
-                <tr>
-                    <td>1 Hour SuperTrend</td>
-                    <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend1H)">@TrendUi.GetIcon(ViewModel.Analysis.Trend1H) @ViewModel.Analysis.Trend1H</td>
-                </tr>
-                <tr>
-                    <td>15 Min SuperTrend</td>
-                    <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend15M)">@TrendUi.GetIcon(ViewModel.Analysis.Trend15M) @ViewModel.Analysis.Trend15M</td>
-                </tr>
-                <tr>
-                    <td>5 Min SuperTrend</td>
-                    <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend5M)">@TrendUi.GetIcon(ViewModel.Analysis.Trend5M) @ViewModel.Analysis.Trend5M</td>
-                </tr>
-                <tr>
-                    <td>ADX(14) 1H</td>
-                    <td>@ViewModel.Analysis.Adx — @ViewModel.Analysis.Strength1H</td>
-                </tr>
-                <tr>
-                    <td>5m VWAP @ViewModel.Analysis.Vwap5M.ToString("N2")</td>
-                    <td class="@(ViewModel.Analysis.AboveVwap ? "buy" : "sell")">@(ViewModel.Analysis.AboveVwap ? "Above (Bullish)" : "Below (Bearish)")</td>
-                </tr>
-                <tr>
-                    <td>Regime</td>
-                    <td>@(ViewModel.Analysis.IsRangebound ? "Range-bound → Keltner" : "Trending")</td>
-                </tr>
-                <tr>
-                    <td>CPR</td>
-                    <td>@ViewModel.Analysis.Cpr</td>
-                </tr>
-            </table>
-        </div>
-
-        <div class="signal-panel card">
-            <div class="card-header">Current Signal</div>
-            @if (ViewModel.Analysis.WaitForReversal)
-            {
-                <div class="signal-check sell">⚠ Reversal risk: @ViewModel.Analysis.ReversalReason</div>
-            }
-            <div class="signal-checks">
-                <div class="signal-check">Bias : @TrendUi.GetBiasLabel(ViewModel.Analysis.RsiBias) (RSI28 @ViewModel.Analysis.RsiTrend)</div>
-                <div class="signal-check">Strength : @ViewModel.Analysis.Strength1H (ADX @ViewModel.Analysis.Adx)</div>
-                <div class="signal-check">5m VWAP : @(ViewModel.Analysis.AboveVwap ? "Bullish" : "Bearish")</div>
-                <div class="signal-check">Entry : @ViewModel.CurrentSignal.Entry</div>
-                <div class="signal-check">Plan : @ViewModel.CurrentSignal.Strategy</div>
-                <div class="signal-check">Confidence : @ViewModel.CurrentSignal.Confidence%</div>
             </div>
-        </div>
 
-        <div class="news-panel card">
-            <div class="card-header">
-                <span>News</span>
-                <a class="news-link" href="sentiment">View all →</a>
-            </div>
-            <div class="news-list">
-                @foreach (var headline in GetNewsHeadlines())
-                {
-                    <div class="news-item">
-                        @headline.Icon @headline.Text
+            <div class="dashboard-bottom">
+                <div class="signal-panel card">
+                    <div class="card-header">Current Signal</div>
+                    @if (ViewModel.Analysis.WaitForReversal)
+                    {
+                        <div class="signal-check sell">⚠ Reversal risk: @ViewModel.Analysis.ReversalReason</div>
+                    }
+                    <div class="signal-checks">
+                        <div class="signal-check">Bias : @TrendUi.GetBiasLabel(ViewModel.Analysis.RsiBias) (RSI28 @ViewModel.Analysis.RsiTrend)</div>
+                        <div class="signal-check">Strength : @ViewModel.Analysis.Strength1H (ADX @ViewModel.Analysis.Adx)</div>
+                        <div class="signal-check">5m VWAP : @(ViewModel.Analysis.AboveVwap ? "Bullish" : "Bearish")</div>
+                        <div class="signal-check">Entry : @ViewModel.CurrentSignal.Entry</div>
+                        <div class="signal-check">Plan : @ViewModel.CurrentSignal.Strategy</div>
+                        <div class="signal-check">Confidence : @ViewModel.CurrentSignal.Confidence%</div>
                     </div>
-                }
+                </div>
+
+                <div class="news-panel card">
+                    <div class="card-header">
+                        <span>News</span>
+                        <a class="news-link" href="sentiment">View all →</a>
+                    </div>
+                    <div class="news-list">
+                        @foreach (var headline in GetNewsHeadlines())
+                        {
+                            <div class="news-item">
+                                @headline.Icon @headline.Text
+                            </div>
+                        }
+                    </div>
+                </div>
             </div>
         </div>
+
+        <aside class="dashboard-insight-rail">
+            <AiInsightPanel Analysis="ViewModel.Analysis"
+                            SuggestedAction="@AiInsightHelper.GetSuggestedAction(ViewModel.CurrentSignal, ViewModel.Analysis)" />
+
+            <div class="analysis-panel card">
+                <div class="card-header">Multi Timeframe Analysis</div>
+                <table class="analysis-table">
+                    <tr>
+                        <td>Probability</td>
+                        <td class="@GetOverallScoreClass(ViewModel.Analysis)">
+                            @ViewModel.Analysis.OverallScore% — @ViewModel.Analysis.Strength
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>1H Bias — RSI(28) @ViewModel.Analysis.RsiTrend</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.RsiBias)">@TrendUi.GetIcon(ViewModel.Analysis.RsiBias) @TrendUi.GetBiasLabel(ViewModel.Analysis.RsiBias)</td>
+                    </tr>
+                    <tr>
+                        <td>1 Hour SuperTrend</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend1H)">@TrendUi.GetIcon(ViewModel.Analysis.Trend1H) @ViewModel.Analysis.Trend1H</td>
+                    </tr>
+                    <tr>
+                        <td>15 Min SuperTrend</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend15M)">@TrendUi.GetIcon(ViewModel.Analysis.Trend15M) @ViewModel.Analysis.Trend15M</td>
+                    </tr>
+                    <tr>
+                        <td>5 Min SuperTrend</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend5M)">@TrendUi.GetIcon(ViewModel.Analysis.Trend5M) @ViewModel.Analysis.Trend5M</td>
+                    </tr>
+                    <tr>
+                        <td>ADX(14) 1H</td>
+                        <td>@ViewModel.Analysis.Adx — @ViewModel.Analysis.Strength1H</td>
+                    </tr>
+                    <tr>
+                        <td>5m VWAP @ViewModel.Analysis.Vwap5M.ToString("N2")</td>
+                        <td class="@(ViewModel.Analysis.AboveVwap ? "buy" : "sell")">@(ViewModel.Analysis.AboveVwap ? "Above (Bullish)" : "Below (Bearish)")</td>
+                    </tr>
+                    <tr>
+                        <td>Regime</td>
+                        <td>@(ViewModel.Analysis.IsRangebound ? "Range-bound → Keltner" : "Trending")</td>
+                    </tr>
+                    <tr>
+                        <td>CPR</td>
+                        <td>@ViewModel.Analysis.Cpr</td>
+                    </tr>
+                </table>
+            </div>
+        </aside>
     </div>
 
     <div class="dashboard-positions">
