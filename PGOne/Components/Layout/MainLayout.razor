@@ -38,7 +38,7 @@
 
 @code {
     private bool _isConnected;
-    private string _currentTime = DateTime.Now.ToString("hh:mm tt");
+    private string _currentTime = DateTime.Now.ToString("hh:mm:ss tt");
     private string _pageTitle = "Dashboard";
     private System.Timers.Timer? _timer;
 
@@ -58,7 +58,7 @@
         _timer = new System.Timers.Timer(1000);
         _timer.Elapsed += (_, _) =>
         {
-            _currentTime = DateTime.Now.ToString("hh:mm tt");
+            _currentTime = DateTime.Now.ToString("hh:mm:ss tt");
             InvokeAsync(StateHasChanged);
         };
         _timer.Start();
