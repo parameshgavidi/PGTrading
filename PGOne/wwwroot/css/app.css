@@ -240,7 +240,7 @@ html, body {
 }
 
 .dashboard-insight-rail {
-    width: 250px;
+    width: 260px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -249,6 +249,8 @@ html, body {
     top: 0;
     max-height: calc(100vh - 88px);
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(212, 175, 55, 0.35) transparent;
 }
 
 .dashboard-top {
@@ -649,6 +651,14 @@ html, body {
 }
 
 .analysis-table td:first-child { color: var(--text-secondary); }
+
+.dashboard-insight-rail .analysis-table {
+    font-size: 12px;
+}
+
+.dashboard-insight-rail .analysis-table td {
+    padding: 5px 4px;
+}
 
 .score-value {
     font-size: 36px;
