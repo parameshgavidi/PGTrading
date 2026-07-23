@@ -5,178 +5,184 @@
 @implements IDisposable
 
 <div class="dashboard">
-    <div class="dashboard-top">
-        <div class="watchlist-panel card">
-            <div class="watchlist-section">
-                <div class="watchlist-section-title">Indices</div>
-                <div class="watchlist-items">
-                    @foreach (var item in ViewModel.IndexWatchlist)
-                    {
-                        <div class="watchlist-row favorite @(ViewModel.SelectedSymbol == item.Symbol ? "selected" : "")"
-                             @onclick="() => SelectSymbol(item.Symbol)">
-                            <div class="watchlist-row-main">
-                                <span class="symbol">@InstrumentMapper.ToIndexShortName(item.Symbol)</span>
-                                <span class="bs-badge @TrendUi.GetClass(item.Trend)">@TrendUi.GetBadgeLabel(item.Trend)</span>
-                            </div>
-                            <div class="watchlist-row-meta">
-                                <span class="index-change @(item.ChangePercent >= 0 ? "positive" : "negative")">
-                                    @(item.ChangePercent >= 0 ? "+" : "")@item.ChangePercent.ToString("N2")%
+    <div class="dashboard-body">
+        <div class="dashboard-main">
+            <div class="dashboard-top">
+                <div class="watchlist-panel card">
+                    <div class="watchlist-section">
+                        <div class="watchlist-section-title">Indices</div>
+                        <div class="watchlist-items">
+                            @foreach (var item in ViewModel.IndexWatchlist)
+                            {
+                                <div class="watchlist-row favorite @(ViewModel.SelectedSymbol == item.Symbol ? "selected" : "")"
+                                     @onclick="() => SelectSymbol(item.Symbol)">
+                                    <div class="watchlist-row-main">
+                                        <span class="symbol">@InstrumentMapper.ToIndexShortName(item.Symbol)</span>
+                                        <span class="bs-badge @TrendUi.GetClass(item.Trend)">@TrendUi.GetBadgeLabel(item.Trend)</span>
+                                    </div>
+                                    <div class="watchlist-row-meta">
+                                        <span class="index-change @(item.ChangePercent >= 0 ? "positive" : "negative")">
+                                            @(item.ChangePercent >= 0 ? "+" : "")@item.ChangePercent.ToString("N2")%
+                                        </span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="watchlist-section">
+                        <div class="watchlist-section-title">Top 10 Weight</div>
+                        <div class="watchlist-items">
+                            @foreach (var item in ViewModel.Top10Watchlist)
+                            {
+                                <div class="watchlist-row @(ViewModel.SelectedSymbol == item.Symbol ? "selected" : "")"
+                                     @onclick="() => SelectSymbol(item.Symbol)">
+                                    <div class="watchlist-row-main">
+                                        <span class="symbol">@item.Symbol</span>
+                                        <span class="bs-badge @TrendUi.GetClass(item.Trend)">@TrendUi.GetBadgeLabel(item.Trend)</span>
+                                    </div>
+                                    <div class="watchlist-row-meta">
+                                        <span class="index-change @(item.ChangePercent >= 0 ? "positive" : "negative")">
+                                            @(item.ChangePercent >= 0 ? "+" : "")@item.ChangePercent.ToString("N2")%
+                                        </span>
+                                        @if (item.Weight > 0)
+                                        {
+                                            <span class="weight-label">@item.Weight.ToString("N1")%</span>
+                                        }
+                                        <span class="sparkline @(item.ChangePercent >= 0 ? "up" : item.ChangePercent < 0 ? "down" : "")">@item.Sparkline</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-panel card">
+                    <div class="chart-header">
+                        <div class="instrument-info">
+                            <div class="instrument-title-row">
+                                <h2>@ViewModel.SelectedDisplayName</h2>
+                                <span class="market-status @(ViewModel.IsMarketOpen ? "open" : "closed")">
+                                    @ViewModel.MarketStatus
                                 </span>
                             </div>
+                            <div class="price-row">
+                                <span class="price">@ViewModel.NiftyPrice.ToString("N2")</span>
+                                <span class="change @(ViewModel.NiftyChange >= 0 ? "positive" : "negative")">
+                                    @(ViewModel.NiftyChange >= 0 ? "▲" : "▼") @Math.Abs(ViewModel.NiftyChange).ToString("N2") (@ViewModel.NiftyChangePercent%)
+                                </span>
+                                <TrendBadge Trend="ViewModel.NiftyTrend" />
+                            </div>
                         </div>
+                    </div>
+                    <CandlestickChart CanvasId="priceChart"
+                                      Candles="ViewModel.ChartCandles"
+                                      ChartVersion="ViewModel.ChartVersion"
+                                      Timeframe="ViewModel.SelectedTimeframe"
+                                      Width="900"
+                                      Height="420" />
+                    <div class="timeframe-buttons">
+                        @foreach (var tf in new[] { "5m", "15m", "1H" })
+                        {
+                            <button class="btn tf-btn @(ViewModel.SelectedTimeframe == tf ? "active" : "")"
+                                    @onclick="() => ChangeTimeframe(tf)">@tf</button>
+                        }
+                    </div>
+                    @if (!string.IsNullOrEmpty(ViewModel.ChartDataMessage))
+                    {
+                        <div class="chart-meta @(ViewModel.IsChartFromZerodha ? "zerodha" : "warning")">
+                            @ViewModel.ChartDataMessage
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(ViewModel.LastCandleSummary))
+                    {
+                        <div class="chart-meta">Last bar: @ViewModel.LastCandleSummary</div>
                     }
                 </div>
             </div>
 
-            <div class="watchlist-section">
-                <div class="watchlist-section-title">Top 10 Weight</div>
-                <div class="watchlist-items">
-                    @foreach (var item in ViewModel.Top10Watchlist)
+            <div class="dashboard-bottom">
+                <div class="signal-panel card">
+                    <div class="card-header">Current Signal</div>
+                    @if (ViewModel.Analysis.WaitForReversal)
                     {
-                        <div class="watchlist-row @(ViewModel.SelectedSymbol == item.Symbol ? "selected" : "")"
-                             @onclick="() => SelectSymbol(item.Symbol)">
-                            <div class="watchlist-row-main">
-                                <span class="symbol">@item.Symbol</span>
-                                <span class="bs-badge @TrendUi.GetClass(item.Trend)">@TrendUi.GetBadgeLabel(item.Trend)</span>
-                            </div>
-                            <div class="watchlist-row-meta">
-                                <span class="index-change @(item.ChangePercent >= 0 ? "positive" : "negative")">
-                                    @(item.ChangePercent >= 0 ? "+" : "")@item.ChangePercent.ToString("N2")%
-                                </span>
-                                @if (item.Weight > 0)
-                                {
-                                    <span class="weight-label">@item.Weight.ToString("N1")%</span>
-                                }
-                                <span class="sparkline @(item.ChangePercent >= 0 ? "up" : item.ChangePercent < 0 ? "down" : "")">@item.Sparkline</span>
-                            </div>
-                        </div>
+                        <div class="signal-check sell">⚠ Reversal risk: @ViewModel.Analysis.ReversalReason</div>
                     }
+                    <div class="signal-checks">
+                        <div class="signal-check">Bias : @TrendUi.GetBiasLabel(ViewModel.Analysis.RsiBias) (RSI28 @ViewModel.Analysis.RsiTrend)</div>
+                        <div class="signal-check">Strength : @ViewModel.Analysis.Strength1H (ADX @ViewModel.Analysis.Adx)</div>
+                        <div class="signal-check">5m VWAP : @(ViewModel.Analysis.AboveVwap ? "Bullish" : "Bearish")</div>
+                        <div class="signal-check">Entry : @ViewModel.CurrentSignal.Entry</div>
+                        <div class="signal-check">Plan : @ViewModel.CurrentSignal.Strategy</div>
+                        <div class="signal-check">Confidence : @ViewModel.CurrentSignal.Confidence%</div>
+                    </div>
+                </div>
+
+                <div class="news-panel card">
+                    <div class="card-header">
+                        <span>News</span>
+                        <a class="news-link" href="sentiment">View all →</a>
+                    </div>
+                    <div class="news-list">
+                        @foreach (var headline in GetNewsHeadlines())
+                        {
+                            <div class="news-item">
+                                @headline.Icon @headline.Text
+                            </div>
+                        }
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="chart-panel card">
-            <div class="chart-header">
-                <div class="instrument-info">
-                    <div class="instrument-title-row">
-                        <h2>@ViewModel.SelectedDisplayName</h2>
-                        <span class="market-status @(ViewModel.IsMarketOpen ? "open" : "closed")">
-                            @ViewModel.MarketStatus
-                        </span>
-                    </div>
-                    <div class="price-row">
-                        <span class="price">@ViewModel.NiftyPrice.ToString("N2")</span>
-                        <span class="change @(ViewModel.NiftyChange >= 0 ? "positive" : "negative")">
-                            @(ViewModel.NiftyChange >= 0 ? "▲" : "▼") @Math.Abs(ViewModel.NiftyChange).ToString("N2") (@ViewModel.NiftyChangePercent%)
-                        </span>
-                        <TrendBadge Trend="ViewModel.NiftyTrend" />
-                    </div>
-                </div>
-            </div>
-            <CandlestickChart CanvasId="priceChart"
-                              Candles="ViewModel.ChartCandles"
-                              ChartVersion="ViewModel.ChartVersion"
-                              Timeframe="ViewModel.SelectedTimeframe"
-                              Width="900"
-                              Height="420" />
-            <div class="timeframe-buttons">
-                @foreach (var tf in new[] { "5m", "15m", "1H" })
-                {
-                    <button class="btn tf-btn @(ViewModel.SelectedTimeframe == tf ? "active" : "")"
-                            @onclick="() => ChangeTimeframe(tf)">@tf</button>
-                }
-            </div>
-            @if (!string.IsNullOrEmpty(ViewModel.ChartDataMessage))
-            {
-                <div class="chart-meta @(ViewModel.IsChartFromZerodha ? "zerodha" : "warning")">
-                    @ViewModel.ChartDataMessage
-                </div>
-            }
-            @if (!string.IsNullOrEmpty(ViewModel.LastCandleSummary))
-            {
-                <div class="chart-meta">Last bar: @ViewModel.LastCandleSummary</div>
-            }
-        </div>
+        <aside class="dashboard-insight-rail">
+            <AiInsightPanel Analysis="ViewModel.Analysis"
+                            SuggestedAction="@AiInsightHelper.GetSuggestedAction(ViewModel.CurrentSignal, ViewModel.Analysis)" />
 
-        <AiInsightPanel Analysis="ViewModel.Analysis"
-                        SuggestedAction="@AiInsightHelper.GetSuggestedAction(ViewModel.CurrentSignal, ViewModel.Analysis)" />
-    </div>
-
-    <div class="dashboard-bottom">
-        <div class="analysis-panel card">
-            <div class="card-header">Multi Timeframe Analysis</div>
-            <table class="analysis-table">
-                <tr>
-                    <td>1H Bias — RSI(28) @ViewModel.Analysis.RsiTrend</td>
-                    <td class="@TrendUi.GetClass(ViewModel.Analysis.RsiBias)">@TrendUi.GetIcon(ViewModel.Analysis.RsiBias) @TrendUi.GetBiasLabel(ViewModel.Analysis.RsiBias)</td>
-                </tr>
-                <tr>
-                    <td>1 Hour SuperTrend</td>
-                    <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend1H)">@TrendUi.GetIcon(ViewModel.Analysis.Trend1H) @ViewModel.Analysis.Trend1H</td>
-                </tr>
-                <tr>
-                    <td>15 Min SuperTrend</td>
-                    <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend15M)">@TrendUi.GetIcon(ViewModel.Analysis.Trend15M) @ViewModel.Analysis.Trend15M</td>
-                </tr>
-                <tr>
-                    <td>5 Min SuperTrend</td>
-                    <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend5M)">@TrendUi.GetIcon(ViewModel.Analysis.Trend5M) @ViewModel.Analysis.Trend5M</td>
-                </tr>
-                <tr>
-                    <td>ADX(14) 1H</td>
-                    <td>@ViewModel.Analysis.Adx — @ViewModel.Analysis.Strength1H</td>
-                </tr>
-                <tr>
-                    <td>5m VWAP @ViewModel.Analysis.Vwap5M.ToString("N2")</td>
-                    <td class="@(ViewModel.Analysis.AboveVwap ? "buy" : "sell")">@(ViewModel.Analysis.AboveVwap ? "Above (Bullish)" : "Below (Bearish)")</td>
-                </tr>
-                <tr>
-                    <td>Regime</td>
-                    <td>@(ViewModel.Analysis.IsRangebound ? "Range-bound → Keltner" : "Trending")</td>
-                </tr>
-                <tr>
-                    <td>CPR</td>
-                    <td>@ViewModel.Analysis.Cpr</td>
-                </tr>
-            </table>
-        </div>
-
-        <div class="score-panel card">
-            <div class="card-header">Overall Score</div>
-            <div class="score-value">@ViewModel.Analysis.OverallScore%</div>
-            <div class="score-strength">@ViewModel.Analysis.Strength</div>
-        </div>
-
-        <div class="signal-panel card">
-            <div class="card-header">Current Signal</div>
-            @if (ViewModel.Analysis.WaitForReversal)
-            {
-                <div class="signal-check sell">⚠ Reversal risk: @ViewModel.Analysis.ReversalReason</div>
-            }
-            <div class="signal-checks">
-                <div class="signal-check">Bias : @TrendUi.GetBiasLabel(ViewModel.Analysis.RsiBias) (RSI28 @ViewModel.Analysis.RsiTrend)</div>
-                <div class="signal-check">Strength : @ViewModel.Analysis.Strength1H (ADX @ViewModel.Analysis.Adx)</div>
-                <div class="signal-check">5m VWAP : @(ViewModel.Analysis.AboveVwap ? "Bullish" : "Bearish")</div>
-                <div class="signal-check">Entry : @ViewModel.CurrentSignal.Entry</div>
-                <div class="signal-check">Plan : @ViewModel.CurrentSignal.Strategy</div>
-                <div class="signal-check">Confidence : @ViewModel.CurrentSignal.Confidence%</div>
+            <div class="analysis-panel card">
+                <div class="card-header">Multi Timeframe Analysis</div>
+                <table class="analysis-table">
+                    <tr>
+                        <td>Probability</td>
+                        <td class="@GetOverallScoreClass(ViewModel.Analysis)">
+                            @ViewModel.Analysis.OverallScore% — @ViewModel.Analysis.Strength
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>1H Bias — RSI(28) @ViewModel.Analysis.RsiTrend</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.RsiBias)">@TrendUi.GetIcon(ViewModel.Analysis.RsiBias) @TrendUi.GetBiasLabel(ViewModel.Analysis.RsiBias)</td>
+                    </tr>
+                    <tr>
+                        <td>1 Hour SuperTrend</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend1H)">@TrendUi.GetIcon(ViewModel.Analysis.Trend1H) @ViewModel.Analysis.Trend1H</td>
+                    </tr>
+                    <tr>
+                        <td>15 Min SuperTrend</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend15M)">@TrendUi.GetIcon(ViewModel.Analysis.Trend15M) @ViewModel.Analysis.Trend15M</td>
+                    </tr>
+                    <tr>
+                        <td>5 Min SuperTrend</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend5M)">@TrendUi.GetIcon(ViewModel.Analysis.Trend5M) @ViewModel.Analysis.Trend5M</td>
+                    </tr>
+                    <tr>
+                        <td>ADX(14) 1H</td>
+                        <td>@ViewModel.Analysis.Adx — @ViewModel.Analysis.Strength1H</td>
+                    </tr>
+                    <tr>
+                        <td>5m VWAP @ViewModel.Analysis.Vwap5M.ToString("N2")</td>
+                        <td class="@(ViewModel.Analysis.AboveVwap ? "buy" : "sell")">@(ViewModel.Analysis.AboveVwap ? "Above (Bullish)" : "Below (Bearish)")</td>
+                    </tr>
+                    <tr>
+                        <td>Regime</td>
+                        <td>@(ViewModel.Analysis.IsRangebound ? "Range-bound → Keltner" : "Trending")</td>
+                    </tr>
+                    <tr>
+                        <td>CPR</td>
+                        <td>@ViewModel.Analysis.Cpr</td>
+                    </tr>
+                </table>
             </div>
-        </div>
-
-        <div class="news-panel card">
-            <div class="card-header">
-                <span>News</span>
-                <a class="news-link" href="sentiment">View all →</a>
-            </div>
-            <div class="news-list">
-                @foreach (var headline in GetNewsHeadlines())
-                {
-                    <div class="news-item">
-                        @headline.Icon @headline.Text
-                    </div>
-                }
-            </div>
-        </div>
+        </aside>
     </div>
 
     <div class="dashboard-positions">
@@ -416,6 +422,13 @@
   }
 
   private static string GetTrendClass(TrendDirection trend) => TrendUi.GetClass(trend);
+
+  private static string GetOverallScoreClass(MultiTimeframeAnalysis analysis) => analysis.Strength1H switch
+  {
+      TrendStrength.Strong => "buy",
+      TrendStrength.Moderate => "neutral",
+      _ => "sell"
+  };
 
   private static string GetTrailingRowClass(TrailingStopRow item) => item.ExitPlaced
       ? "closed-row"

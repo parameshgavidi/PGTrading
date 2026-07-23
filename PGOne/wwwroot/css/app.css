@@ -225,6 +225,34 @@ html, body {
     gap: 12px;
 }
 
+.dashboard-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.dashboard-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.dashboard-insight-rail {
+    width: 260px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    max-height: calc(100vh - 88px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(212, 175, 55, 0.35) transparent;
+}
+
 .dashboard-top {
     display: flex;
     gap: 10px;
@@ -232,13 +260,11 @@ html, body {
 }
 
 .ai-insight-panel {
-    width: 220px;
+    width: 100%;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    max-height: 620px;
     min-height: 0;
-    overflow-y: auto;
 }
 
 .ai-insight-title {
@@ -252,8 +278,9 @@ html, body {
 .ai-check-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 16px;
+    gap: 6px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
 }
 
 .ai-check {
@@ -300,6 +327,18 @@ html, body {
 .ai-probability-value.high { color: var(--buy); }
 .ai-probability-value.mid { color: var(--gold); }
 .ai-probability-value.low { color: var(--sell); }
+
+.ai-probability-strength {
+    margin-top: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.ai-probability-strength.strong { color: var(--buy); }
+.ai-probability-strength.moderate { color: var(--gold); }
+.ai-probability-strength.weak { color: var(--sell); }
 
 .ai-suggested {
     margin-top: 12px;
@@ -598,8 +637,7 @@ html, body {
     flex-shrink: 0;
 }
 
-.analysis-panel { flex: 2; }
-.score-panel { flex: 0.5; text-align: center; }
+.analysis-panel { flex: 1; min-width: 0; }
 .signal-panel { flex: 1.5; }
 
 .analysis-table {
@@ -613,6 +651,14 @@ html, body {
 }
 
 .analysis-table td:first-child { color: var(--text-secondary); }
+
+.dashboard-insight-rail .analysis-table {
+    font-size: 12px;
+}
+
+.dashboard-insight-rail .analysis-table td {
+    padding: 5px 4px;
+}
 
 .score-value {
     font-size: 36px;

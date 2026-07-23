@@ -11,6 +11,7 @@
     <div class="ai-probability">
         <div class="ai-probability-label">Probability</div>
         <div class="ai-probability-value @GetProbabilityClass()">@Analysis.OverallScore%</div>
+        <div class="ai-probability-strength @GetStrengthClass()">@Analysis.Strength</div>
     </div>
     <div class="ai-suggested">
         <div class="ai-suggested-label">Suggested</div>
@@ -29,6 +30,13 @@
         >= 70 => "high",
         >= 45 => "mid",
         _ => "low"
+    };
+
+    private string GetStrengthClass() => Analysis.Strength1H switch
+    {
+        TrendStrength.Strong => "strong",
+        TrendStrength.Moderate => "moderate",
+        _ => "weak"
     };
 
     private string GetActionClass() => SuggestedAction switch
