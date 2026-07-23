@@ -106,13 +106,15 @@ public class SignalService : ISignalService
     public async Task<Signal> GenerateSignalAsync(string instrument = "NIFTY")
     {
         var analysis = await AnalyzeAsync(instrument);
-        var config = _settings.Strategy;
         var price = await _marketData.GetCurrentPriceAsync(MapInstrument(instrument));
-        var strike = Math.Round(price / 50) * 50;
+        var strikeStep = GetStrikeStep(instrument);
+        var strike = (int)(Math.Round(price / strikeStep) * strikeStep);
+        var candles5M = await _marketData.GetCandlesAsync(MapInstrument(instrument), "5m", 200);
+        var stopLoss = BuildStopLoss(instrument, analysis.RsiBias, candles5M);
 
         var reasons = new List<string>
         {
-            $"1H RSI({config.RsiTrendLength}) {analysis.RsiTrend:0} → {BiasLabel(analysis.RsiBias)}",
+            $"1H RSI({_settings.Strategy.RsiTrendLength}) {analysis.RsiTrend:0} → {BiasLabel(analysis.RsiBias)}",
             $"1H ADX {analysis.Adx:0} → {analysis.Strength1H} trend",
             $"5m {(analysis.AboveVwap ? "above" : "below")} VWAP {analysis.Vwap5M:N0}",
             $"CPR {analysis.Cpr}"
@@ -133,7 +135,7 @@ public class SignalService : ISignalService
             {
                 Instrument = instrument,
                 Trend = TrendDirection.Neutral,
-                Entry = $"{strike:F0} straddle/IC",
+                Entry = $"{strike} straddle/IC",
                 Strategy = "Keltner (20,1.5)/(20,2) fade + VWAP",
                 StopLoss = "Beyond Keltner (20,2)",
                 Target = "Mid / VWAP",
@@ -156,9 +158,9 @@ public class SignalService : ISignalService
             return NoTrade(instrument, "Wait for alignment", analysis.OverallScore, reasons);
         }
 
-        var (entry, strategy) = bias == TrendDirection.Buy
-            ? ($"{strike:F0} CE", "Debit Spread")
-            : ($"{strike:F0} PE", "Credit Spread");
+        var (entry, strategy, optionType) = bias == TrendDirection.Buy
+            ? ($"{strike} CE", "Debit Spread", "CE")
+            : ($"{strike} CE", "Sell ATM Call", "CE");
 
         return new Signal
         {
@@ -166,12 +168,46 @@ public class SignalService : ISignalService
             Trend = bias,
             Entry = entry,
             Strategy = strategy,
-            StopLoss = "Below 5m SuperTrend",
+            OptionType = optionType,
+            Strike = strike,
+            StopLoss = stopLoss.Text,
+            StopLossLevel = stopLoss.Level,
             Target = "Risk : Reward 1 : 2",
             Confidence = analysis.OverallScore,
             Reasons = reasons
         };
     }
+
+    private (string Text, decimal? Level) BuildStopLoss(string instrument, TrendDirection bias, List<Candle> candles5M)
+    {
+        var (_, superTrendValues) = _superTrend.Calculate(
+            candles5M,
+            TrailingStopDefaults.Period,
+            TrailingStopDefaults.Multiplier);
+
+        if (superTrendValues.Count == 0)
+        {
+            return (
+                $"5m ST ({TrailingStopDefaults.Period}, {TrailingStopDefaults.Multiplier})",
+                null);
+        }
+
+        var level = superTrendValues[^1];
+        var direction = bias == TrendDirection.Sell
+            ? $"exit if {instrument.ToUpperInvariant()} closes above"
+            : $"exit if {instrument.ToUpperInvariant()} closes below";
+
+        return (
+            $"₹{level:N2} — 5m ST ({TrailingStopDefaults.Period}, {TrailingStopDefaults.Multiplier}) — {direction}",
+            level);
+    }
+
+    private static int GetStrikeStep(string instrument) => instrument.ToUpperInvariant() switch
+    {
+        "BANKNIFTY" => 100,
+        "SENSEX" => 100,
+        _ => 50
+    };
 
     private static Signal NoTrade(string instrument, string reason, int confidence, List<string> reasons) => new()
     {
