@@ -497,7 +497,7 @@ public class SentimentService : ISentimentService
     {
         var finbert = await TryAnalyzeWithFinBertAsync(texts, cancellationToken);
         if (finbert is not null && finbert.Any(p => p is not null))
-            return new TextAnalysisResult(finbert, UsedKeywordFallback: false);
+            return new TextAnalysisResult(finbert, usedKeywordFallback: false);
 
         var token = _settings.Settings.HuggingFaceApiToken?.Trim();
         var error = string.IsNullOrEmpty(token)
@@ -508,8 +508,8 @@ public class SentimentService : ISentimentService
 
         return new TextAnalysisResult(
             texts.Select(AnalyzeTextWithKeywords).ToList(),
-            UsedKeywordFallback: true,
-            Error: error);
+            usedKeywordFallback: true,
+            error: error);
     }
 
     private async Task<List<(string Label, double Score)?>?> TryAnalyzeWithFinBertAsync(
