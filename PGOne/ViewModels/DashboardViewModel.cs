@@ -18,6 +18,7 @@ public class DashboardViewModel : INotifyPropertyChanged
     public decimal NiftyPrice { get; private set; }
     public decimal NiftyChange { get; private set; }
     public decimal NiftyChangePercent { get; private set; }
+    private decimal _priceReference;
     public TrendDirection NiftyTrend { get; private set; } = TrendDirection.Neutral;
     public MultiTimeframeAnalysis Analysis { get; private set; } = new();
     public Signal CurrentSignal { get; private set; } = new();
@@ -192,7 +193,15 @@ public class DashboardViewModel : INotifyPropertyChanged
             return;
 
         NiftyPrice = price;
+        if (_priceReference > 0)
+        {
+            NiftyChange = price - _priceReference;
+            NiftyChangePercent = Math.Round(NiftyChange / _priceReference * 100, 2);
+        }
+
         Notify(nameof(NiftyPrice));
+        Notify(nameof(NiftyChange));
+        Notify(nameof(NiftyChangePercent));
     }
 
     private void OnWatchlistUpdated()
@@ -219,15 +228,13 @@ public class DashboardViewModel : INotifyPropertyChanged
         if (quote is { LastPrice: > 0 })
         {
             NiftyPrice = quote.LastPrice;
-            var reference = IsMarketOpen ? quote.Open : quote.PreviousClose;
-            if (reference > 0)
-            {
-                NiftyChange = quote.LastPrice - reference;
-                NiftyChangePercent = Math.Round(NiftyChange / reference * 100, 2);
-            }
+            _priceReference = quote.PreviousClose > 0 ? quote.PreviousClose : quote.Open;
+            NiftyChange = quote.Change;
+            NiftyChangePercent = quote.ChangePercent;
             return;
         }
 
+        _priceReference = 0;
         UpdatePriceFromCandles();
     }
 
@@ -239,12 +246,31 @@ public class DashboardViewModel : INotifyPropertyChanged
         var last = ChartCandles[^1];
         NiftyPrice = last.Close;
 
-        if (ChartCandles.Count > 1)
+        var reference = GetPreviousCloseFromCandles();
+        if (reference > 0)
         {
-            var prev = ChartCandles[^2].Close;
-            NiftyChange = last.Close - prev;
-            NiftyChangePercent = prev == 0 ? 0 : Math.Round(NiftyChange / prev * 100, 2);
+            _priceReference = reference;
+            NiftyChange = last.Close - reference;
+            NiftyChangePercent = Math.Round(NiftyChange / reference * 100, 2);
         }
+    }
+
+    private decimal GetPreviousCloseFromCandles()
+    {
+        if (ChartCandles.Count == 0)
+            return 0;
+
+        var sessionClose = MarketHours.GetLastSessionClose(MarketHours.GetIstNow());
+        Candle? priorSessionCandle = null;
+        foreach (var candle in ChartCandles)
+        {
+            if (candle.Timestamp <= sessionClose)
+                priorSessionCandle = candle;
+            else
+                break;
+        }
+
+        return priorSessionCandle?.Close ?? ChartCandles[0].Open;
     }
 
     private void UpdateSelectedTrend()
