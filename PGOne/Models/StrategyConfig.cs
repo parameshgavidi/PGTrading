@@ -6,12 +6,12 @@ public class StrategyConfig
     public double SuperTrend1HMultiplier { get; set; } = 3.0;
     public int SuperTrend15MPeriod { get; set; } = 10;
     public double SuperTrend15MMultiplier { get; set; } = 3.0;
-    public int SuperTrend5MPeriod { get; set; } = 10;
-    public double SuperTrend5MMultiplier { get; set; } = 3.0;
+    public int SuperTrend5MPeriod { get; set; } = 7;
+    public double SuperTrend5MMultiplier { get; set; } = 2.5;
 
     public int RsiLength { get; set; } = 14;
 
-    // Trade framework: 1H trend bias uses RSI(28).
+    // RSI trend thresholds for trade direction (Step 2).
     public int RsiTrendLength { get; set; } = 28;
     public decimal RsiBullThreshold { get; set; } = 55m;
     public decimal RsiBearThreshold { get; set; } = 45m;
@@ -21,7 +21,7 @@ public class StrategyConfig
     public int AdxLength { get; set; } = 14;
     public decimal AdxWeakThreshold { get; set; } = 18m;
     public decimal AdxStrongThreshold { get; set; } = 25m;
-    public int MinimumAdx { get; set; } = 25;
+    public int MinimumAdx { get; set; } = 20;
 
     // Keltner Channels (used on 5m when 1H is range-bound).
     public int KeltnerEmaLength { get; set; } = 20;

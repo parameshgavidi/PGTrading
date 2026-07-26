@@ -6,17 +6,28 @@ public static class AiInsightHelper
 {
     public static IReadOnlyList<AiCheck> BuildChecks(MultiTimeframeAnalysis analysis)
     {
-        var trendStrong = analysis.Strength1H == TrendStrength.Strong;
-        var adxRising = analysis.Adx >= 25;
-        var rsiHealthy = analysis.Rsi >= 45 && analysis.Rsi <= 70;
-        var superTrendBullish = analysis.Trend5M == TrendDirection.Buy;
+        var marketBiasPass = analysis.MarketBias != TrendDirection.Neutral;
+        var tradeDirPass = analysis.TradeDirection != TrendDirection.Neutral;
+        var entryPass = analysis.EntryTriggered;
+        var footprintPass = analysis.FootprintConfirmed;
+
+        var adxState = analysis.Adx >= 25 ? "pass"
+            : analysis.Adx >= 20 ? "warn"
+            : "fail";
+
+        var rsiState = analysis.Rsi >= 55 || analysis.Rsi <= 45 ? "pass"
+            : analysis.Rsi < 30 || analysis.Rsi > 70 ? "fail"
+            : "warn";
 
         return
         [
-            new($"Trend {(trendStrong ? "Strong" : analysis.Strength)}", trendStrong ? "pass" : analysis.Strength1H == TrendStrength.Moderate ? "warn" : "fail"),
-            new(adxRising ? "ADX Rising" : $"ADX {analysis.Adx:N0}", adxRising ? "pass" : analysis.Adx >= 18 ? "warn" : "fail"),
-            new($"RSI {analysis.Rsi:N0}", rsiHealthy ? "pass" : analysis.Rsi > 70 || analysis.Rsi < 30 ? "fail" : "warn"),
-            new($"SuperTrend {TrendUi.GetSuperTrendLabel(analysis.Trend5M)}", superTrendBullish ? "pass" : analysis.Trend5M == TrendDirection.Sell ? "fail" : "warn")
+            new($"1H ST {TrendUi.GetSuperTrendLabel(analysis.Trend1H)}", marketBiasPass ? "pass" : analysis.Trend1H == TrendDirection.Neutral ? "fail" : "warn"),
+            new(analysis.AboveVwap ? "Above VWAP" : "Below VWAP", analysis.MarketBias != TrendDirection.Neutral ? "pass" : "warn"),
+            new($"15M ST {TrendUi.GetSuperTrendLabel(analysis.Trend15M)}", tradeDirPass ? "pass" : analysis.Trend15M == TrendDirection.Neutral ? "warn" : "fail"),
+            new(analysis.Adx >= 25 ? "ADX Rising" : $"ADX {analysis.Adx:N0}", adxState),
+            new($"RSI {analysis.Rsi:N0}", rsiState),
+            new($"Entry ST {TrendUi.GetSuperTrendLabel(analysis.Trend5MEntry)}", entryPass ? "pass" : "warn"),
+            new(footprintPass ? "Footprint OK" : analysis.Footprint.Summary, footprintPass ? "pass" : "warn")
         ];
     }
 
@@ -24,6 +35,11 @@ public static class AiInsightHelper
     {
         if (analysis.WaitForReversal)
             return "WAIT";
+
+        if (!analysis.FrameworkReady)
+            return analysis.FrameworkStatus.StartsWith("Wait", StringComparison.OrdinalIgnoreCase)
+                ? "WAIT"
+                : analysis.FrameworkStatus;
 
         return signal.Trend switch
         {

@@ -109,11 +109,14 @@
                         <div class="signal-check sell">⚠ Reversal risk: @ViewModel.Analysis.ReversalReason</div>
                     }
                     <div class="signal-checks">
-                        <div class="signal-check">Bias : @TrendUi.GetBiasLabel(ViewModel.Analysis.RsiBias) (RSI28 @ViewModel.Analysis.RsiTrend)</div>
-                        <div class="signal-check">Strength : @ViewModel.Analysis.Strength1H (ADX @ViewModel.Analysis.Adx)</div>
-                        <div class="signal-check">5m VWAP : @(ViewModel.Analysis.AboveVwap ? "Bullish" : "Bearish")</div>
+                        <div class="signal-check">Market bias : @TrendUi.GetBiasLabel(ViewModel.Analysis.MarketBias) (1H ST + VWAP)</div>
+                        <div class="signal-check">Trade direction : @TrendUi.GetBiasLabel(ViewModel.Analysis.TradeDirection) (15M ST + ADX + RSI)</div>
+                        <div class="signal-check">Entry ST (7,2.5) : @ViewModel.Analysis.Trend5MEntry @(ViewModel.Analysis.EntryTriggered ? "✓" : "—")</div>
+                        <div class="signal-check">Footprint : @ViewModel.Analysis.Footprint.Summary</div>
+                        <div class="signal-check">Framework : @ViewModel.Analysis.FrameworkStatus</div>
                         <div class="signal-check">Entry : @ViewModel.CurrentSignal.Entry</div>
                         <div class="signal-check">Plan : @ViewModel.CurrentSignal.Strategy</div>
+                        <div class="signal-check">Target : @ViewModel.CurrentSignal.Target</div>
                         <div class="signal-check">Confidence : @ViewModel.CurrentSignal.Confidence%</div>
                     </div>
                 </div>
@@ -149,8 +152,12 @@
                         </td>
                     </tr>
                     <tr>
-                        <td>1H Bias — RSI(28) @ViewModel.Analysis.RsiTrend</td>
-                        <td class="@TrendUi.GetClass(ViewModel.Analysis.RsiBias)">@TrendUi.GetIcon(ViewModel.Analysis.RsiBias) @TrendUi.GetBiasLabel(ViewModel.Analysis.RsiBias)</td>
+                        <td>Market Bias (1H ST + VWAP)</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.MarketBias)">@TrendUi.GetIcon(ViewModel.Analysis.MarketBias) @TrendUi.GetBiasLabel(ViewModel.Analysis.MarketBias)</td>
+                    </tr>
+                    <tr>
+                        <td>Trade Direction (15M + ADX + RSI)</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.TradeDirection)">@TrendUi.GetIcon(ViewModel.Analysis.TradeDirection) @TrendUi.GetBiasLabel(ViewModel.Analysis.TradeDirection)</td>
                     </tr>
                     <tr>
                         <td>1 Hour SuperTrend</td>
@@ -165,16 +172,43 @@
                         <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend5M)">@TrendUi.GetIcon(ViewModel.Analysis.Trend5M) @ViewModel.Analysis.Trend5M</td>
                     </tr>
                     <tr>
+                        <td>5 Min Entry ST (7,2.5)</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend5MEntry)">@TrendUi.GetIcon(ViewModel.Analysis.Trend5MEntry) @ViewModel.Analysis.Trend5MEntry @(ViewModel.Analysis.EntryTriggered ? "✓" : "")</td>
+                    </tr>
+                    <tr>
                         <td>ADX(14) 1H</td>
                         <td>@ViewModel.Analysis.Adx — @ViewModel.Analysis.Strength1H</td>
+                    </tr>
+                    <tr>
+                        <td>RSI(14) 1H</td>
+                        <td>@ViewModel.Analysis.Rsi</td>
                     </tr>
                     <tr>
                         <td>5m VWAP @ViewModel.Analysis.Vwap5M.ToString("N2")</td>
                         <td class="@(ViewModel.Analysis.AboveVwap ? "buy" : "sell")">@(ViewModel.Analysis.AboveVwap ? "Above (Bullish)" : "Below (Bearish)")</td>
                     </tr>
                     <tr>
+                        <td>Footprint</td>
+                        <td class="@(ViewModel.Analysis.FootprintConfirmed ? "buy" : "sell")">@ViewModel.Analysis.Footprint.Summary</td>
+                    </tr>
+                    @if (ViewModel.Analysis.VolumeProfile.HasData)
+                    {
+                        <tr>
+                            <td>POC / VAH / VAL</td>
+                            <td>@ViewModel.Analysis.VolumeProfile.Poc.ToString("N2") / @ViewModel.Analysis.VolumeProfile.Vah.ToString("N2") / @ViewModel.Analysis.VolumeProfile.Val.ToString("N2")</td>
+                        </tr>
+                        <tr>
+                            <td>Prev POC / VAH / VAL</td>
+                            <td>@ViewModel.Analysis.VolumeProfile.PrevDayPoc.ToString("N2") / @ViewModel.Analysis.VolumeProfile.PrevDayVah.ToString("N2") / @ViewModel.Analysis.VolumeProfile.PrevDayVal.ToString("N2")</td>
+                        </tr>
+                    }
+                    <tr>
                         <td>Regime</td>
                         <td>@(ViewModel.Analysis.IsRangebound ? "Range-bound → Keltner" : "Trending")</td>
+                    </tr>
+                    <tr>
+                        <td>Framework</td>
+                        <td class="@(ViewModel.Analysis.FrameworkReady ? "buy" : "sell")">@ViewModel.Analysis.FrameworkStatus</td>
                     </tr>
                     <tr>
                         <td>CPR</td>

@@ -60,7 +60,8 @@ public class IntradayScannerService : IIntradayScannerService
                     Notify();
 
                     var analysis = await _signal.AnalyzeForFrameworkAsync(symbol);
-                    if (!IntradayFrameworkEvaluator.IsSatisfied(analysis))
+                    if (!IntradayFrameworkEvaluator.IsSatisfied(analysis)
+                        || analysis.TradeDirection != TrendDirection.Buy)
                         return;
 
                     var qty = IntradayFrameworkEvaluator.QuantityForNotional(lastPrice, ScanNotional.Intraday);

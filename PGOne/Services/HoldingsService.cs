@@ -227,7 +227,7 @@ public class HoldingsService : IHoldingsService
         if (superTrendValues.Count > 0)
             return $"₹{superTrendValues[^1]:N2} (5m SuperTrend)";
 
-        if (analysis.RsiBias == TrendDirection.Sell)
+        if (analysis.TradeDirection == TrendDirection.Sell)
             return "Consider exit — bearish framework";
 
         return "Below 5m SuperTrend";
