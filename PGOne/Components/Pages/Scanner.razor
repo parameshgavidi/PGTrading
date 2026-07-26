@@ -86,6 +86,7 @@
         Score = analysis.OverallScore,
         Signal = analysis.FrameworkReady ? analysis.TradeDirection : TrendDirection.Neutral,
         Aligned = analysis.FrameworkReady,
+        FrameworkReady = analysis.FrameworkReady,
         FootprintConfirmed = analysis.FootprintConfirmed,
         TpoConfirmed = analysis.TpoConfirmed,
         FrameworkStatus = analysis.FrameworkStatus
@@ -127,6 +128,7 @@
     public int Score { get; set; }
     public TrendDirection Signal { get; set; }
     public bool Aligned { get; set; }
+    public bool FrameworkReady { get; set; }
     public bool FootprintConfirmed { get; set; }
     public bool TpoConfirmed { get; set; }
     public string FrameworkStatus { get; set; } = "";

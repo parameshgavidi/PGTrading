@@ -247,7 +247,12 @@ public static class FrameworkPlaybook
     "Unit tests require local dotnet SDK — run command above before session if you changed framework code"
   ];
 
-  private static FrameworkRule Rule(string id, string title, string condition, string? action, string? note) =>
+  private static FrameworkRule Rule(
+    string id,
+    string title,
+    string condition,
+    string? action = null,
+    string? note = null) =>
     new(id, title, condition, action, note);
 }
 
