@@ -80,10 +80,10 @@ public static class FrameworkPlaybook
       "ADX(14) on 1H ≥ 20 (Minimum ADX setting)",
       "Required for trend trade", "18–19 = moderate but below trade threshold"),
     Rule("S2-4", "RSI long momentum",
-      "For LONG: 1H RSI(28) > 55",
+      "For LONG: 1H RSI(28) strictly > 55 (55 = range)",
       "Required for long direction", null),
     Rule("S2-5", "RSI short momentum",
-      "For SHORT: 1H RSI(28) < 45",
+      "For SHORT: 1H RSI(28) strictly < 45 (45 = range)",
       "Required for short direction", null),
     Rule("S2-6", "POC bull confirm",
       "For LONG: price > current-day POC (or > prev-day POC if no session profile)",
@@ -198,6 +198,53 @@ public static class FrameworkPlaybook
     ("Long", "> 55", "Bullish momentum on 1H", "buy"),
     ("Short", "< 45", "Bearish momentum on 1H", "sell"),
     ("Range", "45 – 55", "Range-bound — Keltner fade", "neutral")
+  ];
+
+  public const string LastValidated = "26 Jul 2026";
+
+  public static readonly string UnitTestCommand =
+    "dotnet test PGOne.Framework.Tests/PGOne.Framework.Tests.csproj";
+
+  /// <summary>Code ↔ playbook alignment verified in TradeFrameworkEvaluatorTests + manual audit.</summary>
+  public static readonly IReadOnlyList<string> RevalidationChecklist =
+  [
+    "G0 — 5m RSI(14) < 30 sets WaitForReversal; IsFrameworkReady false; no new directional entry",
+    "G1 — ADX(1H) < 18 AND price inside current-day VA → IsRotationRegime; FrameworkReady false; score capped at 45",
+    "G2 — 1H RSI(28) 45–55 inclusive → IsRangebound; GetTradeDirection returns Neutral; FrameworkReady false",
+    "RSI long requires strictly > 55 (RsiConfirmsLong); RSI 55 is range, not long",
+    "RSI short requires strictly < 45 (RsiConfirmsShort); RSI 45 is range, not short",
+    "Step 1 — 1H ST (10,3) + current-day VWAP must align for market bias",
+    "Step 2 — 15M ST (10,3) must match market bias; ADX(1H) ≥ 18 (not choppy) and ≥ 20 (minimum trade)",
+    "Step 2 — POC: price above POC = bull, below = bear; prev-day POC fallback when no session profile",
+    "Step 2 — ADX(1H) > 25: long needs price above VAH, short needs price below VAL",
+    "Step 3 — 5M entry ST (7, 2.5) via TrailingStopDefaults; must match trade direction",
+    "Step 4 — Footprint delta + stacked imbalances + no opposing absorption on 5m",
+    "Step 5 — Targets: prev-day POC / VAH / VAL; stop on 5M ST (7, 2.5) reversal",
+    "Framework READY — IsFrameworkReady blocks reversal, rotation, range-bound, and missing entry/footprint",
+    "Intraday scan — IntradayFrameworkEvaluator.IsSatisfied uses FrameworkReady; long MIS only",
+    "Long-term scan — unchanged (LongTermFrameworkService); not this playbook"
+  ];
+
+  public static readonly IReadOnlyList<(string Issue, string Fix)> BugsFixed =
+  [
+    ("RSI 55 allowed long / RSI 45 allowed short",
+      "Strict boundaries: long > 55, short < 45; 45–55 inclusive is range via IsRangebound()"),
+    ("FrameworkReady did not block range-bound regime",
+      "IsFrameworkReady now requires !isRangebound; score 45 when range-bound or rotation"),
+    ("Range-bound status unclear in UI",
+      "GetBlockingReason returns \"Range-bound — 1H RSI(28) between 45–55\"; FrameworkStatus surfaced on Dashboard"),
+    ("POC missing on thin session data",
+      "TpoConfirmationEvaluator falls back to prev-day POC when session profile has no data"),
+    ("ADX choppy not explicit in trade-direction gate",
+      "GetTradeDirection returns Neutral when ADX < 18 before minimum-ADX check")
+  ];
+
+  public static readonly IReadOnlyList<string> KnownLimitations =
+  [
+    "NIFTY index candles have zero volume — footprint and POC use OHLCV proxies on indices",
+    "Chart overlay 5m SuperTrend display still uses (10, 3) in MarketDataService.AttachSuperTrend; signals use (7, 2.5) for entry",
+    "StrategyConfig.EntryMode is not wired into evaluator logic",
+    "Unit tests require local dotnet SDK — run command above before session if you changed framework code"
   ];
 
   private static FrameworkRule Rule(string id, string title, string condition, string? action, string? note) =>
