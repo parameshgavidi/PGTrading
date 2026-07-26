@@ -466,6 +466,13 @@
 
   private static string GetTrendClass(TrendDirection trend) => TrendUi.GetClass(trend);
 
+  private static string GetAdxStrengthLabel(MultiTimeframeAnalysis analysis) => analysis.Strength1H switch
+  {
+      TrendStrength.Strong => "Strong (>25)",
+      TrendStrength.Moderate => "Moderate (18–25)",
+      _ => "Choppy (<18)"
+  };
+
   private static string GetOverallScoreClass(MultiTimeframeAnalysis analysis) => analysis.Strength1H switch
   {
       TrendStrength.Strong => "buy",

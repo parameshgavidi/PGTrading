@@ -15,17 +15,18 @@ public class VolumeProfileService : IVolumeProfileService
   public VolumeProfileLevels BuildLevels(List<Candle> sessionCandles, List<Candle>? prevSessionCandles = null)
   {
     var levels = new VolumeProfileLevels();
-    if (sessionCandles.Count == 0)
-      return levels;
 
-    var today = BuildProfile(sessionCandles);
-    if (today is null)
-      return levels;
-
-    levels.Poc = today.Poc;
-    levels.Vah = today.Vah;
-    levels.Val = today.Val;
-    levels.HasData = true;
+    if (sessionCandles.Count > 0)
+    {
+      var today = BuildProfile(sessionCandles);
+      if (today is not null)
+      {
+        levels.Poc = today.Poc;
+        levels.Vah = today.Vah;
+        levels.Val = today.Val;
+        levels.HasData = true;
+      }
+    }
 
     if (prevSessionCandles is { Count: > 0 })
     {

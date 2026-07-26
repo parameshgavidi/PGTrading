@@ -17,7 +17,7 @@ public class StrategyConfig
     public decimal RsiBearThreshold { get; set; } = 45m;
     public decimal RsiReversalThreshold { get; set; } = 30m;
 
-    // ADX(14) strength bands on 1H.
+    // ADX(14) on 1H — <18 choppy, 18–25 moderate, >25 strong.
     public int AdxLength { get; set; } = 14;
     public decimal AdxWeakThreshold { get; set; } = 18m;
     public decimal AdxStrongThreshold { get; set; } = 25m;

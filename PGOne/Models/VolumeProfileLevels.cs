@@ -28,9 +28,11 @@ public class VolumeProfileLevels
   public bool IsBelowPoc(decimal price) =>
     HasData && price < Poc;
 
-  public bool ConfirmsBuy(decimal price) => IsAbovePoc(price);
+  public bool ConfirmsBuy(decimal price) =>
+    HasData ? IsAbovePoc(price) : PrevDayPoc > 0 && price > PrevDayPoc;
 
-  public bool ConfirmsSell(decimal price) => IsBelowPoc(price);
+  public bool ConfirmsSell(decimal price) =>
+    HasData ? IsBelowPoc(price) : PrevDayPoc > 0 && price < PrevDayPoc;
 
   public string TargetSummary(TrendDirection bias) => bias switch
   {
