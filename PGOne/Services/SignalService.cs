@@ -62,8 +62,8 @@ public class SignalService : ISignalService
         var rsi15M = _indicators.CalculateRsi(candles15M, config.RsiLength);
         var rsi5M = _indicators.CalculateRsi(candles5M, config.RsiLength);
 
-        var rsiBias = rsiTrend > config.RsiBullThreshold ? TrendDirection.Buy
-            : rsiTrend < config.RsiBearThreshold ? TrendDirection.Sell
+        var rsiBias = TradeFrameworkEvaluator.RsiConfirmsLong(rsiTrend, config) ? TrendDirection.Buy
+            : TradeFrameworkEvaluator.RsiConfirmsShort(rsiTrend, config) ? TrendDirection.Sell
             : TrendDirection.Neutral;
 
         var adx1H = _indicators.CalculateAdx(candles1H, config.AdxLength);
@@ -97,7 +97,7 @@ public class SignalService : ISignalService
 
         var isRotationRegime = TradeFrameworkEvaluator.IsRotationRegime(
             adx1H, last5MClose, volumeProfile, config);
-        var isRangebound = rsiBias == TrendDirection.Neutral;
+        var isRangebound = TradeFrameworkEvaluator.IsRangebound(rsiTrend, config);
 
         var marketBias = TradeFrameworkEvaluator.GetMarketBias(trend1H, aboveVwap);
         var tradeDirection = TradeFrameworkEvaluator.GetTradeDirection(
@@ -124,7 +124,8 @@ public class SignalService : ISignalService
             trend5MEntry,
             footprint,
             reversalReason is not null,
-            isRotationRegime);
+            isRotationRegime,
+            isRangebound);
 
         var frameworkStatus = TradeFrameworkEvaluator.GetBlockingReason(
             marketBias,
@@ -139,6 +140,7 @@ public class SignalService : ISignalService
             tpo,
             reversalReason is not null,
             isRotationRegime,
+            isRangebound,
             config);
 
         var score = TradeFrameworkEvaluator.CalculateScore(
@@ -152,6 +154,7 @@ public class SignalService : ISignalService
             footprint,
             tpo,
             isRotationRegime,
+            isRangebound,
             frameworkReady);
 
         return new MultiTimeframeAnalysis

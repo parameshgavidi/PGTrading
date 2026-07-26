@@ -22,6 +22,9 @@ public static class TradeFrameworkEvaluator
     && profile.HasData
     && profile.IsInsideValueArea(price);
 
+  public static bool IsRangebound(decimal rsi1H, StrategyConfig config) =>
+    rsi1H >= config.RsiBearThreshold && rsi1H <= config.RsiBullThreshold;
+
   public static TrendDirection GetTradeDirection(
     TrendDirection marketBias,
     TrendDirection trend15M,
@@ -35,6 +38,9 @@ public static class TradeFrameworkEvaluator
     if (marketBias == TrendDirection.Neutral)
       return TrendDirection.Neutral;
 
+    if (IsRangebound(rsi1H, config))
+      return TrendDirection.Neutral;
+
     if (trend15M != marketBias)
       return TrendDirection.Neutral;
 
@@ -44,10 +50,10 @@ public static class TradeFrameworkEvaluator
     if (adx1H < config.MinimumAdx)
       return TrendDirection.Neutral;
 
-    if (marketBias == TrendDirection.Buy && rsi1H < config.RsiBullThreshold)
+    if (marketBias == TrendDirection.Buy && !RsiConfirmsLong(rsi1H, config))
       return TrendDirection.Neutral;
 
-    if (marketBias == TrendDirection.Sell && rsi1H > config.RsiBearThreshold)
+    if (marketBias == TrendDirection.Sell && !RsiConfirmsShort(rsi1H, config))
       return TrendDirection.Neutral;
 
     if (!tpo.Confirms(marketBias))
@@ -76,9 +82,11 @@ public static class TradeFrameworkEvaluator
     TrendDirection trend5MEntry,
     FootprintAnalysis footprint,
     bool waitForReversal,
-    bool isRotationRegime) =>
+    bool isRotationRegime,
+    bool isRangebound) =>
     !waitForReversal
     && !isRotationRegime
+    && !isRangebound
     && tradeDirection != TrendDirection.Neutral
     && EntryTriggered(tradeDirection, trend5MEntry)
     && FootprintConfirmed(tradeDirection, footprint);
@@ -94,9 +102,10 @@ public static class TradeFrameworkEvaluator
     FootprintAnalysis footprint,
     TpoConfirmationAnalysis tpo,
     bool isRotationRegime,
+    bool isRangebound,
     bool frameworkReady)
   {
-    if (isRotationRegime)
+    if (isRotationRegime || isRangebound)
       return 45;
 
     var score = 25;
@@ -141,6 +150,7 @@ public static class TradeFrameworkEvaluator
     TpoConfirmationAnalysis tpo,
     bool waitForReversal,
     bool isRotationRegime,
+    bool isRangebound,
     StrategyConfig config)
   {
     if (waitForReversal)
@@ -148,6 +158,9 @@ public static class TradeFrameworkEvaluator
 
     if (isRotationRegime)
       return "Rotation inside VA — avoid breakouts";
+
+    if (isRangebound)
+      return "Range-bound — 1H RSI(28) between 45–55";
 
     if (trend1H == TrendDirection.Neutral)
       return "Wait — 1H SuperTrend neutral";
@@ -164,11 +177,11 @@ public static class TradeFrameworkEvaluator
     if (adx1H < config.MinimumAdx)
       return $"Wait — ADX {adx1H:0} moderate, need ≥{config.MinimumAdx:0}";
 
-    if (marketBias == TrendDirection.Buy && rsi1H < config.RsiBullThreshold)
-      return $"Wait — 1H RSI(28) {rsi1H:0} < {config.RsiBullThreshold:0}";
+    if (marketBias == TrendDirection.Buy && !RsiConfirmsLong(rsi1H, config))
+      return $"Wait — 1H RSI(28) {rsi1H:0} not > {config.RsiBullThreshold:0}";
 
-    if (marketBias == TrendDirection.Sell && rsi1H > config.RsiBearThreshold)
-      return $"Wait — 1H RSI(28) {rsi1H:0} > {config.RsiBearThreshold:0}";
+    if (marketBias == TrendDirection.Sell && !RsiConfirmsShort(rsi1H, config))
+      return $"Wait — 1H RSI(28) {rsi1H:0} not < {config.RsiBearThreshold:0}";
 
     if (!tpo.Confirms(marketBias))
       return $"Wait — POC: {tpo.Summary}";
@@ -190,4 +203,10 @@ public static class TradeFrameworkEvaluator
 
     return tpo.StrongTrendDay ? "Ready — strong trend day" : "Ready";
   }
+
+  public static bool RsiConfirmsLong(decimal rsi1H, StrategyConfig config) =>
+    rsi1H > config.RsiBullThreshold;
+
+  public static bool RsiConfirmsShort(decimal rsi1H, StrategyConfig config) =>
+    rsi1H < config.RsiBearThreshold;
 }
