@@ -1,12 +1,7 @@
 namespace PGOne.Models;
 
 /// <summary>
-/// Five-step intraday trade framework:
-/// 1. Market bias — 1H ST + VWAP
-/// 2. Trade direction — 15M ST + ADX + RSI
-/// 3. Entry — 5M ST (7,2.5) trigger
-/// 4. Footprint confirmation — Delta + imbalances + no opposing absorption
-/// 5. Exit — Prev POC / VAH / VAL / 5M ST reversal
+/// Intraday trade framework with TPO / volume-profile confirmation.
 /// </summary>
 public static class TradeFrameworkEvaluator
 {
@@ -18,11 +13,23 @@ public static class TradeFrameworkEvaluator
       _ => TrendDirection.Neutral
     };
 
+  public static bool IsRotationRegime(
+    decimal adx1H,
+    decimal price,
+    VolumeProfileLevels profile,
+    StrategyConfig config) =>
+    adx1H < config.AdxWeakThreshold
+    && profile.HasData
+    && profile.IsInsideValueArea(price);
+
   public static TrendDirection GetTradeDirection(
     TrendDirection marketBias,
     TrendDirection trend15M,
-    decimal adx,
-    decimal rsi,
+    decimal adx15M,
+    decimal rsi15M,
+    decimal price,
+    VolumeProfileLevels profile,
+    TpoConfirmationAnalysis tpo,
     StrategyConfig config)
   {
     if (marketBias == TrendDirection.Neutral)
@@ -31,14 +38,26 @@ public static class TradeFrameworkEvaluator
     if (trend15M != marketBias)
       return TrendDirection.Neutral;
 
-    if (adx < config.MinimumAdx)
+    if (adx15M < config.MinimumAdx)
       return TrendDirection.Neutral;
 
-    if (marketBias == TrendDirection.Buy && rsi < config.RsiBullThreshold)
+    if (marketBias == TrendDirection.Buy && rsi15M < config.RsiBullThreshold)
       return TrendDirection.Neutral;
 
-    if (marketBias == TrendDirection.Sell && rsi > config.RsiBearThreshold)
+    if (marketBias == TrendDirection.Sell && rsi15M > config.RsiBearThreshold)
       return TrendDirection.Neutral;
+
+    if (!tpo.Confirms(marketBias))
+      return TrendDirection.Neutral;
+
+    if (tpo.TrendDayOutsideVa)
+    {
+      if (marketBias == TrendDirection.Buy && !profile.IsAboveValueArea(price))
+        return TrendDirection.Neutral;
+
+      if (marketBias == TrendDirection.Sell && !profile.IsBelowValueArea(price))
+        return TrendDirection.Neutral;
+    }
 
     return marketBias;
   }
@@ -53,8 +72,10 @@ public static class TradeFrameworkEvaluator
     TrendDirection tradeDirection,
     TrendDirection trend5MEntry,
     FootprintAnalysis footprint,
-    bool waitForReversal) =>
+    bool waitForReversal,
+    bool isRotationRegime) =>
     !waitForReversal
+    && !isRotationRegime
     && tradeDirection != TrendDirection.Neutral
     && EntryTriggered(tradeDirection, trend5MEntry)
     && FootprintConfirmed(tradeDirection, footprint);
@@ -68,10 +89,11 @@ public static class TradeFrameworkEvaluator
     TrendStrength strength1H,
     bool aboveVwap,
     FootprintAnalysis footprint,
-    bool isRangebound,
+    TpoConfirmationAnalysis tpo,
+    bool isRotationRegime,
     bool frameworkReady)
   {
-    if (isRangebound)
+    if (isRotationRegime)
       return 45;
 
     var score = 25;
@@ -92,6 +114,9 @@ public static class TradeFrameworkEvaluator
     if (tradeDirection == TrendDirection.Buy && aboveVwap) score += 5;
     if (tradeDirection == TrendDirection.Sell && !aboveVwap) score += 5;
 
+    if (tpo.Confirms(tradeDirection)) score += 10;
+    if (tpo.StrongTrendDay) score += 5;
+
     if (footprint.Confirms(tradeDirection)) score += 15;
     else if (footprint.PositiveDelta || footprint.NegativeDelta) score += 5;
 
@@ -106,19 +131,20 @@ public static class TradeFrameworkEvaluator
     TrendDirection trend1H,
     TrendDirection trend15M,
     TrendDirection trend5MEntry,
-    decimal adx,
-    decimal rsi,
+    decimal adx15M,
+    decimal rsi15M,
     bool aboveVwap,
     FootprintAnalysis footprint,
+    TpoConfirmationAnalysis tpo,
     bool waitForReversal,
-    bool isRangebound,
+    bool isRotationRegime,
     StrategyConfig config)
   {
     if (waitForReversal)
       return "Wait — 5m RSI oversold";
 
-    if (isRangebound)
-      return "Range-bound — Keltner fade";
+    if (isRotationRegime)
+      return "Rotation inside VA — avoid breakouts";
 
     if (trend1H == TrendDirection.Neutral)
       return "Wait — 1H SuperTrend neutral";
@@ -129,14 +155,26 @@ public static class TradeFrameworkEvaluator
     if (trend15M != marketBias)
       return "Wait — 15m SuperTrend not aligned";
 
-    if (adx < config.MinimumAdx)
-      return $"Wait — ADX {adx:0} < {config.MinimumAdx:0}";
+    if (adx15M < config.MinimumAdx)
+      return $"Wait — ADX {adx15M:0} < {config.MinimumAdx:0}";
 
-    if (marketBias == TrendDirection.Buy && rsi < config.RsiBullThreshold)
-      return $"Wait — RSI {rsi:0} < {config.RsiBullThreshold:0}";
+    if (marketBias == TrendDirection.Buy && rsi15M < config.RsiBullThreshold)
+      return $"Wait — 15m RSI {rsi15M:0} < {config.RsiBullThreshold:0}";
 
-    if (marketBias == TrendDirection.Sell && rsi > config.RsiBearThreshold)
-      return $"Wait — RSI {rsi:0} > {config.RsiBearThreshold:0}";
+    if (marketBias == TrendDirection.Sell && rsi15M > config.RsiBearThreshold)
+      return $"Wait — 15m RSI {rsi15M:0} > {config.RsiBearThreshold:0}";
+
+    if (!tpo.Confirms(marketBias))
+      return $"Wait — TPO: {tpo.Summary}";
+
+    if (tpo.TrendDayOutsideVa)
+    {
+      if (marketBias == TrendDirection.Buy && !tpo.AboveValueArea)
+        return "Wait — trend day needs price above VAH";
+
+      if (marketBias == TrendDirection.Sell && !tpo.BelowValueArea)
+        return "Wait — trend day needs price below VAL";
+    }
 
     if (trend5MEntry != marketBias)
       return "Wait — 5m entry SuperTrend (7,2.5) not triggered";
@@ -144,6 +182,6 @@ public static class TradeFrameworkEvaluator
     if (!footprint.Confirms(marketBias))
       return "Wait — footprint not confirmed";
 
-    return "Ready";
+    return tpo.StrongTrendDay ? "Ready — strong trend day" : "Ready";
   }
 }

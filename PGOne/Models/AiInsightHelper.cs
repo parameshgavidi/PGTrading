@@ -8,15 +8,16 @@ public static class AiInsightHelper
     {
         var marketBiasPass = analysis.MarketBias != TrendDirection.Neutral;
         var tradeDirPass = analysis.TradeDirection != TrendDirection.Neutral;
+        var tpoPass = analysis.TpoConfirmed;
         var entryPass = analysis.EntryTriggered;
         var footprintPass = analysis.FootprintConfirmed;
 
         var adxState = analysis.Adx >= 25 ? "pass"
-            : analysis.Adx >= 20 ? "warn"
+            : analysis.Adx15M >= 20 ? "warn"
             : "fail";
 
-        var rsiState = analysis.Rsi >= 55 || analysis.Rsi <= 45 ? "pass"
-            : analysis.Rsi < 30 || analysis.Rsi > 70 ? "fail"
+        var rsiState = analysis.Rsi15M >= 55 || analysis.Rsi15M <= 45 ? "pass"
+            : analysis.Rsi15M < 30 || analysis.Rsi15M > 70 ? "fail"
             : "warn";
 
         return
@@ -24,8 +25,9 @@ public static class AiInsightHelper
             new($"1H ST {TrendUi.GetSuperTrendLabel(analysis.Trend1H)}", marketBiasPass ? "pass" : analysis.Trend1H == TrendDirection.Neutral ? "fail" : "warn"),
             new(analysis.AboveVwap ? "Above VWAP" : "Below VWAP", analysis.MarketBias != TrendDirection.Neutral ? "pass" : "warn"),
             new($"15M ST {TrendUi.GetSuperTrendLabel(analysis.Trend15M)}", tradeDirPass ? "pass" : analysis.Trend15M == TrendDirection.Neutral ? "warn" : "fail"),
-            new(analysis.Adx >= 25 ? "ADX Rising" : $"ADX {analysis.Adx:N0}", adxState),
-            new($"RSI {analysis.Rsi:N0}", rsiState),
+            new(analysis.Adx >= 25 ? "ADX Trend Day" : $"ADX {analysis.Adx:N0}", adxState),
+            new($"RSI(15m) {analysis.Rsi15M:N0}", rsiState),
+            new(tpoPass ? "TPO Confirmed" : analysis.Tpo.Summary, tpoPass ? "pass" : analysis.IsRotationRegime ? "fail" : "warn"),
             new($"Entry ST {TrendUi.GetSuperTrendLabel(analysis.Trend5MEntry)}", entryPass ? "pass" : "warn"),
             new(footprintPass ? "Footprint OK" : analysis.Footprint.Summary, footprintPass ? "pass" : "warn")
         ];
@@ -36,8 +38,12 @@ public static class AiInsightHelper
         if (analysis.WaitForReversal)
             return "WAIT";
 
+        if (analysis.IsRotationRegime)
+            return "RANGE TRADE";
+
         if (!analysis.FrameworkReady)
             return analysis.FrameworkStatus.StartsWith("Wait", StringComparison.OrdinalIgnoreCase)
+                || analysis.FrameworkStatus.StartsWith("Rotation", StringComparison.OrdinalIgnoreCase)
                 ? "WAIT"
                 : analysis.FrameworkStatus;
 

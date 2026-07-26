@@ -27,6 +27,7 @@
                     <th>5m</th>
                     <th>RSI</th>
                     <th>ADX</th>
+                    <th>TPO</th>
                     <th>Footprint</th>
                     <th>Framework</th>
                     <th>Score</th>
@@ -45,6 +46,7 @@
                         <td class="@GetTrendClass(result.Trend5M)">@GetBadgeLabel(result.Trend5M)</td>
                         <td>@result.Rsi</td>
                         <td>@result.Adx</td>
+                        <td class="@(result.TpoConfirmed ? "buy" : "sell")">@(result.TpoConfirmed ? "OK" : "—")</td>
                         <td class="@(result.FootprintConfirmed ? "buy" : "sell")">@(result.FootprintConfirmed ? "OK" : "—")</td>
                         <td>@result.FrameworkStatus</td>
                         <td><span class="score-badge">@result.Score%</span></td>
@@ -85,6 +87,7 @@
         Signal = analysis.FrameworkReady ? analysis.TradeDirection : TrendDirection.Neutral,
         Aligned = analysis.FrameworkReady,
         FootprintConfirmed = analysis.FootprintConfirmed,
+        TpoConfirmed = analysis.TpoConfirmed,
         FrameworkStatus = analysis.FrameworkStatus
       });
     }
@@ -125,6 +128,7 @@
     public TrendDirection Signal { get; set; }
     public bool Aligned { get; set; }
     public bool FootprintConfirmed { get; set; }
+    public bool TpoConfirmed { get; set; }
     public string FrameworkStatus { get; set; } = "";
   }
 }

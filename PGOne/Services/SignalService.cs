@@ -58,17 +58,17 @@ public class SignalService : ISignalService
             TrailingStopDefaults.Multiplier);
 
         var rsiTrend = _indicators.CalculateRsi(candles1H, config.RsiTrendLength);
-        var rsi = _indicators.CalculateRsi(candles1H, config.RsiLength);
-        var rsi5M = _indicators.CalculateRsi(candles5M, config.RsiLength);
         var rsi15M = _indicators.CalculateRsi(candles15M, config.RsiLength);
+        var rsi5M = _indicators.CalculateRsi(candles5M, config.RsiLength);
 
-        var rsiBias = rsi > config.RsiBullThreshold ? TrendDirection.Buy
-            : rsi < config.RsiBearThreshold ? TrendDirection.Sell
+        var rsiBias = rsi15M > config.RsiBullThreshold ? TrendDirection.Buy
+            : rsi15M < config.RsiBearThreshold ? TrendDirection.Sell
             : TrendDirection.Neutral;
 
-        var adx = _indicators.CalculateAdx(candles1H, config.AdxLength);
-        var strength1H = adx < config.AdxWeakThreshold ? TrendStrength.Weak
-            : adx < config.AdxStrongThreshold ? TrendStrength.Moderate
+        var adx1H = _indicators.CalculateAdx(candles1H, config.AdxLength);
+        var adx15M = _indicators.CalculateAdx(candles15M, config.AdxLength);
+        var strength1H = adx1H < config.AdxWeakThreshold ? TrendStrength.Weak
+            : adx1H < config.AdxStrongThreshold ? TrendStrength.Moderate
             : TrendStrength.Strong;
 
         string? reversalReason = null;
@@ -79,16 +79,36 @@ public class SignalService : ISignalService
         var last5MClose = candles5M.Count > 0 ? candles5M[^1].Close : 0m;
         var aboveVwap = vwap5M > 0 && last5MClose >= vwap5M;
 
-        var cpr = _indicators.GetCprBias(candlesDay.Count >= 2 ? candlesDay : candles1H);
-        var isRangebound = rsiBias == TrendDirection.Neutral;
-
-        var marketBias = TradeFrameworkEvaluator.GetMarketBias(trend1H, aboveVwap);
-        var tradeDirection = TradeFrameworkEvaluator.GetTradeDirection(
-            marketBias, trend15M, adx, rsi, config);
+        var cprCandles = candlesDay.Count >= 2 ? candlesDay : candles1H;
+        var cprAnalysis = _indicators.GetCprAnalysis(cprCandles);
 
         var sessionCandles = GetTodaySessionCandles(candles5M);
         var prevSessionCandles = GetPreviousSessionCandles(candles5M);
         var volumeProfile = _volumeProfile.BuildLevels(sessionCandles, prevSessionCandles);
+        var sessionOpen = sessionCandles.Count > 0 ? sessionCandles[0].Open : 0m;
+
+        var tpo = TpoConfirmationEvaluator.Evaluate(
+            last5MClose,
+            sessionOpen,
+            volumeProfile,
+            adx1H,
+            cprAnalysis.IsNarrow,
+            config);
+
+        var isRotationRegime = TradeFrameworkEvaluator.IsRotationRegime(
+            adx1H, last5MClose, volumeProfile, config);
+        var isRangebound = isRotationRegime || rsiBias == TrendDirection.Neutral;
+
+        var marketBias = TradeFrameworkEvaluator.GetMarketBias(trend1H, aboveVwap);
+        var tradeDirection = TradeFrameworkEvaluator.GetTradeDirection(
+            marketBias,
+            trend15M,
+            adx15M,
+            rsi15M,
+            last5MClose,
+            volumeProfile,
+            tpo,
+            config);
 
         var footprintBias = tradeDirection != TrendDirection.Neutral
             ? tradeDirection
@@ -97,9 +117,14 @@ public class SignalService : ISignalService
         var footprint = _footprint.Analyze(candles5M, footprintBias);
 
         var entryTriggered = TradeFrameworkEvaluator.EntryTriggered(tradeDirection, trend5MEntry);
+        var tpoConfirmed = tradeDirection != TrendDirection.Neutral && tpo.Confirms(tradeDirection);
         var footprintConfirmed = TradeFrameworkEvaluator.FootprintConfirmed(tradeDirection, footprint);
         var frameworkReady = TradeFrameworkEvaluator.IsFrameworkReady(
-            tradeDirection, trend5MEntry, footprint, reversalReason is not null);
+            tradeDirection,
+            trend5MEntry,
+            footprint,
+            reversalReason is not null,
+            isRotationRegime);
 
         var frameworkStatus = TradeFrameworkEvaluator.GetBlockingReason(
             marketBias,
@@ -107,12 +132,13 @@ public class SignalService : ISignalService
             trend1H,
             trend15M,
             trend5MEntry,
-            adx,
-            rsi,
+            adx15M,
+            rsi15M,
             aboveVwap,
             footprint,
+            tpo,
             reversalReason is not null,
-            isRangebound,
+            isRotationRegime,
             config);
 
         var score = TradeFrameworkEvaluator.CalculateScore(
@@ -124,7 +150,8 @@ public class SignalService : ISignalService
             strength1H,
             aboveVwap,
             footprint,
-            isRangebound,
+            tpo,
+            isRotationRegime,
             frameworkReady);
 
         return new MultiTimeframeAnalysis
@@ -133,15 +160,19 @@ public class SignalService : ISignalService
             Trend15M = trend15M,
             Trend5M = trend5M,
             Trend5MEntry = trend5MEntry,
-            Rsi = rsi,
+            Rsi = rsi15M,
             RsiTrend = rsiTrend,
             RsiBias = rsiBias,
-            Adx = adx,
+            Adx = adx1H,
+            Adx15M = adx15M,
             Strength1H = strength1H,
-            Cpr = cpr,
+            Cpr = cprAnalysis.Bias,
+            CprNarrow = cprAnalysis.IsNarrow,
+            CprWidthPercent = cprAnalysis.WidthPercent,
             Vwap5M = vwap5M,
             AboveVwap = aboveVwap,
             IsRangebound = isRangebound,
+            IsRotationRegime = isRotationRegime,
             WaitForReversal = reversalReason is not null,
             ReversalReason = reversalReason,
             Rsi5M = rsi5M,
@@ -149,9 +180,11 @@ public class SignalService : ISignalService
             MarketBias = marketBias,
             TradeDirection = tradeDirection,
             EntryTriggered = entryTriggered,
+            TpoConfirmed = tpoConfirmed,
             FootprintConfirmed = footprintConfirmed,
             FrameworkReady = frameworkReady,
             FrameworkStatus = frameworkStatus,
+            Tpo = tpo,
             Footprint = footprint,
             VolumeProfile = volumeProfile,
             OverallScore = score,
@@ -171,10 +204,11 @@ public class SignalService : ISignalService
         var reasons = new List<string>
         {
             $"Step 1 — 1H ST {analysis.Trend1H}, VWAP {(analysis.AboveVwap ? "above" : "below")} → {BiasLabel(analysis.MarketBias)}",
-            $"Step 2 — 15M ST {analysis.Trend15M}, ADX {analysis.Adx:0}, RSI {analysis.Rsi:0} → {BiasLabel(analysis.TradeDirection)}",
+            $"Step 2 — 15M ST {analysis.Trend15M}, ADX(15m) {analysis.Adx15M:0}, RSI(15m) {analysis.Rsi:0} → {BiasLabel(analysis.TradeDirection)}",
+            $"TPO — {analysis.Tpo.Summary}{(analysis.Tpo.StrongTrendDay ? " (strong trend day)" : "")}",
             $"Step 3 — 5M entry ST (7,2.5) {analysis.Trend5MEntry} → {(analysis.EntryTriggered ? "triggered" : "waiting")}",
             $"Step 4 — Footprint: {analysis.Footprint.Summary}",
-            $"CPR {analysis.Cpr}"
+            $"CPR {analysis.Cpr}{(analysis.CprNarrow ? " narrow" : "")}"
         };
 
         if (analysis.WaitForReversal)
@@ -183,7 +217,23 @@ public class SignalService : ISignalService
             return NoTrade(instrument, "Wait — 5m RSI oversold", analysis.OverallScore, reasons);
         }
 
-        if (analysis.IsRangebound)
+        if (analysis.IsRotationRegime)
+        {
+            reasons.Insert(0, "ADX < 18 inside Value Area — rotation, avoid breakouts");
+            return new Signal
+            {
+                Instrument = instrument,
+                Trend = TrendDirection.Neutral,
+                Entry = $"{strike} straddle/IC",
+                Strategy = "Keltner (20,1.5)/(20,2) fade + VWAP",
+                StopLoss = "Beyond Keltner (20,2)",
+                Target = "Mid / VWAP",
+                Confidence = analysis.OverallScore,
+                Reasons = reasons
+            };
+        }
+
+        if (analysis.IsRangebound && analysis.TradeDirection == TrendDirection.Neutral)
         {
             reasons.Insert(0, "Range-bound → Keltner mean-reversion on 5m");
             return new Signal

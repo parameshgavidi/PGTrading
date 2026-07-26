@@ -110,7 +110,8 @@
                     }
                     <div class="signal-checks">
                         <div class="signal-check">Market bias : @TrendUi.GetBiasLabel(ViewModel.Analysis.MarketBias) (1H ST + VWAP)</div>
-                        <div class="signal-check">Trade direction : @TrendUi.GetBiasLabel(ViewModel.Analysis.TradeDirection) (15M ST + ADX + RSI)</div>
+                        <div class="signal-check">Trade direction : @TrendUi.GetBiasLabel(ViewModel.Analysis.TradeDirection) (15M ST + ADX(15m) @ViewModel.Analysis.Adx15M.ToString("0") + RSI(15m))</div>
+                        <div class="signal-check">TPO : @ViewModel.Analysis.Tpo.Summary @(ViewModel.Analysis.Tpo.StrongTrendDay ? "★ strong trend day" : "")</div>
                         <div class="signal-check">Entry ST (7,2.5) : @ViewModel.Analysis.Trend5MEntry @(ViewModel.Analysis.EntryTriggered ? "✓" : "—")</div>
                         <div class="signal-check">Footprint : @ViewModel.Analysis.Footprint.Summary</div>
                         <div class="signal-check">Framework : @ViewModel.Analysis.FrameworkStatus</div>
@@ -160,6 +161,18 @@
                         <td class="@TrendUi.GetClass(ViewModel.Analysis.TradeDirection)">@TrendUi.GetIcon(ViewModel.Analysis.TradeDirection) @TrendUi.GetBiasLabel(ViewModel.Analysis.TradeDirection)</td>
                     </tr>
                     <tr>
+                        <td>ADX(14) 1H / 15M</td>
+                        <td>@ViewModel.Analysis.Adx / @ViewModel.Analysis.Adx15M — @ViewModel.Analysis.Strength1H</td>
+                    </tr>
+                    <tr>
+                        <td>RSI(14) 15M</td>
+                        <td>@ViewModel.Analysis.Rsi15M</td>
+                    </tr>
+                    <tr>
+                        <td>TPO Confirmation</td>
+                        <td class="@(ViewModel.Analysis.TpoConfirmed ? "buy" : "sell")">@ViewModel.Analysis.Tpo.Summary</td>
+                    </tr>
+                    <tr>
                         <td>1 Hour SuperTrend</td>
                         <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend1H)">@TrendUi.GetIcon(ViewModel.Analysis.Trend1H) @ViewModel.Analysis.Trend1H</td>
                     </tr>
@@ -174,14 +187,6 @@
                     <tr>
                         <td>5 Min Entry ST (7,2.5)</td>
                         <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend5MEntry)">@TrendUi.GetIcon(ViewModel.Analysis.Trend5MEntry) @ViewModel.Analysis.Trend5MEntry @(ViewModel.Analysis.EntryTriggered ? "✓" : "")</td>
-                    </tr>
-                    <tr>
-                        <td>ADX(14) 1H</td>
-                        <td>@ViewModel.Analysis.Adx — @ViewModel.Analysis.Strength1H</td>
-                    </tr>
-                    <tr>
-                        <td>RSI(14) 1H</td>
-                        <td>@ViewModel.Analysis.Rsi</td>
                     </tr>
                     <tr>
                         <td>5m VWAP @ViewModel.Analysis.Vwap5M.ToString("N2")</td>
@@ -212,7 +217,7 @@
                     </tr>
                     <tr>
                         <td>CPR</td>
-                        <td>@ViewModel.Analysis.Cpr</td>
+                        <td>@ViewModel.Analysis.Cpr @(ViewModel.Analysis.CprNarrow ? $"narrow ({ViewModel.Analysis.CprWidthPercent}%)" : "")</td>
                     </tr>
                 </table>
             </div>
