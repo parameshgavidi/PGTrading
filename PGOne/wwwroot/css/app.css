@@ -1395,3 +1395,115 @@ code {
 .framework-flow {
     margin-bottom: 20px;
 }
+
+.framework-band-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.framework-band-grid .framework-subcard {
+    margin-bottom: 0;
+}
+
+.framework-band-table tr.buy td:first-child { color: var(--buy); }
+.framework-band-table tr.sell td:first-child { color: var(--sell); }
+.framework-band-table tr.neutral td:first-child { color: var(--text-secondary); }
+
+.framework-group-intro {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 14px;
+    line-height: 1.5;
+}
+
+.framework-rules {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.framework-rule {
+    display: flex;
+    gap: 12px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+}
+
+.framework-rule-id {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gold);
+    min-width: 44px;
+    letter-spacing: 0.04em;
+}
+
+.framework-rule-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: var(--text);
+}
+
+.framework-rule-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin-bottom: 4px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.framework-label {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.framework-label.action {
+    color: var(--gold);
+    background: var(--gold-glow);
+}
+
+.framework-condition {
+    color: var(--text);
+}
+
+.framework-action {
+    color: var(--buy);
+    font-weight: 500;
+}
+
+.framework-note {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 6px;
+    font-style: italic;
+}
+
+.framework-rule-group {
+    margin-bottom: 16px;
+}
+
+.tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.tag.wait { background: rgba(255, 82, 82, 0.2); color: var(--sell); }
+.tag.range { background: rgba(170, 170, 170, 0.15); color: var(--text-secondary); }
+.tag.step { background: var(--gold-glow); color: var(--gold); }

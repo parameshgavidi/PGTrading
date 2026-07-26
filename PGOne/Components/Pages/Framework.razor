@@ -8,133 +8,123 @@
         </div>
 
         <p class="text-secondary framework-intro">
-            Read this before the session. All dashboard signals, live trades, scanner, and intraday scan follow this playbook.
-            Long-term scan uses separate rules (unchanged).
+            Read every morning before the session. Every rule below is enforced in the app for
+            Dashboard, Live Signals, Scanner, and Intraday Scan. Long-term scan uses separate rules.
         </p>
 
-        <div class="framework-flow card framework-subcard">
-            <h3>Decision order</h3>
-            <ol class="framework-steps">
-                <li><strong>5m RSI(14) &lt; 30</strong> → WAIT — no new entry</li>
-                <li><strong>ADX &lt; 18 inside Value Area</strong> → ROTATION — Keltner fade, avoid breakouts</li>
-                <li><strong>RSI(28) 45–55 on 1H</strong> → RANGE-BOUND — Keltner fade</li>
-                <li><strong>Step 1</strong> — 1H ST + VWAP → market bias</li>
-                <li><strong>Step 2</strong> — 15M ST + ADX(1H) + RSI(28) + POC</li>
-                <li><strong>Step 3</strong> — 5M ST (7,2.5) entry trigger</li>
-                <li><strong>Step 4</strong> — Footprint confirmation</li>
-                <li><strong>Step 5</strong> — Exit at prev POC/VAH/VAL or 5M ST reversal</li>
-            </ol>
-        </div>
-
-        <div class="framework-grid">
+        <div class="framework-band-grid">
             <div class="card framework-subcard">
-                <h3>Indicators</h3>
-                <table class="framework-table">
+                <h3>ADX (14) — 1 Hour only</h3>
+                <table class="framework-table framework-band-table">
                     <thead>
-                        <tr>
-                            <th>Indicator</th>
-                            <th>TF</th>
-                            <th>Purpose</th>
-                        </tr>
+                        <tr><th>Band</th><th>Value</th><th>Meaning</th></tr>
                     </thead>
                     <tbody>
-                        @foreach (var row in IndicatorRows)
+                        @foreach (var band in FrameworkPlaybook.AdxBands)
                         {
-                            <tr>
-                                <td>@row.Name</td>
-                                <td>@row.Timeframe</td>
-                                <td>@row.Purpose</td>
+                            <tr class="@band.Css">
+                                <td><strong>@band.Band</strong></td>
+                                <td>@band.Range</td>
+                                <td>@band.Meaning</td>
                             </tr>
                         }
                     </tbody>
                 </table>
             </div>
-
             <div class="card framework-subcard">
-                <h3>ADX (14) on 1H only</h3>
-                <ul class="framework-list">
-                    <li class="sell"><strong>&lt; 18</strong> — Choppy / weak trend</li>
-                    <li class="neutral"><strong>18 – 25</strong> — Moderate trend (trade if ≥ 20)</li>
-                    <li class="buy"><strong>&gt; 25</strong> — Strong trend day</li>
-                </ul>
-                <h4 class="framework-subheading">RSI (28) on 1H</h4>
-                <ul class="framework-list">
-                    <li class="buy"><strong>&gt; 55</strong> — Long momentum</li>
-                    <li class="sell"><strong>&lt; 45</strong> — Short momentum</li>
-                    <li class="neutral"><strong>45 – 55</strong> — Range-bound</li>
-                </ul>
+                <h3>RSI (28) — 1 Hour only</h3>
+                <table class="framework-table framework-band-table">
+                    <thead>
+                        <tr><th>Bias</th><th>Value</th><th>Meaning</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var band in FrameworkPlaybook.RsiBands)
+                        {
+                            <tr class="@band.Css">
+                                <td><strong>@band.Band</strong></td>
+                                <td>@band.Range</td>
+                                <td>@band.Meaning</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <div class="framework-grid">
-            <div class="card framework-subcard">
-                <h3>Step 1 — Market bias</h3>
-                <ul class="framework-list">
-                    <li>1H SuperTrend (10,3) defines market trend</li>
-                    <li>Price above current-day VWAP → bullish bias</li>
-                    <li>Price below current-day VWAP → bearish bias</li>
-                    <li>Both must align for market bias (e.g. 1H Buy + above VWAP)</li>
-                </ul>
-            </div>
-
-            <div class="card framework-subcard">
-                <h3>Step 2 — Trade direction</h3>
-                <ul class="framework-list">
-                    <li>15M SuperTrend (10,3) matches market bias</li>
-                    <li>ADX(1H) ≥ 20 and not choppy (&lt; 18)</li>
-                    <li>RSI(28) on 1H: &gt; 55 long, &lt; 45 short</li>
-                    <li>POC: above POC = bull, below POC = bear</li>
-                </ul>
-            </div>
-        </div>
-
-        <div class="framework-grid">
-            <div class="card framework-subcard">
-                <h3>POC &amp; value area</h3>
-                <ul class="framework-list">
-                    <li>Above POC → bullish; below POC → bearish</li>
-                    <li>ADX &gt; 25 + price outside VA → trend day (above VAH / below VAL)</li>
-                    <li>ADX &lt; 18 + inside VA → rotation, avoid breakout trades</li>
-                    <li>CPR narrow + open outside VA → higher probability strong trend day</li>
-                    <li><strong>Targets:</strong> previous-day POC, VAH, VAL</li>
-                </ul>
-            </div>
-
-            <div class="card framework-subcard">
-                <h3>Step 3 — Entry</h3>
-                <ul class="framework-list">
-                    <li>5M SuperTrend (7, 2.5) flips in trade direction</li>
-                    <li>Pullback to VWAP → preferred continuation entry</li>
-                </ul>
-                <h4 class="framework-subheading">Step 4 — Footprint (5m)</h4>
-                <ul class="framework-list">
-                    <li><strong>Delta</strong> — positive for longs, negative for shorts</li>
-                    <li><strong>Stacked imbalances</strong> — institutional participation</li>
-                    <li><strong>No absorption</strong> against your trade</li>
-                    <li>Confirmation layer only — never trade footprint alone</li>
-                </ul>
-            </div>
+        <div class="card framework-subcard framework-flow">
+            <h3>Decision order (top to bottom)</h3>
+            <ol class="framework-steps">
+                <li><span class="tag wait">G0</span> 5m RSI(14) &lt; 30 → <strong>WAIT</strong></li>
+                <li><span class="tag range">G1</span> ADX &lt; 18 inside VA → <strong>ROTATION</strong> (Keltner, no breakouts)</li>
+                <li><span class="tag range">G2</span> RSI(28) 45–55 → <strong>RANGE-BOUND</strong> (Keltner)</li>
+                <li><span class="tag step">1</span> 1H ST (10,3) + VWAP → market bias</li>
+                <li><span class="tag step">2</span> 15M ST + ADX(1H) + RSI(28) + POC → trade direction</li>
+                <li><span class="tag step">3</span> 5M ST (7,2.5) → entry trigger</li>
+                <li><span class="tag step">4</span> Footprint on 5m → confirmation</li>
+                <li><span class="tag step">5</span> Exit: prev POC/VAH/VAL or 5M ST reversal</li>
+            </ol>
         </div>
 
         <div class="card framework-subcard">
-            <h3>Step 5 — Exit</h3>
-            <ul class="framework-list framework-list-inline">
-                <li>Previous-day POC / VAH / VAL</li>
-                <li>Risk : reward 1 : 2</li>
-                <li>5M SuperTrend (7, 2.5) reversal — close through ST</li>
-                <li>Range trades: beyond Keltner (20, 2) or mid / VWAP</li>
-            </ul>
+            <h3>Indicator parameters</h3>
+            <table class="framework-table">
+                <thead>
+                    <tr><th>Indicator</th><th>Timeframe</th><th>Settings</th><th>Purpose</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in IndicatorRows)
+                    {
+                        <tr>
+                            <td>@row.Name</td>
+                            <td>@row.Timeframe</td>
+                            <td>@row.Settings</td>
+                            <td>@row.Purpose</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
 
-        <div class="card framework-subcard">
-            <h3>Automated checklist (app rules)</h3>
-            <ul class="framework-checklist">
-                @foreach (var condition in IntradayFrameworkEvaluator.Conditions)
+        @foreach (var group in FrameworkPlaybook.Groups)
+        {
+            <div class="card framework-subcard framework-rule-group" id="fw-@group.Key">
+                <h3>@group.Title</h3>
+                @if (!string.IsNullOrEmpty(group.Intro))
                 {
-                    <li>@condition</li>
+                    <p class="framework-group-intro">@group.Intro</p>
                 }
-            </ul>
-        </div>
+                @if (!string.IsNullOrEmpty(group.Subtitle))
+                {
+                    <h4 class="framework-subheading">@group.Subtitle</h4>
+                }
+                <div class="framework-rules">
+                    @foreach (var rule in group.Rules)
+                    {
+                        <div class="framework-rule">
+                            <div class="framework-rule-id">@rule.Id</div>
+                            <div class="framework-rule-body">
+                                <div class="framework-rule-title">@rule.Title</div>
+                                <div class="framework-rule-row">
+                                    <span class="framework-label">IF</span>
+                                    <span class="framework-condition">@rule.Condition</span>
+                                </div>
+                                @if (!string.IsNullOrEmpty(rule.Action))
+                                {
+                                    <div class="framework-rule-row">
+                                        <span class="framework-label action">THEN</span>
+                                        <span class="framework-action">@rule.Action</span>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(rule.Note))
+                                {
+                                    <div class="framework-note">@rule.Note</div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
 
         <div class="card framework-subcard">
             <h3>Priority ranking</h3>
@@ -149,27 +139,29 @@
 </div>
 
 @code {
-    private static readonly IReadOnlyList<(string Name, string Timeframe, string Purpose)> IndicatorRows =
+    private static readonly IReadOnlyList<(string Name, string Timeframe, string Settings, string Purpose)> IndicatorRows =
     [
-        ("1H SuperTrend (10,3)", "1 Hour", "Market trend"),
-        ("15M SuperTrend (10,3)", "15 Minutes", "Trade direction"),
-        ("Current-day VWAP", "Intraday", "Bullish / bearish bias"),
-        ("5M SuperTrend (7,2.5)", "5 Minutes", "Entry trigger & stop"),
-        ("ADX (14)", "1 Hour", "Choppy / moderate / strong"),
-        ("RSI (28)", "1 Hour", "Momentum & range-bound"),
-        ("Footprint", "5 Minutes", "Delta + imbalance + absorption"),
-        ("Prev POC / VAH / VAL", "Prev session", "Targets & key S/R")
+        ("SuperTrend", "1 Hour", "(10, 3)", "Market trend"),
+        ("SuperTrend", "15 Minutes", "(10, 3)", "Trade direction"),
+        ("SuperTrend", "5 Minutes", "(7, 2.5)", "Entry trigger & stop"),
+        ("VWAP", "Intraday (5m session)", "Session-anchored", "Bullish if above, bearish if below"),
+        ("ADX", "1 Hour", "Length 14", "Choppy / moderate / strong"),
+        ("RSI", "1 Hour", "Length 28", "Momentum; 45–55 = range"),
+        ("RSI", "5 Minutes", "Length 14", "Reversal guard only (< 30)"),
+        ("Footprint", "5 Minutes", "Delta + imbalances", "Final confirmation"),
+        ("POC / VAH / VAL", "Current session", "Bias (above/below POC)"),
+        ("Prev POC / VAH / VAL", "Previous session", "Targets & S/R")
     ];
 
     private static readonly IReadOnlyList<string> PriorityItems =
     [
-        "1H SuperTrend",
-        "15M SuperTrend",
-        "VWAP",
-        "5M SuperTrend (entry)",
-        "ADX (1H)",
+        "1H SuperTrend (10,3)",
+        "15M SuperTrend (10,3)",
+        "Current-day VWAP",
+        "5M SuperTrend (7,2.5) entry",
+        "ADX (14) on 1H",
         "RSI (28) on 1H",
-        "Footprint (Delta, imbalances, absorption)",
+        "Footprint — Delta, stacked imbalances, no opposing absorption",
         "Previous-day POC / VAH / VAL"
     ];
 }
