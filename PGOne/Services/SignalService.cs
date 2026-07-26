@@ -58,11 +58,12 @@ public class SignalService : ISignalService
             TrailingStopDefaults.Multiplier);
 
         var rsiTrend = _indicators.CalculateRsi(candles1H, config.RsiTrendLength);
+        var rsi = _indicators.CalculateRsi(candles1H, config.RsiLength);
         var rsi15M = _indicators.CalculateRsi(candles15M, config.RsiLength);
         var rsi5M = _indicators.CalculateRsi(candles5M, config.RsiLength);
 
-        var rsiBias = rsi15M > config.RsiBullThreshold ? TrendDirection.Buy
-            : rsi15M < config.RsiBearThreshold ? TrendDirection.Sell
+        var rsiBias = rsiTrend > config.RsiBullThreshold ? TrendDirection.Buy
+            : rsiTrend < config.RsiBearThreshold ? TrendDirection.Sell
             : TrendDirection.Neutral;
 
         var adx1H = _indicators.CalculateAdx(candles1H, config.AdxLength);
@@ -97,14 +98,14 @@ public class SignalService : ISignalService
 
         var isRotationRegime = TradeFrameworkEvaluator.IsRotationRegime(
             adx1H, last5MClose, volumeProfile, config);
-        var isRangebound = isRotationRegime || rsiBias == TrendDirection.Neutral;
+        var isRangebound = rsiBias == TrendDirection.Neutral;
 
         var marketBias = TradeFrameworkEvaluator.GetMarketBias(trend1H, aboveVwap);
         var tradeDirection = TradeFrameworkEvaluator.GetTradeDirection(
             marketBias,
             trend15M,
             adx15M,
-            rsi15M,
+            rsiTrend,
             last5MClose,
             volumeProfile,
             tpo,
@@ -133,7 +134,7 @@ public class SignalService : ISignalService
             trend15M,
             trend5MEntry,
             adx15M,
-            rsi15M,
+            rsiTrend,
             aboveVwap,
             footprint,
             tpo,
@@ -160,7 +161,7 @@ public class SignalService : ISignalService
             Trend15M = trend15M,
             Trend5M = trend5M,
             Trend5MEntry = trend5MEntry,
-            Rsi = rsi15M,
+            Rsi = rsi,
             RsiTrend = rsiTrend,
             RsiBias = rsiBias,
             Adx = adx1H,
@@ -204,8 +205,8 @@ public class SignalService : ISignalService
         var reasons = new List<string>
         {
             $"Step 1 — 1H ST {analysis.Trend1H}, VWAP {(analysis.AboveVwap ? "above" : "below")} → {BiasLabel(analysis.MarketBias)}",
-            $"Step 2 — 15M ST {analysis.Trend15M}, ADX(15m) {analysis.Adx15M:0}, RSI(15m) {analysis.Rsi:0} → {BiasLabel(analysis.TradeDirection)}",
-            $"TPO — {analysis.Tpo.Summary}{(analysis.Tpo.StrongTrendDay ? " (strong trend day)" : "")}",
+            $"Step 2 — 15M ST {analysis.Trend15M}, ADX(15m) {analysis.Adx15M:0}, RSI(28) {analysis.RsiTrend:0} → {BiasLabel(analysis.TradeDirection)}",
+            $"POC — {analysis.Tpo.Summary}{(analysis.Tpo.StrongTrendDay ? " (strong trend day)" : "")}",
             $"Step 3 — 5M entry ST (7,2.5) {analysis.Trend5MEntry} → {(analysis.EntryTriggered ? "triggered" : "waiting")}",
             $"Step 4 — Footprint: {analysis.Footprint.Summary}",
             $"CPR {analysis.Cpr}{(analysis.CprNarrow ? " narrow" : "")}"
@@ -233,9 +234,9 @@ public class SignalService : ISignalService
             };
         }
 
-        if (analysis.IsRangebound && analysis.TradeDirection == TrendDirection.Neutral)
+        if (analysis.IsRangebound)
         {
-            reasons.Insert(0, "Range-bound → Keltner mean-reversion on 5m");
+            reasons.Insert(0, "Range-bound — 1H RSI(28) between 45–55 → Keltner fade");
             return new Signal
             {
                 Instrument = instrument,

@@ -11,7 +11,7 @@ public class StrategyConfig
 
     public int RsiLength { get; set; } = 14;
 
-    // RSI trend thresholds for trade direction (Step 2).
+    // RSI trend thresholds — 1H RSI(28): >55 long, <45 short, between = range-bound.
     public int RsiTrendLength { get; set; } = 28;
     public decimal RsiBullThreshold { get; set; } = 55m;
     public decimal RsiBearThreshold { get; set; } = 45m;

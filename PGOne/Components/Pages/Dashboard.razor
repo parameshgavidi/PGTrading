@@ -110,8 +110,8 @@
                     }
                     <div class="signal-checks">
                         <div class="signal-check">Market bias : @TrendUi.GetBiasLabel(ViewModel.Analysis.MarketBias) (1H ST + VWAP)</div>
-                        <div class="signal-check">Trade direction : @TrendUi.GetBiasLabel(ViewModel.Analysis.TradeDirection) (15M ST + ADX(15m) @ViewModel.Analysis.Adx15M.ToString("0") + RSI(15m))</div>
-                        <div class="signal-check">TPO : @ViewModel.Analysis.Tpo.Summary @(ViewModel.Analysis.Tpo.StrongTrendDay ? "★ strong trend day" : "")</div>
+                        <div class="signal-check">Trade direction : @TrendUi.GetBiasLabel(ViewModel.Analysis.TradeDirection) (15M ST + ADX(15m) @ViewModel.Analysis.Adx15M.ToString("0") + RSI(28) @ViewModel.Analysis.RsiTrend.ToString("0"))</div>
+                        <div class="signal-check">POC : @ViewModel.Analysis.Tpo.Summary @(ViewModel.Analysis.Tpo.StrongTrendDay ? "★ strong trend day" : "")</div>
                         <div class="signal-check">Entry ST (7,2.5) : @ViewModel.Analysis.Trend5MEntry @(ViewModel.Analysis.EntryTriggered ? "✓" : "—")</div>
                         <div class="signal-check">Footprint : @ViewModel.Analysis.Footprint.Summary</div>
                         <div class="signal-check">Framework : @ViewModel.Analysis.FrameworkStatus</div>
@@ -165,11 +165,15 @@
                         <td>@ViewModel.Analysis.Adx / @ViewModel.Analysis.Adx15M — @ViewModel.Analysis.Strength1H</td>
                     </tr>
                     <tr>
-                        <td>RSI(14) 15M</td>
-                        <td>@ViewModel.Analysis.Rsi15M</td>
+                        <td>RSI(28) 1H — bias</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.RsiBias)">@ViewModel.Analysis.RsiTrend @TrendUi.GetBiasLabel(ViewModel.Analysis.RsiBias)</td>
                     </tr>
                     <tr>
-                        <td>TPO Confirmation</td>
+                        <td>RSI(14) 1H</td>
+                        <td>@ViewModel.Analysis.Rsi</td>
+                    </tr>
+                    <tr>
+                        <td>POC bias</td>
                         <td class="@(ViewModel.Analysis.TpoConfirmed ? "buy" : "sell")">@ViewModel.Analysis.Tpo.Summary</td>
                     </tr>
                     <tr>

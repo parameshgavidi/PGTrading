@@ -16,7 +16,7 @@ public class MultiTimeframeAnalysis
     // 5m SuperTrend (7,2.5) — entry trigger timeframe.
     public TrendDirection Trend5MEntry { get; set; }
 
-    // RSI(14) on 15M — momentum confirmation.
+    // RSI(14) panel on 1H; RSI(28) trend bias on 1H.
     public decimal Rsi { get; set; }
 
     // RSI(28) on 1H — retained for display.

@@ -22,17 +22,21 @@ public class VolumeProfileLevels
   public bool IsBelowValueArea(decimal price) =>
     HasData && price < Val;
 
-  public bool ConfirmsBuy(decimal price) =>
-    HasData && price > Poc && price > Vah;
+  public bool IsAbovePoc(decimal price) =>
+    HasData && price > Poc;
 
-  public bool ConfirmsSell(decimal price) =>
-    HasData && price < Poc && price < Val;
+  public bool IsBelowPoc(decimal price) =>
+    HasData && price < Poc;
+
+  public bool ConfirmsBuy(decimal price) => IsAbovePoc(price);
+
+  public bool ConfirmsSell(decimal price) => IsBelowPoc(price);
 
   public string TargetSummary(TrendDirection bias) => bias switch
   {
-    TrendDirection.Buy when PrevDayPoc > 0 || HasData =>
+    TrendDirection.Buy when PrevDayVah > 0 || PrevDayPoc > 0 =>
       $"Prev VAH {PrevDayVah:N0} / Prev POC {PrevDayPoc:N0}",
-    TrendDirection.Sell when PrevDayPoc > 0 || HasData =>
+    TrendDirection.Sell when PrevDayVal > 0 || PrevDayPoc > 0 =>
       $"Prev VAL {PrevDayVal:N0} / Prev POC {PrevDayPoc:N0}",
     _ => "Risk : Reward 1 : 2"
   };

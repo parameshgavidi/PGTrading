@@ -16,8 +16,8 @@ public static class AiInsightHelper
             : analysis.Adx15M >= 20 ? "warn"
             : "fail";
 
-        var rsiState = analysis.Rsi15M >= 55 || analysis.Rsi15M <= 45 ? "pass"
-            : analysis.Rsi15M < 30 || analysis.Rsi15M > 70 ? "fail"
+        var rsiState = analysis.RsiTrend >= 55 || analysis.RsiTrend <= 45 ? "pass"
+            : analysis.RsiTrend < 30 || analysis.RsiTrend > 70 ? "fail"
             : "warn";
 
         return
@@ -26,8 +26,8 @@ public static class AiInsightHelper
             new(analysis.AboveVwap ? "Above VWAP" : "Below VWAP", analysis.MarketBias != TrendDirection.Neutral ? "pass" : "warn"),
             new($"15M ST {TrendUi.GetSuperTrendLabel(analysis.Trend15M)}", tradeDirPass ? "pass" : analysis.Trend15M == TrendDirection.Neutral ? "warn" : "fail"),
             new(analysis.Adx >= 25 ? "ADX Trend Day" : $"ADX {analysis.Adx:N0}", adxState),
-            new($"RSI(15m) {analysis.Rsi15M:N0}", rsiState),
-            new(tpoPass ? "TPO Confirmed" : analysis.Tpo.Summary, tpoPass ? "pass" : analysis.IsRotationRegime ? "fail" : "warn"),
+            new($"RSI(28) {analysis.RsiTrend:N0}", rsiState),
+            new(tpoPass ? "POC Confirmed" : analysis.Tpo.Summary, tpoPass ? "pass" : analysis.IsRotationRegime ? "fail" : "warn"),
             new($"Entry ST {TrendUi.GetSuperTrendLabel(analysis.Trend5MEntry)}", entryPass ? "pass" : "warn"),
             new(footprintPass ? "Footprint OK" : analysis.Footprint.Summary, footprintPass ? "pass" : "warn")
         ];

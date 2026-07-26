@@ -40,10 +40,10 @@ public static class TpoConfirmationEvaluator
   private static string BuildSummary(TpoConfirmationAnalysis tpo)
   {
     if (tpo.BuyConfirmed)
-      return "Buy — above POC + VAH";
+      return "Bull — above POC";
 
     if (tpo.SellConfirmed)
-      return "Sell — below POC + VAL";
+      return "Bear — below POC";
 
     if (tpo.RotationInsideVa)
       return "Rotation inside VA — avoid breakouts";

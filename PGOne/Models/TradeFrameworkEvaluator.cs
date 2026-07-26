@@ -26,7 +26,7 @@ public static class TradeFrameworkEvaluator
     TrendDirection marketBias,
     TrendDirection trend15M,
     decimal adx15M,
-    decimal rsi15M,
+    decimal rsi1H,
     decimal price,
     VolumeProfileLevels profile,
     TpoConfirmationAnalysis tpo,
@@ -41,10 +41,10 @@ public static class TradeFrameworkEvaluator
     if (adx15M < config.MinimumAdx)
       return TrendDirection.Neutral;
 
-    if (marketBias == TrendDirection.Buy && rsi15M < config.RsiBullThreshold)
+    if (marketBias == TrendDirection.Buy && rsi1H < config.RsiBullThreshold)
       return TrendDirection.Neutral;
 
-    if (marketBias == TrendDirection.Sell && rsi15M > config.RsiBearThreshold)
+    if (marketBias == TrendDirection.Sell && rsi1H > config.RsiBearThreshold)
       return TrendDirection.Neutral;
 
     if (!tpo.Confirms(marketBias))
@@ -132,7 +132,7 @@ public static class TradeFrameworkEvaluator
     TrendDirection trend15M,
     TrendDirection trend5MEntry,
     decimal adx15M,
-    decimal rsi15M,
+    decimal rsi1H,
     bool aboveVwap,
     FootprintAnalysis footprint,
     TpoConfirmationAnalysis tpo,
@@ -158,14 +158,14 @@ public static class TradeFrameworkEvaluator
     if (adx15M < config.MinimumAdx)
       return $"Wait — ADX {adx15M:0} < {config.MinimumAdx:0}";
 
-    if (marketBias == TrendDirection.Buy && rsi15M < config.RsiBullThreshold)
-      return $"Wait — 15m RSI {rsi15M:0} < {config.RsiBullThreshold:0}";
+    if (marketBias == TrendDirection.Buy && rsi1H < config.RsiBullThreshold)
+      return $"Wait — 1H RSI(28) {rsi1H:0} < {config.RsiBullThreshold:0}";
 
-    if (marketBias == TrendDirection.Sell && rsi15M > config.RsiBearThreshold)
-      return $"Wait — 15m RSI {rsi15M:0} > {config.RsiBearThreshold:0}";
+    if (marketBias == TrendDirection.Sell && rsi1H > config.RsiBearThreshold)
+      return $"Wait — 1H RSI(28) {rsi1H:0} > {config.RsiBearThreshold:0}";
 
     if (!tpo.Confirms(marketBias))
-      return $"Wait — TPO: {tpo.Summary}";
+      return $"Wait — POC: {tpo.Summary}";
 
     if (tpo.TrendDayOutsideVa)
     {

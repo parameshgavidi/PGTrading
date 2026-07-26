@@ -70,7 +70,7 @@
                     <input type="number" @bind="ViewModel.IntradayConfig.RsiLength" class="form-input" />
                 </div>
                 <div class="form-row">
-                    <label>RSI Trend Length (display)</label>
+                    <label>RSI Trend Length (1H bias, RSI 28)</label>
                     <input type="number" @bind="ViewModel.IntradayConfig.RsiTrendLength" class="form-input" />
                 </div>
                 <div class="form-row">
@@ -105,6 +105,15 @@
                     <label>Minimum ADX</label>
                     <input type="number" @bind="ViewModel.IntradayConfig.MinimumAdx" class="form-input" />
                 </div>
+            </div>
+
+            <div class="strategy-section">
+                <h3>TPO / Volume profile</h3>
+                <p class="text-secondary">
+                    Above POC = bullish, below POC = bearish. Targets use previous-day POC / VAH / VAL.
+                    ADX &lt; 18 inside Value Area = rotation (avoid breakouts).
+                    ADX &gt; 25 outside Value Area = trend day. Narrow CPR + open outside VA = strong trend day.
+                </p>
             </div>
 
             <div class="strategy-section">
