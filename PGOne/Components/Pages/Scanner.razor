@@ -9,7 +9,7 @@
             <h2>Market Scanner — Nifty 50 Alignment</h2>
             <button class="btn btn-primary" @onclick="ScanAsync">Scan Now</button>
         </div>
-        <p class="text-secondary">Scans all watchlist instruments for 1H + 15m + 5m SuperTrend alignment.</p>
+        <p class="text-secondary">Scans watchlist for 1H + 15m + 5m SuperTrend alignment, footprint confirmation, and framework score.</p>
 
         @if (_scanning)
         {
@@ -27,6 +27,9 @@
                     <th>5m</th>
                     <th>RSI</th>
                     <th>ADX</th>
+                    <th>TPO</th>
+                    <th>Footprint</th>
+                    <th>Framework</th>
                     <th>Score</th>
                     <th>Signal</th>
                 </tr>
@@ -43,6 +46,9 @@
                         <td class="@GetTrendClass(result.Trend5M)">@GetBadgeLabel(result.Trend5M)</td>
                         <td>@result.Rsi</td>
                         <td>@result.Adx</td>
+                        <td class="@(result.TpoConfirmed ? "buy" : "sell")">@(result.TpoConfirmed ? "OK" : "—")</td>
+                        <td class="@(result.FootprintConfirmed ? "buy" : "sell")">@(result.FootprintConfirmed ? "OK" : "—")</td>
+                        <td>@result.FrameworkStatus</td>
                         <td><span class="score-badge">@result.Score%</span></td>
                         <td class="@GetTrendClass(result.Signal)">@(result.Aligned ? GetBadgeLabel(result.Signal) : "—")</td>
                     </tr>
@@ -78,8 +84,11 @@
         Rsi = analysis.Rsi,
         Adx = analysis.Adx,
         Score = analysis.OverallScore,
-        Signal = analysis.Trend5M,
-        Aligned = analysis.Trend1H == analysis.Trend15M && analysis.Trend15M == analysis.Trend5M && analysis.Trend5M != TrendDirection.Neutral
+        Signal = analysis.FrameworkReady ? analysis.TradeDirection : TrendDirection.Neutral,
+        Aligned = analysis.FrameworkReady,
+        FootprintConfirmed = analysis.FootprintConfirmed,
+        TpoConfirmed = analysis.TpoConfirmed,
+        FrameworkStatus = analysis.FrameworkStatus
       });
     }
 
@@ -98,7 +107,7 @@
     if (result.Score >= 55) stars = 3;
     if (result.Score >= 70) stars = 4;
     if (result.Aligned && result.Score >= 75) stars = 5;
-    if (result.Trend1H == result.Trend15M && result.Trend15M == result.Trend5M && result.Trend5M != TrendDirection.Neutral)
+    if (result.FrameworkReady)
       stars = Math.Max(stars, 4);
 
     var filled = new string('★', stars);
@@ -118,5 +127,8 @@
     public int Score { get; set; }
     public TrendDirection Signal { get; set; }
     public bool Aligned { get; set; }
+    public bool FootprintConfirmed { get; set; }
+    public bool TpoConfirmed { get; set; }
+    public string FrameworkStatus { get; set; } = "";
   }
 }

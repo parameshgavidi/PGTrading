@@ -44,6 +44,8 @@ public static class MauiProgram
         builder.Services.AddSingleton<IMarketDataService, MarketDataService>();
         builder.Services.AddSingleton<ISuperTrendService, SuperTrendService>();
         builder.Services.AddSingleton<IIndicatorService, IndicatorService>();
+        builder.Services.AddSingleton<IFootprintService, FootprintService>();
+        builder.Services.AddSingleton<IVolumeProfileService, VolumeProfileService>();
         builder.Services.AddSingleton<ISignalService, SignalService>();
         builder.Services.AddSingleton<IWatchlistService, WatchlistService>();
         builder.Services.AddSingleton<IIntradayScannerService, IntradayScannerService>();

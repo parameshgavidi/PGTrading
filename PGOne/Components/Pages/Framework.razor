@@ -1,0 +1,208 @@
+@page "/framework"
+
+<div class="page-container framework-page">
+    <div class="card framework-card">
+        <div class="card-header">
+            <h2>Daily Intraday Framework</h2>
+            <span class="framework-date">@DateTime.Now.ToString("dd MMM yyyy")</span>
+        </div>
+
+        <p class="text-secondary framework-intro">
+            Read every morning before the session. Every rule below is enforced in the app for
+            Dashboard, Live Signals, Scanner, and Intraday Scan. Long-term scan uses separate rules.
+        </p>
+
+        <div class="card framework-subcard framework-validation">
+            <h3>Validation status</h3>
+            <p class="framework-group-intro">
+                Last validated: <strong>@FrameworkPlaybook.LastValidated</strong>.
+                Playbook text matches <code>TradeFrameworkEvaluator</code> and <code>SignalService</code>.
+            </p>
+            <h4 class="framework-subheading">Revalidation checklist (code ↔ rules)</h4>
+            <ul class="framework-checklist">
+                @foreach (var item in FrameworkPlaybook.RevalidationChecklist)
+                {
+                    <li>@item</li>
+                }
+            </ul>
+            <h4 class="framework-subheading">Bugs fixed in final audit</h4>
+            <table class="framework-table">
+                <thead>
+                    <tr><th>Issue</th><th>Fix</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var (issue, fix) in FrameworkPlaybook.BugsFixed)
+                    {
+                        <tr>
+                            <td>@issue</td>
+                            <td>@fix</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <h4 class="framework-subheading">Known limitations (not bugs)</h4>
+            <ul class="framework-list">
+                @foreach (var item in FrameworkPlaybook.KnownLimitations)
+                {
+                    <li>@item</li>
+                }
+            </ul>
+            <p class="framework-note">
+                <strong>Unit tests:</strong>
+                <code>@FrameworkPlaybook.UnitTestCommand</code>
+            </p>
+        </div>
+
+        <div class="framework-band-grid">
+            <div class="card framework-subcard">
+                <h3>ADX (14) — 1 Hour only</h3>
+                <table class="framework-table framework-band-table">
+                    <thead>
+                        <tr><th>Band</th><th>Value</th><th>Meaning</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var band in FrameworkPlaybook.AdxBands)
+                        {
+                            <tr class="@band.Css">
+                                <td><strong>@band.Band</strong></td>
+                                <td>@band.Range</td>
+                                <td>@band.Meaning</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="card framework-subcard">
+                <h3>RSI (28) — 1 Hour only</h3>
+                <table class="framework-table framework-band-table">
+                    <thead>
+                        <tr><th>Bias</th><th>Value</th><th>Meaning</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var band in FrameworkPlaybook.RsiBands)
+                        {
+                            <tr class="@band.Css">
+                                <td><strong>@band.Band</strong></td>
+                                <td>@band.Range</td>
+                                <td>@band.Meaning</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card framework-subcard framework-flow">
+            <h3>Decision order (top to bottom)</h3>
+            <ol class="framework-steps">
+                <li><span class="tag wait">G0</span> 5m RSI(14) &lt; 30 → <strong>WAIT</strong></li>
+                <li><span class="tag range">G1</span> ADX &lt; 18 inside VA → <strong>ROTATION</strong> (Keltner, no breakouts)</li>
+                <li><span class="tag range">G2</span> RSI(28) 45–55 → <strong>RANGE-BOUND</strong> (Keltner)</li>
+                <li><span class="tag step">1</span> 1H ST (10,3) + VWAP → market bias</li>
+                <li><span class="tag step">2</span> 15M ST + ADX(1H) + RSI(28) + POC → trade direction</li>
+                <li><span class="tag step">3</span> 5M ST (7,2.5) → entry trigger</li>
+                <li><span class="tag step">4</span> Footprint on 5m → confirmation</li>
+                <li><span class="tag step">5</span> Exit: prev POC/VAH/VAL or 5M ST reversal</li>
+            </ol>
+        </div>
+
+        <div class="card framework-subcard">
+            <h3>Indicator parameters</h3>
+            <table class="framework-table">
+                <thead>
+                    <tr><th>Indicator</th><th>Timeframe</th><th>Settings</th><th>Purpose</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in IndicatorRows)
+                    {
+                        <tr>
+                            <td>@row.Name</td>
+                            <td>@row.Timeframe</td>
+                            <td>@row.Settings</td>
+                            <td>@row.Purpose</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @foreach (var group in FrameworkPlaybook.Groups)
+        {
+            <div class="card framework-subcard framework-rule-group" id="fw-@group.Key">
+                <h3>@group.Title</h3>
+                @if (!string.IsNullOrEmpty(group.Intro))
+                {
+                    <p class="framework-group-intro">@group.Intro</p>
+                }
+                @if (!string.IsNullOrEmpty(group.Subtitle))
+                {
+                    <h4 class="framework-subheading">@group.Subtitle</h4>
+                }
+                <div class="framework-rules">
+                    @foreach (var rule in group.Rules)
+                    {
+                        <div class="framework-rule">
+                            <div class="framework-rule-id">@rule.Id</div>
+                            <div class="framework-rule-body">
+                                <div class="framework-rule-title">@rule.Title</div>
+                                <div class="framework-rule-row">
+                                    <span class="framework-label">IF</span>
+                                    <span class="framework-condition">@rule.Condition</span>
+                                </div>
+                                @if (!string.IsNullOrEmpty(rule.Action))
+                                {
+                                    <div class="framework-rule-row">
+                                        <span class="framework-label action">THEN</span>
+                                        <span class="framework-action">@rule.Action</span>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(rule.Note))
+                                {
+                                    <div class="framework-note">@rule.Note</div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="card framework-subcard">
+            <h3>Priority ranking</h3>
+            <ol class="framework-priority">
+                @foreach (var item in PriorityItems)
+                {
+                    <li>@item</li>
+                }
+            </ol>
+        </div>
+    </div>
+</div>
+
+@code {
+    private static readonly IReadOnlyList<(string Name, string Timeframe, string Settings, string Purpose)> IndicatorRows =
+    [
+        ("SuperTrend", "1 Hour", "(10, 3)", "Market trend"),
+        ("SuperTrend", "15 Minutes", "(10, 3)", "Trade direction"),
+        ("SuperTrend", "5 Minutes", "(7, 2.5)", "Entry trigger & stop"),
+        ("VWAP", "Intraday (5m session)", "Session-anchored", "Bullish if above, bearish if below"),
+        ("ADX", "1 Hour", "Length 14", "Choppy / moderate / strong"),
+        ("RSI", "1 Hour", "Length 28", "Momentum; 45–55 = range"),
+        ("RSI", "5 Minutes", "Length 14", "Reversal guard only (< 30)"),
+        ("Footprint", "5 Minutes", "Delta + imbalances", "Final confirmation"),
+        ("POC / VAH / VAL", "Current session", "Bias (above/below POC)"),
+        ("Prev POC / VAH / VAL", "Previous session", "Targets & S/R")
+    ];
+
+    private static readonly IReadOnlyList<string> PriorityItems =
+    [
+        "1H SuperTrend (10,3)",
+        "15M SuperTrend (10,3)",
+        "Current-day VWAP",
+        "5M SuperTrend (7,2.5) entry",
+        "ADX (14) on 1H",
+        "RSI (28) on 1H",
+        "Footprint — Delta, stacked imbalances, no opposing absorption",
+        "Previous-day POC / VAH / VAL"
+    ];
+}

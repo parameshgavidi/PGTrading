@@ -6,7 +6,7 @@
         <div class="card-header"><h2>Strategy Configuration</h2></div>
 
         <p class="text-secondary">
-            Global strategy settings for signals and scanner.
+            Global intraday strategy: 1H ST + VWAP → 15M ST + ADX + RSI → 5M entry ST (7,2.5) → Footprint confirmation.
             Holdings framework checks use fixed intraday and long-term rules and are not changed here.
         </p>
 
@@ -70,7 +70,7 @@
                     <input type="number" @bind="ViewModel.IntradayConfig.RsiLength" class="form-input" />
                 </div>
                 <div class="form-row">
-                    <label>RSI Trend Length (1H bias)</label>
+                    <label>RSI Trend Length (1H bias, RSI 28)</label>
                     <input type="number" @bind="ViewModel.IntradayConfig.RsiTrendLength" class="form-input" />
                 </div>
                 <div class="form-row">
@@ -94,17 +94,35 @@
                     <input type="number" @bind="ViewModel.IntradayConfig.AdxLength" class="form-input" />
                 </div>
                 <div class="form-row">
-                    <label>Weak threshold</label>
+                    <label>Weak threshold (choppy)</label>
                     <input type="number" step="0.1" @bind="ViewModel.IntradayConfig.AdxWeakThreshold" class="form-input" />
                 </div>
                 <div class="form-row">
                     <label>Strong threshold</label>
                     <input type="number" step="0.1" @bind="ViewModel.IntradayConfig.AdxStrongThreshold" class="form-input" />
                 </div>
+                <p class="text-secondary">1H ADX(14): &lt;18 choppy, 18–25 moderate, &gt;25 strong trend.</p>
                 <div class="form-row">
                     <label>Minimum ADX</label>
                     <input type="number" @bind="ViewModel.IntradayConfig.MinimumAdx" class="form-input" />
                 </div>
+            </div>
+
+            <div class="strategy-section">
+                <h3>TPO / Volume profile</h3>
+                <p class="text-secondary">
+                    Above POC = bullish, below POC = bearish. Targets use previous-day POC / VAH / VAL.
+                    ADX &lt; 18 inside Value Area = rotation (avoid breakouts).
+                    ADX &gt; 25 outside Value Area = trend day. Narrow CPR + open outside VA = strong trend day.
+                </p>
+            </div>
+
+            <div class="strategy-section">
+                <h3>Footprint confirmation (Step 4)</h3>
+                <p class="text-secondary">
+                    Final layer only — Delta, stacked bid/ask imbalances, and no opposing absorption.
+                    Approximated from 5m candle volume when tick footprint data is unavailable.
+                </p>
             </div>
 
             <div class="strategy-section">

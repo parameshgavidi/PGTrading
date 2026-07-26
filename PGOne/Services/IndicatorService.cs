@@ -12,6 +12,7 @@ public interface IIndicatorService
     decimal CalculateAtr(List<Candle> candles, int period);
     decimal CalculateSmaVolume(List<Candle> candles, int period);
     string GetCprBias(List<Candle> candles);
+    CprAnalysis GetCprAnalysis(List<Candle> candles);
     void ApplyKeltner(List<Candle> candles, int emaPeriod, int atrPeriod, double multiplierInner, double multiplierOuter);
     void ApplyVwap(List<Candle> candles);
 }
@@ -167,15 +168,28 @@ public class IndicatorService : IIndicatorService
 
     public string GetCprBias(List<Candle> candles)
     {
-        if (candles.Count < 2) return "Neutral";
+        return GetCprAnalysis(candles).Bias;
+    }
+
+    public CprAnalysis GetCprAnalysis(List<Candle> candles)
+    {
+        if (candles.Count < 2)
+            return new CprAnalysis("Neutral", false, 0m, 0m, 0m, 0m);
 
         var prev = candles[^2];
-        var pivot = (prev.High + prev.Low + prev.Close) / 3;
-        var current = candles[^1].Close;
+        var pivot = (prev.High + prev.Low + prev.Close) / 3m;
+        var bc = (prev.High + prev.Low) / 2m;
+        var tc = 2m * pivot - bc;
+        var width = Math.Abs(tc - bc);
+        var widthPct = pivot > 0 ? Math.Round(width / pivot * 100, 2) : 0m;
+        var isNarrow = widthPct > 0 && widthPct < 0.35m;
 
-        if (current > pivot * 1.001m) return "Bullish";
-        if (current < pivot * 0.999m) return "Bearish";
-        return "Neutral";
+        var current = candles[^1].Close;
+        var bias = current > pivot * 1.001m ? "Bullish"
+            : current < pivot * 0.999m ? "Bearish"
+            : "Neutral";
+
+        return new CprAnalysis(bias, isNarrow, widthPct, pivot, tc, bc);
     }
 
     // Keltner Channels: middle = EMA(close, emaPeriod); bands = middle ± mult * ATR(atrPeriod).
