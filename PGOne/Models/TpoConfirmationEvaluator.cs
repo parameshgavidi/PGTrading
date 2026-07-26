@@ -14,7 +14,17 @@ public static class TpoConfirmationEvaluator
 
     if (!profile.HasData || price <= 0)
     {
-      result.Summary = "Await volume profile data";
+      if (profile.PrevDayPoc > 0)
+      {
+        result.BuyConfirmed = price > profile.PrevDayPoc;
+        result.SellConfirmed = price < profile.PrevDayPoc;
+        result.Summary = result.BuyConfirmed ? "Bull — above prev POC"
+          : result.SellConfirmed ? "Bear — below prev POC"
+          : "At prev POC";
+      }
+      else
+        result.Summary = "Await volume profile data";
+
       return result;
     }
 

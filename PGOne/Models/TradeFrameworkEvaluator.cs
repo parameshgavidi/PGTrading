@@ -38,6 +38,9 @@ public static class TradeFrameworkEvaluator
     if (trend15M != marketBias)
       return TrendDirection.Neutral;
 
+    if (adx1H < config.AdxWeakThreshold)
+      return TrendDirection.Neutral;
+
     if (adx1H < config.MinimumAdx)
       return TrendDirection.Neutral;
 
