@@ -67,7 +67,6 @@ public class SignalService : ISignalService
             : TrendDirection.Neutral;
 
         var adx1H = _indicators.CalculateAdx(candles1H, config.AdxLength);
-        var adx15M = _indicators.CalculateAdx(candles15M, config.AdxLength);
         var strength1H = adx1H < config.AdxWeakThreshold ? TrendStrength.Weak
             : adx1H < config.AdxStrongThreshold ? TrendStrength.Moderate
             : TrendStrength.Strong;
@@ -104,7 +103,7 @@ public class SignalService : ISignalService
         var tradeDirection = TradeFrameworkEvaluator.GetTradeDirection(
             marketBias,
             trend15M,
-            adx15M,
+            adx1H,
             rsiTrend,
             last5MClose,
             volumeProfile,
@@ -133,7 +132,7 @@ public class SignalService : ISignalService
             trend1H,
             trend15M,
             trend5MEntry,
-            adx15M,
+            adx1H,
             rsiTrend,
             aboveVwap,
             footprint,
@@ -165,7 +164,6 @@ public class SignalService : ISignalService
             RsiTrend = rsiTrend,
             RsiBias = rsiBias,
             Adx = adx1H,
-            Adx15M = adx15M,
             Strength1H = strength1H,
             Cpr = cprAnalysis.Bias,
             CprNarrow = cprAnalysis.IsNarrow,
@@ -205,7 +203,7 @@ public class SignalService : ISignalService
         var reasons = new List<string>
         {
             $"Step 1 — 1H ST {analysis.Trend1H}, VWAP {(analysis.AboveVwap ? "above" : "below")} → {BiasLabel(analysis.MarketBias)}",
-            $"Step 2 — 15M ST {analysis.Trend15M}, ADX(15m) {analysis.Adx15M:0}, RSI(28) {analysis.RsiTrend:0} → {BiasLabel(analysis.TradeDirection)}",
+            $"Step 2 — 15M ST {analysis.Trend15M}, ADX(1H) {analysis.Adx:0} ({analysis.Strength1H}), RSI(28) {analysis.RsiTrend:0} → {BiasLabel(analysis.TradeDirection)}",
             $"POC — {analysis.Tpo.Summary}{(analysis.Tpo.StrongTrendDay ? " (strong trend day)" : "")}",
             $"Step 3 — 5M entry ST (7,2.5) {analysis.Trend5MEntry} → {(analysis.EntryTriggered ? "triggered" : "waiting")}",
             $"Step 4 — Footprint: {analysis.Footprint.Summary}",

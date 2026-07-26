@@ -24,7 +24,6 @@ public class MultiTimeframeAnalysis
     public TrendDirection RsiBias { get; set; }
 
     public decimal Adx { get; set; }
-    public decimal Adx15M { get; set; }
     public TrendStrength Strength1H { get; set; }
 
     public string Cpr { get; set; } = "Neutral";

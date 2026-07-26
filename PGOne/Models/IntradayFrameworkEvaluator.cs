@@ -5,7 +5,7 @@ public static class IntradayFrameworkEvaluator
     public static IReadOnlyList<string> Conditions { get; } =
     [
         "Step 1 — 1H SuperTrend (10,3) + current-day VWAP aligned",
-        "Step 2 — 15M SuperTrend (10,3) + ADX(15m) ≥ 20 + RSI(28) on 1H",
+        "Step 2 — 15M SuperTrend (10,3) + ADX(14) 1H ≥ 20 + RSI(28) on 1H",
         "POC — above POC = bull, below POC = bear",
         "Step 3 — 5M SuperTrend (7,2.5) entry trigger",
         "Step 4 — Footprint: Delta + imbalances, no opposing absorption",

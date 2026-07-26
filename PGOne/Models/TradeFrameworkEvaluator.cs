@@ -25,7 +25,7 @@ public static class TradeFrameworkEvaluator
   public static TrendDirection GetTradeDirection(
     TrendDirection marketBias,
     TrendDirection trend15M,
-    decimal adx15M,
+    decimal adx1H,
     decimal rsi1H,
     decimal price,
     VolumeProfileLevels profile,
@@ -38,7 +38,7 @@ public static class TradeFrameworkEvaluator
     if (trend15M != marketBias)
       return TrendDirection.Neutral;
 
-    if (adx15M < config.MinimumAdx)
+    if (adx1H < config.MinimumAdx)
       return TrendDirection.Neutral;
 
     if (marketBias == TrendDirection.Buy && rsi1H < config.RsiBullThreshold)
@@ -131,7 +131,7 @@ public static class TradeFrameworkEvaluator
     TrendDirection trend1H,
     TrendDirection trend15M,
     TrendDirection trend5MEntry,
-    decimal adx15M,
+    decimal adx1H,
     decimal rsi1H,
     bool aboveVwap,
     FootprintAnalysis footprint,
@@ -155,8 +155,11 @@ public static class TradeFrameworkEvaluator
     if (trend15M != marketBias)
       return "Wait — 15m SuperTrend not aligned";
 
-    if (adx15M < config.MinimumAdx)
-      return $"Wait — ADX {adx15M:0} < {config.MinimumAdx:0}";
+    if (adx1H < config.AdxWeakThreshold)
+      return $"Wait — ADX {adx1H:0} choppy (<{config.AdxWeakThreshold:0})";
+
+    if (adx1H < config.MinimumAdx)
+      return $"Wait — ADX {adx1H:0} moderate, need ≥{config.MinimumAdx:0}";
 
     if (marketBias == TrendDirection.Buy && rsi1H < config.RsiBullThreshold)
       return $"Wait — 1H RSI(28) {rsi1H:0} < {config.RsiBullThreshold:0}";
