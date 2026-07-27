@@ -17,6 +17,11 @@ public class TpoConfirmationAnalysis
   public bool StrongTrendDay { get; set; }
   public string Summary { get; set; } = "No TPO data";
 
+  public TrendDirection Bias =>
+    BuyConfirmed ? TrendDirection.Buy
+    : SellConfirmed ? TrendDirection.Sell
+    : TrendDirection.Neutral;
+
   public bool Confirms(TrendDirection bias) => bias switch
   {
     TrendDirection.Buy => BuyConfirmed,

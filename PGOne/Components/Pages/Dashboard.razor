@@ -174,7 +174,7 @@
                     </tr>
                     <tr>
                         <td>POC bias</td>
-                        <td class="@(ViewModel.Analysis.TpoConfirmed ? "buy" : "sell")">@ViewModel.Analysis.Tpo.Summary</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.PocBias)">@ViewModel.Analysis.Tpo.Summary @(ViewModel.Analysis.PocBias != TrendDirection.Neutral ? TrendUi.GetBiasLabel(ViewModel.Analysis.PocBias) : "")</td>
                     </tr>
                     <tr>
                         <td>1 Hour SuperTrend</td>
@@ -200,7 +200,7 @@
                         <td>Footprint</td>
                         <td class="@(ViewModel.Analysis.FootprintConfirmed ? "buy" : "sell")">@ViewModel.Analysis.Footprint.Summary</td>
                     </tr>
-                    @if (ViewModel.Analysis.VolumeProfile.HasData)
+                    @if (ViewModel.Analysis.VolumeProfile.HasData || ViewModel.Analysis.VolumeProfile.PrevDayPoc > 0)
                     {
                         <tr>
                             <td>POC / VAH / VAL</td>

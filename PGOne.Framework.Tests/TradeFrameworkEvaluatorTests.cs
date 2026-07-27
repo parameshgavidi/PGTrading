@@ -91,4 +91,26 @@ public class TradeFrameworkEvaluatorTests
     Assert.True(TradeFrameworkEvaluator.IsRotationRegime(17m, 100m, profile, Config));
     Assert.False(TradeFrameworkEvaluator.IsRotationRegime(20m, 100m, profile, Config));
   }
+
+  [Fact]
+  public void Framework_playbook_groups_have_rules()
+  {
+    Assert.All(FrameworkPlaybook.Groups, group =>
+    {
+      Assert.NotNull(group.Rules);
+      Assert.NotEmpty(group.Rules);
+    });
+  }
+
+  [Fact]
+  public void Tpo_bias_reflects_buy_sell_confirmed()
+  {
+    var bull = new TpoConfirmationAnalysis { BuyConfirmed = true };
+    var bear = new TpoConfirmationAnalysis { SellConfirmed = true };
+    var neutral = new TpoConfirmationAnalysis();
+
+    Assert.Equal(TrendDirection.Buy, bull.Bias);
+    Assert.Equal(TrendDirection.Sell, bear.Bias);
+    Assert.Equal(TrendDirection.Neutral, neutral.Bias);
+  }
 }
