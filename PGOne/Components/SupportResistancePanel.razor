@@ -1,0 +1,84 @@
+@namespace PGOne.Components
+
+<div class="sr-panel card">
+    <div class="card-header">Support &amp; Resistance</div>
+    <p class="sr-intro text-secondary">Live levels — today &amp; prev POC/VA, Camarilla (H1/L1 hidden).</p>
+
+    @if (LadderRows.Count == 0)
+    {
+        <div class="empty-state sr-empty">No level data yet.</div>
+    }
+    else
+    {
+        <div class="sr-ladder">
+            @foreach (var row in LadderRows)
+            {
+                var isNear = Math.Abs(Price - row.Price) <= NearThreshold;
+                <div class="sr-ladder-row @row.CssClass @(isNear ? "sr-near" : "")">
+                    <span class="sr-label">@row.Label</span>
+                    <span class="sr-line" aria-hidden="true"></span>
+                    <span class="sr-price">@row.Price.ToString("N2")</span>
+                    @if (isNear)
+                    {
+                        <span class="sr-tag sr-near-tag">●</span>
+                    }
+                    else if (Price > row.Price)
+                    {
+                        <span class="sr-tag buy">S</span>
+                    }
+                    else
+                    {
+                        <span class="sr-tag sell">R</span>
+                    }
+                </div>
+            }
+            <div class="sr-ladder-row sr-price-row">
+                <span class="sr-label">LTP</span>
+                <span class="sr-line" aria-hidden="true"></span>
+                <span class="sr-price">@Price.ToString("N2")</span>
+            </div>
+        </div>
+
+        <div class="sr-summary">
+            @if (Analysis.VolumeProfile.HasData)
+            {
+                <div class="sr-summary-row">
+                    <span>Today VA</span>
+                    <span class="@TrendUi.GetClass(Analysis.SessionVaBias)">@TrendUi.GetBiasLabel(Analysis.SessionVaBias)</span>
+                    <span class="sr-levels-text">VAH @Analysis.VolumeProfile.Vah.ToString("N2") · POC @Analysis.VolumeProfile.Poc.ToString("N2") · VAL @Analysis.VolumeProfile.Val.ToString("N2")</span>
+                </div>
+            }
+            @if (Analysis.VolumeProfile.PrevDayPoc > 0)
+            {
+                <div class="sr-summary-row">
+                    <span>Prev VA</span>
+                    <span class="@TrendUi.GetClass(Analysis.PrevDayVaBias)">@TrendUi.GetBiasLabel(Analysis.PrevDayVaBias)</span>
+                    <span class="sr-levels-text">VAH @Analysis.VolumeProfile.PrevDayVah.ToString("N2") · POC @Analysis.VolumeProfile.PrevDayPoc.ToString("N2") · VAL @Analysis.VolumeProfile.PrevDayVal.ToString("N2")</span>
+                </div>
+            }
+            @if (Analysis.Camarilla.HasData)
+            {
+                <div class="sr-summary-row">
+                    <span>Camarilla</span>
+                    <span class="@TrendUi.GetClass(Analysis.CamarillaBias)">@TrendUi.GetBiasLabel(Analysis.CamarillaBias)</span>
+                    <span class="sr-levels-text">H4 @Analysis.Camarilla.H4.ToString("N2") · H3 @Analysis.Camarilla.H3.ToString("N2") · H2 @Analysis.Camarilla.H2.ToString("N2") · PP @Analysis.Camarilla.Pivot.ToString("N2") · L2 @Analysis.Camarilla.L2.ToString("N2") · L3 @Analysis.Camarilla.L3.ToString("N2") · L4 @Analysis.Camarilla.L4.ToString("N2")</span>
+                </div>
+                <div class="sr-summary-row">
+                    <span>Cam band</span>
+                    <span class="@TrendUi.GetClass(Analysis.CamarillaBandBias)">@TrendUi.GetBiasLabel(Analysis.CamarillaBandBias)</span>
+                    <span class="sr-levels-text">&gt; H3 bullish · &lt; L3 bearish · inside L3–H3 neutral</span>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public MultiTimeframeAnalysis Analysis { get; set; } = new();
+    [Parameter] public decimal Price { get; set; }
+
+    private IReadOnlyList<SupportResistanceRow> LadderRows =>
+        SupportResistanceLadderBuilder.Build(Analysis);
+
+    private decimal NearThreshold => Price > 10000 ? 15m : Price > 1000 ? 5m : 1m;
+}

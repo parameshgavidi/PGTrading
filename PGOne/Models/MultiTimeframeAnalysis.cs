@@ -63,4 +63,8 @@ public class MultiTimeframeAnalysis
     public TpoConfirmationAnalysis Tpo { get; set; } = new();
     public FootprintAnalysis Footprint { get; set; } = new();
     public VolumeProfileLevels VolumeProfile { get; set; } = new();
+    public CamarillaLevels Camarilla { get; set; } = new();
+    public TrendDirection CamarillaBias { get; set; }
+    public TrendDirection CamarillaBandBias { get; set; }
+    public decimal ReferencePrice { get; set; }
 }

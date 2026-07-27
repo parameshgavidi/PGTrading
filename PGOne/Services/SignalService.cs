@@ -82,6 +82,11 @@ public class SignalService : ISignalService
         var cprCandles = candlesDay.Count >= 2 ? candlesDay : candles1H;
         var cprAnalysis = _indicators.GetCprAnalysis(cprCandles);
 
+        var prevDayCandle = cprCandles.Count >= 2 ? cprCandles[^2] : null;
+        var camarilla = prevDayCandle is not null
+            ? CamarillaCalculator.FromPreviousDay(prevDayCandle)
+            : new CamarillaLevels();
+
         var sessionCandles = GetTodaySessionCandles(candles5M);
         var prevSessionCandles = GetPreviousSessionCandles(candles5M);
         var volumeProfile = _volumeProfile.BuildLevels(sessionCandles, prevSessionCandles);
@@ -192,6 +197,10 @@ public class SignalService : ISignalService
             Tpo = tpo,
             Footprint = footprint,
             VolumeProfile = volumeProfile,
+            Camarilla = camarilla,
+            CamarillaBias = camarilla.GetBias(last5MClose),
+            CamarillaBandBias = camarilla.GetBandBias(last5MClose),
+            ReferencePrice = last5MClose,
             OverallScore = score,
             Strength = strength1H.ToString()
         };
