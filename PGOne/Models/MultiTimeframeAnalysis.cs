@@ -53,6 +53,8 @@ public class MultiTimeframeAnalysis
     public TrendDirection TradeDirection { get; set; }
     public bool EntryTriggered { get; set; }
     public TrendDirection PocBias { get; set; }
+    public TrendDirection SessionVaBias { get; set; }
+    public TrendDirection PrevDayVaBias { get; set; }
     public bool TpoConfirmed { get; set; }
     public bool FootprintConfirmed { get; set; }
     public bool FrameworkReady { get; set; }

@@ -183,6 +183,8 @@ public class SignalService : ISignalService
             TradeDirection = tradeDirection,
             EntryTriggered = entryTriggered,
             PocBias = tpo.Bias,
+            SessionVaBias = volumeProfile.GetSessionValueAreaBias(last5MClose),
+            PrevDayVaBias = volumeProfile.GetPrevDayValueAreaBias(last5MClose),
             TpoConfirmed = tpoConfirmed,
             FootprintConfirmed = footprintConfirmed,
             FrameworkReady = frameworkReady,
