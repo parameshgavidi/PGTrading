@@ -1,0 +1,25 @@
+@namespace PGOne.Components
+
+<div class="chart-overlay-toggles">
+    <button type="button"
+            class="btn overlay-toggle @(ShowPoc ? "active" : "")"
+            @onclick="TogglePocAsync">
+        POC / VA
+    </button>
+    <button type="button"
+            class="btn overlay-toggle @(ShowCamarilla ? "active" : "")"
+            @onclick="ToggleCamarillaAsync">
+        Camarilla
+    </button>
+</div>
+
+@code {
+    [Parameter] public bool ShowPoc { get; set; } = true;
+    [Parameter] public bool ShowCamarilla { get; set; } = true;
+    [Parameter] public EventCallback<bool> ShowPocChanged { get; set; }
+    [Parameter] public EventCallback<bool> ShowCamarillaChanged { get; set; }
+
+    private async Task TogglePocAsync() => await ShowPocChanged.InvokeAsync(!ShowPoc);
+
+    private async Task ToggleCamarillaAsync() => await ShowCamarillaChanged.InvokeAsync(!ShowCamarilla);
+}

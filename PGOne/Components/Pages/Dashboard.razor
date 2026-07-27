@@ -80,15 +80,23 @@
                                       ChartVersion="ViewModel.ChartVersion"
                                       OverlayVersion="ViewModel.OverlayVersion"
                                       Analysis="ViewModel.Analysis"
+                                      ShowPocLevels="ViewModel.ShowPocOverlay"
+                                      ShowCamarillaLevels="ViewModel.ShowCamarillaOverlay"
                                       Timeframe="ViewModel.SelectedTimeframe"
                                       Width="900"
                                       Height="420" />
-                    <div class="timeframe-buttons">
+                    <div class="chart-toolbar">
+                        <div class="timeframe-buttons">
                         @foreach (var tf in new[] { "5m", "15m", "1H" })
                         {
                             <button class="btn tf-btn @(ViewModel.SelectedTimeframe == tf ? "active" : "")"
                                     @onclick="() => ChangeTimeframe(tf)">@tf</button>
                         }
+                        </div>
+                        <ChartOverlayToggles ShowPoc="ViewModel.ShowPocOverlay"
+                                             ShowCamarilla="ViewModel.ShowCamarillaOverlay"
+                                             ShowPocChanged="v => ViewModel.SetShowPocOverlay(v)"
+                                             ShowCamarillaChanged="v => ViewModel.SetShowCamarillaOverlay(v)" />
                     </div>
                     @if (!string.IsNullOrEmpty(ViewModel.ChartDataMessage))
                     {

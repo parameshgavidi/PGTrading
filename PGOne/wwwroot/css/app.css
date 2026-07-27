@@ -624,6 +624,41 @@ html, body {
     color: var(--gold);
 }
 
+.chart-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 12px 0;
+}
+
+.chart-overlay-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.overlay-toggle {
+    padding: 4px 12px;
+    background: transparent;
+    border: 1px solid var(--card-border);
+    color: var(--text-secondary);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.overlay-toggle.active {
+    background: rgba(212, 175, 55, 0.18);
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+.overlay-toggle:not(.active) {
+    opacity: 0.65;
+}
+
 .dashboard-bottom {
     display: flex;
     gap: 12px;

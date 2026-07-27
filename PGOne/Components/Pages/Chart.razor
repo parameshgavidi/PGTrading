@@ -22,16 +22,26 @@
         <CandlestickChart CanvasId="liveChart"
                           Candles="ViewModel.ChartCandles"
                           ChartVersion="ViewModel.ChartVersion"
+                          OverlayVersion="ViewModel.OverlayVersion"
+                          Analysis="ViewModel.Analysis"
+                          ShowPocLevels="ViewModel.ShowPocOverlay"
+                          ShowCamarillaLevels="ViewModel.ShowCamarillaOverlay"
                           Timeframe="ViewModel.SelectedTimeframe"
                           CssClass="large"
                           Width="1200"
                           Height="520" />
-        <div class="timeframe-buttons">
-            @foreach (var tf in new[] { "5m", "15m", "1H", "1D" })
-            {
-                <button class="btn tf-btn @(ViewModel.SelectedTimeframe == tf ? "active" : "")"
-                        @onclick="() => ViewModel.ChangeTimeframeAsync(tf)">@tf</button>
-            }
+        <div class="chart-toolbar">
+            <div class="timeframe-buttons">
+                @foreach (var tf in new[] { "5m", "15m", "1H", "1D" })
+                {
+                    <button class="btn tf-btn @(ViewModel.SelectedTimeframe == tf ? "active" : "")"
+                            @onclick="() => ViewModel.ChangeTimeframeAsync(tf)">@tf</button>
+                }
+            </div>
+            <ChartOverlayToggles ShowPoc="ViewModel.ShowPocOverlay"
+                                 ShowCamarilla="ViewModel.ShowCamarillaOverlay"
+                                 ShowPocChanged="v => ViewModel.SetShowPocOverlay(v)"
+                                 ShowCamarillaChanged="v => ViewModel.SetShowCamarillaOverlay(v)" />
         </div>
         <div class="chart-legend">
             <span class="legend-item"><span class="legend-color buy"></span> SuperTrend BUY</span>
@@ -42,6 +52,14 @@
             {
                 <span class="legend-item"><span class="legend-color keltner"></span> Keltner (20, 1.5/2.0)</span>
                 <span class="legend-item"><span class="legend-color vwap"></span> VWAP</span>
+            }
+            @if (ViewModel.ShowPocOverlay)
+            {
+                <span class="legend-item"><span class="legend-color poc"></span> POC / VA + split</span>
+            }
+            @if (ViewModel.ShowCamarillaOverlay)
+            {
+                <span class="legend-item"><span class="legend-color camarilla"></span> Camarilla</span>
             }
         </div>
     </div>
