@@ -84,9 +84,10 @@ public class FootprintService : IFootprintService
 
     var result = new FootprintAnalysis
     {
-      Delta = Math.Round(delta, 0),
+      Delta = Math.Round(delta, 2),
       PositiveDelta = delta > 0,
       NegativeDelta = delta < 0,
+      UsesVolumeProxy = slice.All(c => c.Volume <= 0),
       StackedBuyImbalance = maxBuyStreak >= MinStackedBars,
       StackedSellImbalance = maxSellStreak >= MinStackedBars,
       AbsorptionAgainstLong = absorptionAgainstLong,
@@ -99,17 +100,8 @@ public class FootprintService : IFootprintService
     return result;
   }
 
-  private static (decimal Buy, decimal Sell) EstimateBidAskVolume(Candle candle)
-  {
-    var range = candle.High - candle.Low;
-    if (range <= 0)
-      return (candle.Volume / 2m, candle.Volume / 2m);
-
-    var vol = (decimal)candle.Volume;
-    var buyRatio = (candle.Close - candle.Low) / range;
-    var sellRatio = (candle.High - candle.Close) / range;
-    return (vol * buyRatio, vol * sellRatio);
-  }
+  private static (decimal Buy, decimal Sell) EstimateBidAskVolume(Candle candle) =>
+    FootprintVolumeEstimator.EstimateBidAskVolume(candle);
 
   private static string BuildSummary(FootprintAnalysis fp, TrendDirection bias)
   {
@@ -123,6 +115,9 @@ public class FootprintService : IFootprintService
     if (fp.PositiveDelta) parts.Add("Delta +");
     else if (fp.NegativeDelta) parts.Add("Delta −");
     else parts.Add("Delta flat");
+
+    if (fp.UsesVolumeProxy)
+      parts.Add("range proxy (no volume)");
 
     if (fp.StackedBuyImbalance) parts.Add("buy imbalances");
     if (fp.StackedSellImbalance) parts.Add("sell imbalances");

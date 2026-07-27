@@ -94,7 +94,121 @@ public static class FrameworkPlaybook
       "Strong trend day probability ↑", "Score bonus in app"),
     Rule("POC-7", "Targets (always prev day)",
       "LONG targets: Prev VAH, Prev POC | SHORT targets: Prev VAL, Prev POC",
-      "Step 5 exit levels", "Not current-day POC for targets")
+      "Step 5 exit levels", "Not current-day POC for targets"),
+    Rule("POC-8", "Dashboard — current VA label",
+      "Price > POC AND > VAH → Bullish | Price < POC AND < VAL → Bearish | else Neutral",
+      "Shown as label only (no numbers)", "Multi-timeframe table row"),
+    Rule("POC-9", "Dashboard — prev VA label",
+      "Price > prev POC AND > prev VAH → Bullish | Price < prev POC AND < prev VAL → Bearish",
+      "Shown as label only", "Uses previous session levels")
+  ];
+
+  private static readonly IReadOnlyList<FrameworkRule> VaBiasRules =
+  [
+    Rule("VA-1", "Current session — Bullish",
+      "Price > current POC AND price > current VAH",
+      "Bullish", "Both must be true"),
+    Rule("VA-2", "Current session — Bearish",
+      "Price < current POC AND price < current VAL",
+      "Bearish", "Both must be true"),
+    Rule("VA-3", "Current session — Neutral",
+      "Inside value area OR above POC but below VAH OR below POC but above VAL",
+      "Neutral", "No directional VA label"),
+    Rule("VA-4", "Previous day — Bullish",
+      "Price > prev POC AND price > prev VAH",
+      "Bullish", "Prev POC / VAH / VAL row"),
+    Rule("VA-5", "Previous day — Bearish",
+      "Price < prev POC AND price < prev VAL",
+      "Bearish", null),
+    Rule("VA-6", "Display",
+      "Dashboard shows Bullish / Bearish / Neutral only — levels hidden",
+      "Multi-timeframe table", null)
+  ];
+
+  private static readonly IReadOnlyList<FrameworkRule> CamarillaRules =
+  [
+    Rule("CAM-0", "Levels (prev day H, L, C)",
+      "H4/H3/H2 / PP / L2/L3/L4 — H1 and L1 hidden (mild S/R, not in UI)",
+      "Context layer alongside CPR and POC/VA", "Range = H − L"),
+    Rule("CAM-1", "H4", "C + range × 1.1 / 2", "Extension / blow-off", null),
+    Rule("CAM-2", "H3", "C + range × 1.1 / 4", "Strong resistance / breakout band", null),
+    Rule("CAM-3", "H2", "C + range × 1.1 / 6", "Resistance", null),
+    Rule("CAM-4", "PP", "(H + L + C) / 3", "Pivot", null),
+    Rule("CAM-5", "L2", "C − range × 1.1 / 6", "Support", null),
+    Rule("CAM-6", "L3", "C − range × 1.1 / 4", "Strong support / breakdown band", null),
+    Rule("CAM-7", "L4", "C − range × 1.1 / 2", "Extension / breakdown", null),
+    Rule("CAM-8", "Camarilla bias (label rule)",
+      "Bullish: price > PP AND > H2 | Bearish: price < PP AND < L2",
+      "Supports Step 1 market bias", "No H1/L1 in rules"),
+    Rule("CAM-9", "Camarilla band (label rule)",
+      "Bullish: price > H3 | Bearish: price < L3 | else inside L3–H3",
+      "Breakout / trend context", "Pairs with ADX>25 outside VA"),
+    Rule("CAM-10", "Step 2 filter",
+      "LONG: POC/VA bullish AND not trapped below L3 | SHORT: POC/VA bearish AND not trapped above H3",
+      "Trade direction filter", null),
+    Rule("CAM-11", "Step 3 entry zones",
+      "LONG pullback to VWAP or PP | SHORT rally to VWAP or PP + 5M ST (7,2.5)",
+      "No chase at H4/L4", null),
+    Rule("CAM-12", "Step 5 targets",
+      "LONG: H2 → H3 → H4 | SHORT: L2 → L3 → L4",
+      "Alongside prev POC/VAH/VAL", "Stop: 5M ST reversal or back through PP")
+  ];
+
+  private static readonly IReadOnlyList<FrameworkRule> FootprintDetailRules =
+  [
+    Rule("FP-N1", "Data source",
+      "Last 8 × 5m candles; bias from trade direction (or market bias if direction neutral)",
+      "Final confirmation only", null),
+    Rule("FP-N2", "Delta calculation",
+      "Sum buy-volume proxy − sell-volume proxy per bar",
+      "Positive = Delta + | Negative = Delta − | Zero = Delta flat", null),
+    Rule("FP-N3", "Volume split (normal)",
+      "Buy vol = volume × (Close−Low)/(High−Low) | Sell vol = volume × (High−Close)/(High−Low)",
+      "Classic candle position proxy", "Requires non-zero volume"),
+    Rule("FP-N4", "Volume split (zero volume / indices)",
+      "When volume = 0: use bar range (or |body|) as activity proxy, then same split",
+      "Shows \"range proxy (no volume)\" in summary", "NIFTY index candles"),
+    Rule("FP-N5", "Delta flat — when correct",
+      "Balanced buy/sell over 8 bars OR doji-heavy session with net zero",
+      "Not confirmed for long or short", "Common on indices before proxy fix"),
+    Rule("FP-N6", "Stacked imbalance",
+      "≥ 3 consecutive bars where buy > sell × 1.4 (or sell > buy × 1.4)",
+      "Required for confirmation", null),
+    Rule("FP-N7", "Absorption against long",
+      "Last bar: vol ≥ 1.5× avg, near recent high, red close, close near low of bar",
+      "Blocks long confirmation", null),
+    Rule("FP-N8", "Absorption against short",
+      "Last bar: vol ≥ 1.5× avg, near recent low, green close, close near high of bar",
+      "Blocks short confirmation", null),
+    Rule("FP-N9", "Long confirmed",
+      "Delta + AND stacked buy imbalances AND NOT absorption vs long",
+      "ConfirmsLong", null),
+    Rule("FP-N10", "Short confirmed",
+      "Delta − AND stacked sell imbalances AND NOT absorption vs short",
+      "ConfirmsShort", null)
+  ];
+
+  private static readonly IReadOnlyList<FrameworkRule> DashboardRules =
+  [
+    Rule("DB-1", "Market bias row", "1H ST (10,3) + VWAP alignment", "Bullish / Bearish label", null),
+    Rule("DB-2", "Trade direction row", "Step 2 passed or blocking reason", "Long / Short / Wait", null),
+    Rule("DB-3", "POC bias row", "Price vs POC (current or prev POC fallback)", "Tpo.Summary + Bullish/Bearish", null),
+    Rule("DB-4", "POC / VAH / VAL row", "Price > POC AND > VAH → Bullish; < POC AND < VAL → Bearish", "Labels only — numbers hidden", null),
+    Rule("DB-5", "Prev POC / VAH / VAL row", "Same rules on prev-day POC / VAH / VAL", "Labels only", null),
+    Rule("DB-6", "RSI(28) bias", "> 55 Bullish | < 45 Bearish | 45–55 range", "1H only", null),
+    Rule("DB-7", "Footprint row", "Step 4 summary (delta, imbalances, absorption)", "Not confirmed until all pass", null),
+    Rule("DB-8", "Framework row", "FrameworkReady + FrameworkStatus", "Master gate", null),
+    Rule("DB-9", "CPR row", "Narrow CPR + open outside VA → strong trend day bonus", "Separate from Camarilla", null)
+  ];
+
+  private static readonly IReadOnlyList<FrameworkRule> CprRules =
+  [
+    Rule("CPR-1", "Pivot", "(Prev High + Prev Low + Prev Close) / 3", "Central pivot", null),
+    Rule("CPR-2", "TC / BC", "Top and bottom central pivot lines", "Narrow width < 0.35% of pivot = narrow CPR", null),
+    Rule("CPR-3", "Bias", "Price above pivot → Bullish CPR | below → Bearish", "Dashboard CPR row", null),
+    Rule("CPR-4", "Strong trend day",
+      "Narrow CPR AND session open outside VAH/VAL",
+      "Score bonus + Tpo.StrongTrendDay", "Works with POC/VA rules")
   ];
 
   private static readonly IReadOnlyList<FrameworkRule> Step3Rules =
@@ -183,7 +297,25 @@ public static class FrameworkPlaybook
     ("Range", "45 – 55", "Range-bound — Keltner fade", "neutral")
   ];
 
-  public const string LastValidated = "26 Jul 2026";
+  public static readonly IReadOnlyList<(string Band, string Range, string Meaning, string Css)> VaBiasBands =
+  [
+    ("Bullish", "> POC and > VAH", "Above value area — acceptance higher", "buy"),
+    ("Bearish", "< POC and < VAL", "Below value area — acceptance lower", "sell"),
+    ("Neutral", "Between levels", "Inside VA or mixed (e.g. above POC below VAH)", "neutral")
+  ];
+
+  public static readonly IReadOnlyList<(string Level, string Formula, string Role)> CamarillaLevels =
+  [
+    ("H4", "C + range × 1.1 / 2", "Extension up"),
+    ("H3", "C + range × 1.1 / 4", "Strong resistance / band"),
+    ("H2", "C + range × 1.1 / 6", "Resistance"),
+    ("PP", "(H + L + C) / 3", "Pivot"),
+    ("L2", "C − range × 1.1 / 6", "Support"),
+    ("L3", "C − range × 1.1 / 4", "Strong support / band"),
+    ("L4", "C − range × 1.1 / 2", "Extension down")
+  ];
+
+  public const string LastValidated = "27 Jul 2026";
 
   public static readonly string UnitTestCommand =
     "dotnet test PGOne.Framework.Tests/PGOne.Framework.Tests.csproj";
@@ -202,6 +334,9 @@ public static class FrameworkPlaybook
     "Step 2 — ADX(1H) > 25: long needs price above VAH, short needs price below VAL",
     "Step 3 — 5M entry ST (7, 2.5) via TrailingStopDefaults; must match trade direction",
     "Step 4 — Footprint delta + stacked imbalances + no opposing absorption on 5m",
+    "Footprint on indices: range proxy when candle volume is zero (see Footprint detail)",
+    "Dashboard POC/VA rows: Bullish/Bearish labels only (above POC+VAH / below POC+VAL)",
+    "Camarilla: PP + H2–H4 / L2–L4 context (H1/L1 hidden); pairs with POC/VA and CPR",
     "Step 5 — Targets: prev-day POC / VAH / VAL; stop on 5M ST (7, 2.5) reversal",
     "Framework READY — IsFrameworkReady blocks reversal, rotation, range-bound, and missing entry/footprint",
     "Intraday scan — IntradayFrameworkEvaluator.IsSatisfied uses FrameworkReady; long MIS only",
@@ -224,7 +359,8 @@ public static class FrameworkPlaybook
 
   public static readonly IReadOnlyList<string> KnownLimitations =
   [
-    "NIFTY index candles have zero volume — footprint and POC use OHLCV proxies on indices",
+    "NIFTY index candles have zero volume — footprint uses range proxy; POC uses OHLCV proxies",
+    "Footprint \"Delta flat\" = net buy/sell proxy balanced over 8 bars (or before range proxy on zero volume)",
     "Chart overlay 5m SuperTrend display still uses (10, 3) in MarketDataService.AttachSuperTrend; signals use (7, 2.5) for entry",
     "StrategyConfig.EntryMode is not wired into evaluator logic",
     "Unit tests require local dotnet SDK — run command above before session if you changed framework code"
@@ -239,6 +375,11 @@ public static class FrameworkPlaybook
     new("step1", "Step 1 — Market bias", "1H SuperTrend (10,3) + current-day VWAP must align.", Step1Rules),
     new("step2", "Step 2 — Trade direction", "All must pass after Step 1.", Step2Rules),
     new("poc", "POC & value area", "Volume profile rules for bias and regime.", PocRules),
+    new("va", "Value area labels (dashboard)", "Bullish/Bearish labels — no raw numbers on dashboard.", VaBiasRules),
+    new("camarilla", "Camarilla pivot (prev day)", "Context layer — PP + H2–H4 / L2–L4. H1/L1 hidden (mild S/R).", CamarillaRules),
+    new("cpr", "CPR (central pivot range)", "Prev-day pivot + TC/BC — narrow CPR trend-day context.", CprRules),
+    new("footprint", "Footprint logic (5m)", "How delta, imbalances, and absorption are computed.", FootprintDetailRules),
+    new("dashboard", "Dashboard multi-timeframe table", "What each sidebar row means.", DashboardRules),
     new("step3", "Step 3 — Entry trigger", "5M SuperTrend (7, 2.5).", Step3Rules),
     new("step4", "Step 4 — Footprint confirmation (5m)", "Final layer only — never trade footprint alone.", Step4LongRules, "Long — all required"),
     new("step4s", "Step 4 — Footprint confirmation (5m)", null, Step4ShortRules, "Short — all required"),

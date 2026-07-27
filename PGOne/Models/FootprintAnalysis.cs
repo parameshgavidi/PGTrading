@@ -15,6 +15,8 @@ public class FootprintAnalysis
   public bool AbsorptionAgainstShort { get; set; }
   public bool NearVolumeNode { get; set; }
   public bool HasUnfinishedAuction { get; set; }
+  /// <summary>True when index candles had zero volume and range was used as activity proxy.</summary>
+  public bool UsesVolumeProxy { get; set; }
   public string Summary { get; set; } = "No data";
 
   public bool ConfirmsLong => PositiveDelta && StackedBuyImbalance && !AbsorptionAgainstLong;
