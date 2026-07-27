@@ -64,14 +64,14 @@ window.pgOneChart = (function () {
         return 'rgba(200, 200, 200, 0.55)';
     }
 
-    function drawPocBackground(ctx, pocToday, padding, width, chartH, toY) {
+    function drawPocBackground(ctx, pocToday, padding, width, chartH, toY, showPoc) {
         const left = padding.left;
         const right = width - padding.right;
         const top = padding.top;
         const bottom = padding.top + chartH;
         const w = right - left;
 
-        if (!pocToday || Number.isNaN(pocToday)) {
+        if (!showPoc || !pocToday || Number.isNaN(pocToday)) {
             ctx.fillStyle = '#121212';
             ctx.fillRect(left, top, w, chartH);
             return;
@@ -109,11 +109,22 @@ window.pgOneChart = (function () {
         });
     }
 
-    function setData(canvasId, candles, timeframe, levels, pocToday) {
+    function filterLevels(st) {
+        return (st.levels || []).filter(function (lv) {
+            if (lv.group === 'cam' && !st.showCamarilla) return false;
+            if ((lv.group === 'today' || lv.group === 'prev') && !st.showPoc) return false;
+            return true;
+        });
+    }
+
+    function setData(canvasId, candles, timeframe, levels, pocToday, overlayOptions) {
         const canvas = document.getElementById(canvasId);
         if (!canvas || !candles || candles.length === 0) return;
 
         const prev = states[canvasId];
+        const opts = overlayOptions || {};
+        const showPoc = opts.showPoc !== false;
+        const showCamarilla = opts.showCamarilla !== false;
         let count, offset;
         if (prev && prev.timeframe === timeframe) {
             count = clamp(prev.count, 12, candles.length);
@@ -126,7 +137,9 @@ window.pgOneChart = (function () {
         states[canvasId] = {
             canvas, candles, timeframe, count, offset,
             levels: levels || [],
-            pocToday: num(pocToday)
+            pocToday: num(pocToday),
+            showPoc: showPoc,
+            showCamarilla: showCamarilla
         };
         ensureInteractions(canvas, canvasId);
         render(canvasId);
@@ -180,7 +193,7 @@ window.pgOneChart = (function () {
         const collect = (key) => view.map(c => num(c[key])).filter(v => v != null && !Number.isNaN(v));
         const highs = view.map(c => Number(c.high));
         const lows = view.map(c => Number(c.low));
-        const levelPrices = (st.levels || []).map(l => Number(l.price)).filter(v => !Number.isNaN(v));
+        const levelPrices = filterLevels(st).map(l => Number(l.price)).filter(v => !Number.isNaN(v));
         const extra = [].concat(collect('superTrend'), collect('keltnerUpperOuter'), collect('keltnerLowerOuter'), collect('vwap'));
         const maxPrice = Math.max(...highs, ...(extra.length ? extra : [Number.MIN_VALUE]), ...(levelPrices.length ? levelPrices : [Number.MIN_VALUE]));
         const minPrice = Math.min(...lows, ...(extra.length ? extra : [Number.MAX_VALUE]), ...(levelPrices.length ? levelPrices : [Number.MAX_VALUE]));
@@ -191,7 +204,7 @@ window.pgOneChart = (function () {
         const toY = (price) => padding.top + ((maxPrice - price) / priceRange) * chartH;
         const toX = (i) => padding.left + slot * i + slot / 2;
 
-        drawPocBackground(ctx, st.pocToday, padding, width, chartH, toY);
+        drawPocBackground(ctx, st.pocToday, padding, width, chartH, toY, st.showPoc);
 
         // Horizontal grid + price labels
         ctx.textBaseline = 'middle';
@@ -264,7 +277,7 @@ window.pgOneChart = (function () {
         drawLine('vwap', '#D4AF37', [2, 2]);
 
         // POC / VA / Camarilla horizontal levels
-        drawLevels(ctx, st.levels, padding, width, toY);
+        drawLevels(ctx, filterLevels(st), padding, width, toY);
 
         // Candles
         view.forEach((candle, i) => {

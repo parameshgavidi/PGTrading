@@ -17,6 +17,8 @@
     [Parameter] public int ChartVersion { get; set; }
     [Parameter] public int OverlayVersion { get; set; }
     [Parameter] public MultiTimeframeAnalysis? Analysis { get; set; }
+    [Parameter] public bool ShowPocLevels { get; set; } = true;
+    [Parameter] public bool ShowCamarillaLevels { get; set; } = true;
     [Parameter] public string Timeframe { get; set; } = "5m";
     [Parameter] public string CssClass { get; set; } = string.Empty;
     [Parameter] public int Width { get; set; } = 800;
@@ -24,17 +26,24 @@
 
     private int _lastRenderedVersion = -1;
     private int _lastOverlayVersion = -1;
+    private bool _lastShowPoc;
+    private bool _lastShowCamarilla;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (Candles.Count == 0)
             return;
 
-        if (ChartVersion == _lastRenderedVersion && OverlayVersion == _lastOverlayVersion)
+        if (ChartVersion == _lastRenderedVersion
+            && OverlayVersion == _lastOverlayVersion
+            && ShowPocLevels == _lastShowPoc
+            && ShowCamarillaLevels == _lastShowCamarilla)
             return;
 
         _lastRenderedVersion = ChartVersion;
         _lastOverlayVersion = OverlayVersion;
+        _lastShowPoc = ShowPocLevels;
+        _lastShowCamarilla = ShowCamarillaLevels;
         await RenderAsync();
     }
 
@@ -67,11 +76,13 @@
         }).ToList();
 
         var levels = BuildLevelPayload();
-        var pocToday = Analysis?.VolumeProfile.HasData == true
+        var pocToday = ShowPocLevels && Analysis?.VolumeProfile.HasData == true
             ? Analysis.VolumeProfile.Poc
             : 0m;
 
-        await InvokeSafe("pgOneChart.drawCandlestickChart", CanvasId, payload, Timeframe, levels, pocToday);
+        var overlayOptions = new { showPoc = ShowPocLevels, showCamarilla = ShowCamarillaLevels };
+
+        await InvokeSafe("pgOneChart.drawCandlestickChart", CanvasId, payload, Timeframe, levels, pocToday, overlayOptions);
     }
 
     private List<object> BuildLevelPayload()
@@ -80,6 +91,12 @@
             return new List<object>();
 
         return SupportResistanceLadderBuilder.Build(Analysis)
+            .Where(row => row.Group switch
+            {
+                "cam" => ShowCamarillaLevels,
+                "today" or "prev" => ShowPocLevels,
+                _ => true
+            })
             .Select(row => new
             {
                 label = row.Label,

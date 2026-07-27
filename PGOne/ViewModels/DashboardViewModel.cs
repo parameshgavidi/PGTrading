@@ -34,6 +34,8 @@ public class DashboardViewModel : INotifyPropertyChanged
     public string SelectedDisplayName => InstrumentMapper.ToDisplayName(SelectedSymbol);
     public int ChartVersion { get; private set; }
     public int OverlayVersion { get; private set; }
+    public bool ShowPocOverlay { get; private set; } = true;
+    public bool ShowCamarillaOverlay { get; private set; } = true;
     public bool IsChartFromZerodha { get; private set; }
     public string? ChartDataMessage { get; private set; }
     public string? LastCandleSummary { get; private set; }
@@ -159,6 +161,28 @@ public class DashboardViewModel : INotifyPropertyChanged
 
     public async Task SetTrailingStopMonitoringAsync(bool enabled)
         => await _trailingStop.SetMonitoringAsync(enabled);
+
+    public void SetShowPocOverlay(bool show)
+    {
+        if (ShowPocOverlay == show)
+            return;
+
+        ShowPocOverlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowPocOverlay));
+        Notify(nameof(OverlayVersion));
+    }
+
+    public void SetShowCamarillaOverlay(bool show)
+    {
+        if (ShowCamarillaOverlay == show)
+            return;
+
+        ShowCamarillaOverlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowCamarillaOverlay));
+        Notify(nameof(OverlayVersion));
+    }
 
     private async Task LoadChartAsync()
     {
