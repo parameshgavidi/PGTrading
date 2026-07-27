@@ -59,6 +59,7 @@ public class DashboardViewModel : INotifyPropertyChanged
     public bool IsTrailingStopMonitoring => _trailingStop.IsMonitoring;
     public int TrailingStopTriggeredCount => TrailingStopItems.Count(i => i.IsTriggered && !i.ExitPlaced);
     public int TrailingStopMonitoringCount => TrailingStopItems.Count;
+    public bool IsDashboardReady { get; private set; }
 
     public DashboardViewModel(
         IMarketDataService marketData,
@@ -82,19 +83,29 @@ public class DashboardViewModel : INotifyPropertyChanged
 
     public async Task InitializeAsync()
     {
-        await LoadChartAsync();
-        await UpdatePriceAsync();
-        Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
-        CurrentSignal = await _signal.GenerateSignalAsync(SelectedSymbol);
-        OverlayVersion++;
-        UpdateSelectedTrend();
-        await _watchlist.RefreshTopWeightageAsync();
-        SyncWatchlists();
-        await RefreshPositionsAsync();
-        await _trailingStop.RefreshAsync();
-        TrailingStopItems = _trailingStop.Items.ToList();
-        Notify();
-        _marketData.StartStreaming(SelectedInstrument);
+        if (IsDashboardReady)
+            return;
+
+        try
+        {
+            await LoadChartAsync();
+            await UpdatePriceAsync();
+            Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
+            CurrentSignal = await _signal.GenerateSignalAsync(SelectedSymbol);
+            OverlayVersion++;
+            UpdateSelectedTrend();
+            await _watchlist.RefreshTopWeightageAsync();
+            SyncWatchlists();
+            await RefreshPositionsAsync();
+            await _trailingStop.RefreshAsync();
+            TrailingStopItems = _trailingStop.Items.ToList();
+            _marketData.StartStreaming(SelectedInstrument);
+        }
+        finally
+        {
+            IsDashboardReady = true;
+            Notify();
+        }
     }
 
     public async Task SelectInstrumentAsync(string symbol)
@@ -442,5 +453,6 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsTrailingStopMonitoring)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TrailingStopTriggeredCount)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TrailingStopMonitoringCount)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsDashboardReady)));
     }
 }

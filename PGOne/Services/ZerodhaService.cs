@@ -47,7 +47,7 @@ public class ZerodhaService : IZerodhaService
     public ZerodhaService(ISettingsService settings)
     {
         _settings = settings;
-        _http = new HttpClient();
+        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
         _ = InitializeAsync();
     }
 

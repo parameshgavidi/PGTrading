@@ -88,7 +88,6 @@ public static class MauiProgram
                     try
                     {
                         webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
-                        webView.CoreWebView2.OpenDevToolsWindow();
                     }
                     catch
                     {

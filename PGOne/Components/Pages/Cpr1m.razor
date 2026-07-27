@@ -55,10 +55,10 @@
 </div>
 
 @code {
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        await ViewModel.InitializeAsync();
         ViewModel.PropertyChanged += (_, _) => InvokeAsync(StateHasChanged);
+        _ = ViewModel.InitializeAsync();
     }
 
     private async Task RefreshAsync() => await ViewModel.RefreshAsync();

@@ -1,6 +1,5 @@
 @page "/chart"
 @inject DashboardViewModel ViewModel
-@implements IDisposable
 
 <div class="page-container">
     <div class="card chart-full">
@@ -88,11 +87,10 @@
 </div>
 
 @code {
-  protected override async Task OnInitializedAsync()
+  protected override void OnInitialized()
   {
-    await ViewModel.InitializeAsync();
     ViewModel.PropertyChanged += (_, _) => InvokeAsync(StateHasChanged);
+    if (!ViewModel.IsDashboardReady)
+      _ = ViewModel.InitializeAsync();
   }
-
-  public void Dispose() { }
 }
