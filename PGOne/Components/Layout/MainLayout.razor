@@ -42,14 +42,9 @@
     private string _pageTitle = "Dashboard";
     private System.Timers.Timer? _timer;
 
-    protected override void OnAfterRender(bool firstRender)
-    {
-        if (firstRender)
-            AppUiEvents.RaiseShellRendered();
-    }
-
     protected override void OnInitialized()
     {
+        AppUiEvents.RaiseShellRendered();
         _isConnected = ZerodhaService.IsConnected;
         ZerodhaService.ConnectionChanged += OnConnectionChanged;
         Navigation.LocationChanged += OnNavigationChanged;
@@ -62,6 +57,12 @@
             InvokeAsync(StateHasChanged);
         };
         _timer.Start();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+            AppUiEvents.RaiseShellRendered();
     }
 
     private void OnConnectionChanged(bool connected)

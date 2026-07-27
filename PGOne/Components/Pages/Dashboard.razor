@@ -79,6 +79,10 @@
                             </div>
                         </div>
                     </div>
+                    @if (!ViewModel.IsDashboardReady)
+                    {
+                        <div class="chart-meta">Loading market data…</div>
+                    }
                     <CandlestickChart CanvasId="priceChart"
                                       Candles="ViewModel.ChartCandles"
                                       ChartVersion="ViewModel.ChartVersion"
@@ -464,15 +468,26 @@
       new("🟡", "Infosys announces buyback plan")
   ];
 
-  protected override async Task OnInitializedAsync()
+  protected override void OnInitialized()
   {
-    await ViewModel.InitializeAsync();
     ViewModel.PropertyChanged += OnViewModelPropertyChanged;
     SentimentViewModel.PropertyChanged += OnSentimentPropertyChanged;
+    _ = LoadDashboardAsync();
+  }
 
-    _refreshTimer = new System.Timers.Timer(30000);
-    _refreshTimer.Elapsed += (_, _) => _ = InvokeAsync(async () => await ViewModel.RefreshAsync());
-    _refreshTimer.Start();
+  private async Task LoadDashboardAsync()
+  {
+    try
+    {
+      await ViewModel.InitializeAsync();
+    }
+    finally
+    {
+      _refreshTimer = new System.Timers.Timer(30000);
+      _refreshTimer.Elapsed += (_, _) => _ = InvokeAsync(async () => await ViewModel.RefreshAsync());
+      _refreshTimer.Start();
+      await InvokeAsync(StateHasChanged);
+    }
   }
 
   private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>

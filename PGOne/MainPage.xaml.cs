@@ -40,14 +40,14 @@ public partial class MainPage : ContentPage
     {
         _ = Task.Run(async () =>
         {
-            await Task.Delay(TimeSpan.FromSeconds(12));
+            await Task.Delay(TimeSpan.FromSeconds(30));
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 if (_uiLoaded || errorPanel.IsVisible)
                     return;
 
                 ShowWebViewError(
-                    "The trading UI did not load within 12 seconds. " +
+                    "The trading UI did not load within 30 seconds. " +
                     "Common fixes: run .\\sync-maui-version.ps1 then rebuild; " +
                     "install WebView2 Runtime (install-webview2.ps1); " +
                     "run .\\clean.ps1 and press F5 again. " +
