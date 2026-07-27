@@ -53,7 +53,7 @@
             </p>
         </div>
 
-        <div class="framework-band-grid">
+        <div class="framework-band-grid framework-band-grid-3">
             <div class="card framework-subcard">
                 <h3>ADX (14) — 1 Hour only</h3>
                 <table class="framework-table framework-band-table">
@@ -90,6 +90,46 @@
                     </tbody>
                 </table>
             </div>
+            <div class="card framework-subcard">
+                <h3>Value area labels (dashboard)</h3>
+                <table class="framework-table framework-band-table">
+                    <thead>
+                        <tr><th>Label</th><th>Rule</th><th>Meaning</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var band in FrameworkPlaybook.VaBiasBands)
+                        {
+                            <tr class="@band.Css">
+                                <td><strong>@band.Band</strong></td>
+                                <td>@band.Range</td>
+                                <td>@band.Meaning</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card framework-subcard">
+            <h3>Camarilla pivot (prev day) — H1/L1 hidden</h3>
+            <p class="framework-group-intro">
+                Mild H1/L1 levels are omitted from UI and rules. Use PP + H2–H4 / L2–L4 as context with POC/VA and CPR.
+            </p>
+            <table class="framework-table">
+                <thead>
+                    <tr><th>Level</th><th>Formula (range = H − L)</th><th>Role</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in FrameworkPlaybook.CamarillaLevels)
+                    {
+                        <tr>
+                            <td><strong>@row.Level</strong></td>
+                            <td>@row.Formula</td>
+                            <td>@row.Role</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
 
         <div class="card framework-subcard framework-flow">
@@ -99,10 +139,11 @@
                 <li><span class="tag range">G1</span> ADX &lt; 18 inside VA → <strong>ROTATION</strong> (Keltner, no breakouts)</li>
                 <li><span class="tag range">G2</span> RSI(28) 45–55 → <strong>RANGE-BOUND</strong> (Keltner)</li>
                 <li><span class="tag step">1</span> 1H ST (10,3) + VWAP → market bias</li>
+                <li><span class="tag step">ctx</span> POC/VA labels + Camarilla PP/H2–L2 + CPR narrow</li>
                 <li><span class="tag step">2</span> 15M ST + ADX(1H) + RSI(28) + POC → trade direction</li>
                 <li><span class="tag step">3</span> 5M ST (7,2.5) → entry trigger</li>
-                <li><span class="tag step">4</span> Footprint on 5m → confirmation</li>
-                <li><span class="tag step">5</span> Exit: prev POC/VAH/VAL or 5M ST reversal</li>
+                <li><span class="tag step">4</span> Footprint on 5m → delta + imbalances + no absorption</li>
+                <li><span class="tag step">5</span> Exit: prev POC/VAH/VAL, Camarilla ladder, or 5M ST reversal</li>
             </ol>
         </div>
 
@@ -193,8 +234,10 @@
         ("RSI", "1 Hour", "Length 28", "Momentum; 45–55 = range"),
         ("RSI", "5 Minutes", "Length 14", "Reversal guard only (< 30)"),
         ("Footprint", "5 Minutes", "Delta + imbalances", "Final confirmation"),
-        ("POC / VAH / VAL", "Current session", "Session profile", "Bias (above/below POC)"),
-        ("Prev POC / VAH / VAL", "Previous session", "Prev session", "Targets & S/R")
+        ("POC / VAH / VAL", "Current session", "Label only", "Bullish if > POC and > VAH"),
+        ("Prev POC / VAH / VAL", "Previous session", "Label only", "Same rules on prev levels"),
+        ("Camarilla", "Previous day HLC", "PP, H2–H4, L2–L4", "Context — H1/L1 hidden"),
+        ("CPR", "Previous day", "Pivot + TC/BC", "Narrow CPR trend-day context")
     ];
 
     private static readonly IReadOnlyList<string> PriorityItems =
@@ -205,7 +248,9 @@
         "5M SuperTrend (7,2.5) entry",
         "ADX (14) on 1H",
         "RSI (28) on 1H",
-        "Footprint — Delta, stacked imbalances, no opposing absorption",
-        "Previous-day POC / VAH / VAL"
+        "POC / VAH / VAL labels (above POC+VAH / below POC+VAL)",
+        "Camarilla PP + H2–L4 / L2–L4 (context)",
+        "Footprint — delta, stacked imbalances, no opposing absorption",
+        "Previous-day POC / VAH / VAL targets"
     ];
 }

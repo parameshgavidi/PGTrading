@@ -136,4 +136,26 @@ public class TradeFrameworkEvaluatorTests
     Assert.Equal(TrendDirection.Sell, profile.GetPrevDayValueAreaBias(84m));
     Assert.Equal(TrendDirection.Neutral, profile.GetPrevDayValueAreaBias(100m));
   }
+
+  [Fact]
+  public void Footprint_volume_proxy_uses_range_when_volume_zero()
+  {
+    var bullish = new Candle { High = 110, Low = 100, Close = 109, Open = 105, Volume = 0 };
+    var bearish = new Candle { High = 110, Low = 100, Close = 101, Open = 105, Volume = 0 };
+
+    var (bullBuy, bullSell) = FootprintVolumeEstimator.EstimateBidAskVolume(bullish);
+    var (bearBuy, bearSell) = FootprintVolumeEstimator.EstimateBidAskVolume(bearish);
+
+    Assert.True(bullBuy > bullSell);
+    Assert.True(bearSell > bearBuy);
+  }
+
+  [Fact]
+  public void Footprint_volume_zero_without_range_is_flat()
+  {
+    var flat = new Candle { High = 100, Low = 100, Close = 100, Open = 100, Volume = 0 };
+    var (buy, sell) = FootprintVolumeEstimator.EstimateBidAskVolume(flat);
+    Assert.Equal(0, buy);
+    Assert.Equal(0, sell);
+  }
 }
