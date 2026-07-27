@@ -200,15 +200,18 @@
                         <td>Footprint</td>
                         <td class="@(ViewModel.Analysis.FootprintConfirmed ? "buy" : "sell")">@ViewModel.Analysis.Footprint.Summary</td>
                     </tr>
-                    @if (ViewModel.Analysis.VolumeProfile.HasData || ViewModel.Analysis.VolumeProfile.PrevDayPoc > 0)
+                    @if (ViewModel.Analysis.VolumeProfile.HasData)
                     {
                         <tr>
                             <td>POC / VAH / VAL</td>
-                            <td>@ViewModel.Analysis.VolumeProfile.Poc.ToString("N2") / @ViewModel.Analysis.VolumeProfile.Vah.ToString("N2") / @ViewModel.Analysis.VolumeProfile.Val.ToString("N2")</td>
+                            <td class="@TrendUi.GetClass(ViewModel.Analysis.SessionVaBias)">@TrendUi.GetBiasLabel(ViewModel.Analysis.SessionVaBias)</td>
                         </tr>
+                    }
+                    @if (ViewModel.Analysis.VolumeProfile.PrevDayPoc > 0)
+                    {
                         <tr>
                             <td>Prev POC / VAH / VAL</td>
-                            <td>@ViewModel.Analysis.VolumeProfile.PrevDayPoc.ToString("N2") / @ViewModel.Analysis.VolumeProfile.PrevDayVah.ToString("N2") / @ViewModel.Analysis.VolumeProfile.PrevDayVal.ToString("N2")</td>
+                            <td class="@TrendUi.GetClass(ViewModel.Analysis.PrevDayVaBias)">@TrendUi.GetBiasLabel(ViewModel.Analysis.PrevDayVaBias)</td>
                         </tr>
                     }
                     <tr>

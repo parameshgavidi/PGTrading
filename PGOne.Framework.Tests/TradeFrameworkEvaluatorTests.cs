@@ -113,4 +113,27 @@ public class TradeFrameworkEvaluatorTests
     Assert.Equal(TrendDirection.Sell, bear.Bias);
     Assert.Equal(TrendDirection.Neutral, neutral.Bias);
   }
+
+  [Fact]
+  public void Value_area_bias_above_poc_and_vah_is_bullish()
+  {
+    var profile = new VolumeProfileLevels
+    {
+      HasData = true,
+      Poc = 100,
+      Vah = 110,
+      Val = 90,
+      PrevDayPoc = 95,
+      PrevDayVah = 105,
+      PrevDayVal = 85
+    };
+
+    Assert.Equal(TrendDirection.Buy, profile.GetSessionValueAreaBias(111m));
+    Assert.Equal(TrendDirection.Sell, profile.GetSessionValueAreaBias(89m));
+    Assert.Equal(TrendDirection.Neutral, profile.GetSessionValueAreaBias(100m));
+
+    Assert.Equal(TrendDirection.Buy, profile.GetPrevDayValueAreaBias(106m));
+    Assert.Equal(TrendDirection.Sell, profile.GetPrevDayValueAreaBias(84m));
+    Assert.Equal(TrendDirection.Neutral, profile.GetPrevDayValueAreaBias(100m));
+  }
 }
