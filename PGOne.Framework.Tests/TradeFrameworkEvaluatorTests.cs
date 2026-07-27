@@ -158,4 +158,37 @@ public class TradeFrameworkEvaluatorTests
     Assert.Equal(0, buy);
     Assert.Equal(0, sell);
   }
+
+  [Fact]
+  public void Ai_15m_st_bullish_aligned_passes_when_trade_direction_pending()
+  {
+    var analysis = new MultiTimeframeAnalysis
+    {
+      MarketBias = TrendDirection.Buy,
+      Trend15M = TrendDirection.Buy,
+      TradeDirection = TrendDirection.Neutral
+    };
+
+    Assert.Equal("pass", AiInsightHelper.Get15MStCheckState(analysis));
+  }
+
+  [Fact]
+  public void Ai_15m_st_opposing_market_bias_fails()
+  {
+    var analysis = new MultiTimeframeAnalysis
+    {
+      MarketBias = TrendDirection.Buy,
+      Trend15M = TrendDirection.Sell
+    };
+
+    Assert.Equal("fail", AiInsightHelper.Get15MStCheckState(analysis));
+  }
+
+  [Fact]
+  public void Ai_rsi_55_is_warn_not_pass()
+  {
+    var analysis = new MultiTimeframeAnalysis { RsiTrend = 55m };
+    var rsiCheck = AiInsightHelper.BuildChecks(analysis).First(c => c.Label.StartsWith("RSI"));
+    Assert.Equal("warn", rsiCheck.State);
+  }
 }

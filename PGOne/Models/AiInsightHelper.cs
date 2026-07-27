@@ -16,21 +16,44 @@ public static class AiInsightHelper
             : analysis.Adx >= 18 ? "warn"
             : "fail";
 
-        var rsiState = analysis.RsiTrend >= 55 || analysis.RsiTrend <= 45 ? "pass"
+        var rsiState = analysis.RsiTrend > 55 || analysis.RsiTrend < 45 ? "pass"
             : analysis.RsiTrend < 30 || analysis.RsiTrend > 70 ? "fail"
             : "warn";
 
+        var st1HState = marketBiasPass ? "pass"
+            : analysis.Trend1H == TrendDirection.Neutral ? "fail"
+            : "warn";
+
+        var st15MState = Get15MStCheckState(analysis);
+
         return
         [
-            new($"1H ST {TrendUi.GetSuperTrendLabel(analysis.Trend1H)}", marketBiasPass ? "pass" : analysis.Trend1H == TrendDirection.Neutral ? "fail" : "warn"),
+            new($"{TrendUi.GetIcon(analysis.Trend1H)} 1H ST {TrendUi.GetSuperTrendLabel(analysis.Trend1H)}", st1HState),
             new(analysis.AboveVwap ? "Above VWAP" : "Below VWAP", analysis.MarketBias != TrendDirection.Neutral ? "pass" : "warn"),
-            new($"15M ST {TrendUi.GetSuperTrendLabel(analysis.Trend15M)}", tradeDirPass ? "pass" : analysis.Trend15M == TrendDirection.Neutral ? "warn" : "fail"),
+            new($"{TrendUi.GetIcon(analysis.Trend15M)} 15M ST {TrendUi.GetSuperTrendLabel(analysis.Trend15M)}", st15MState),
             new(analysis.Adx >= 25 ? "ADX Strong" : analysis.Adx >= 18 ? $"ADX Moderate {analysis.Adx:N0}" : $"ADX Choppy {analysis.Adx:N0}", adxState),
             new($"RSI(28) {analysis.RsiTrend:N0}", rsiState),
             new(tpoPass ? "POC Confirmed" : analysis.Tpo.Summary, tpoPass ? "pass" : analysis.IsRotationRegime ? "fail" : "warn"),
-            new($"Entry ST {TrendUi.GetSuperTrendLabel(analysis.Trend5MEntry)}", entryPass ? "pass" : "warn"),
+            new($"{TrendUi.GetIcon(analysis.Trend5MEntry)} Entry ST {TrendUi.GetSuperTrendLabel(analysis.Trend5MEntry)}", entryPass ? "pass" : "warn"),
             new(footprintPass ? "Footprint OK" : analysis.Footprint.Summary, footprintPass ? "pass" : "warn")
         ];
+    }
+
+    /// <summary>
+    /// 15M ST check reflects alignment with market bias (Step 2 partial), not full trade direction.
+    /// </summary>
+    public static string Get15MStCheckState(MultiTimeframeAnalysis analysis)
+    {
+        if (analysis.MarketBias == TrendDirection.Neutral)
+            return analysis.Trend15M == TrendDirection.Neutral ? "warn" : "warn";
+
+        if (analysis.Trend15M == analysis.MarketBias)
+            return "pass";
+
+        if (analysis.Trend15M == TrendDirection.Neutral)
+            return "warn";
+
+        return "fail";
     }
 
     public static string GetSuggestedAction(Signal signal, MultiTimeframeAnalysis analysis)
