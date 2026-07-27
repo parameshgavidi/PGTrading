@@ -93,24 +93,22 @@
             ? Analysis.VolumeProfile.Poc
             : 0m;
 
-        var intradayCpr = is1mCpr
-            ? CprSegments.Select(s => new
-            {
-                start = s.Start.ToString("o"),
-                end = s.End.ToString("o"),
-                pivot = s.Pivot,
-                tc = s.Tc,
-                bc = s.Bc
-            }).ToList()
-            : null;
+        var segmentPayload = CprSegments.Select(s => new
+        {
+            start = s.Start.ToString("o"),
+            end = s.End.ToString("o"),
+            pivot = s.Pivot,
+            tc = s.Tc,
+            bc = s.Bc
+        }).ToList();
 
         var overlayOptions = new
         {
             showPoc = ShowPocLevels,
             showPivot = ShowPivotLevels,
             showCamarilla = ShowCamarillaLevels,
-            showIntradaCpr = is1mCpr,
-            intradayCpr = intradayCpr
+            showIntradaCpr = is1mCpr && segmentPayload.Count > 0,
+            intradayCpr = segmentPayload
         };
 
         await InvokeSafe("pgOneChart.drawCandlestickChart", CanvasId, payload, Timeframe, levels, pocToday, overlayOptions);

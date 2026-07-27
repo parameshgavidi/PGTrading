@@ -79,6 +79,10 @@
                             </div>
                         </div>
                     </div>
+                    @if (!string.IsNullOrEmpty(ViewModel.StartupError))
+                    {
+                        <div class="chart-meta warning">Startup: @ViewModel.StartupError</div>
+                    }
                     @if (!ViewModel.IsDashboardReady)
                     {
                         <div class="chart-meta">Loading market data…</div>
@@ -480,6 +484,10 @@
     try
     {
       await ViewModel.InitializeAsync();
+    }
+    catch (Exception)
+    {
+      await InvokeAsync(StateHasChanged);
     }
     finally
     {
