@@ -266,8 +266,11 @@ public class DashboardViewModel : INotifyPropertyChanged
         catch (Exception ex)
         {
             ChartDataMessage = $"Chart load failed: {ex.Message}";
-            if (SelectedTimeframe != "1m")
-                CprSegments = Array.Empty<IntradayCprSegment>();
+            CprSegments = Array.Empty<IntradayCprSegment>();
+            CurrentIntradayTc = 0;
+            CurrentIntradayPivot = 0;
+            CurrentIntradayBc = 0;
+            AboveCpr = false;
         }
     }
 
@@ -282,30 +285,40 @@ public class DashboardViewModel : INotifyPropertyChanged
 
     private void UpdateIntradayCprState()
     {
-        if (SelectedTimeframe != "1m" || CprSegments.Count == 0)
+        try
+        {
+            if (SelectedTimeframe != "1m" || CprSegments.Count == 0)
+            {
+                CurrentIntradayTc = 0;
+                CurrentIntradayPivot = 0;
+                CurrentIntradayBc = 0;
+                AboveCpr = false;
+                return;
+            }
+
+            var activeTime = ChartCandles.Count > 0
+                ? ChartCandles[^1].Timestamp
+                : MarketHours.GetIstNow();
+
+            var active = _intradayCpr.GetActiveSegment(CprSegments, activeTime);
+            if (active is null)
+                return;
+
+            CurrentIntradayTc = active.Tc;
+            CurrentIntradayPivot = active.Pivot;
+            CurrentIntradayBc = active.Bc;
+
+            var lastClose = ChartCandles.Count > 0 ? ChartCandles[^1].Close : 0m;
+            var price = NiftyPrice > 0 ? NiftyPrice : lastClose;
+            AboveCpr = price > 0 && price >= active.Pivot;
+        }
+        catch
         {
             CurrentIntradayTc = 0;
             CurrentIntradayPivot = 0;
             CurrentIntradayBc = 0;
             AboveCpr = false;
-            return;
         }
-
-        var activeTime = ChartCandles.Count > 0
-            ? ChartCandles[^1].Timestamp
-            : MarketHours.GetIstNow();
-
-        var active = _intradayCpr.GetActiveSegment(CprSegments, activeTime);
-        if (active is null)
-            return;
-
-        CurrentIntradayTc = active.Tc;
-        CurrentIntradayPivot = active.Pivot;
-        CurrentIntradayBc = active.Bc;
-
-        var lastClose = ChartCandles.Count > 0 ? ChartCandles[^1].Close : 0m;
-        var price = NiftyPrice > 0 ? NiftyPrice : lastClose;
-        AboveCpr = price > 0 && price >= active.Pivot;
     }
 
     private static int GetCandleCount(string timeframe) => timeframe switch

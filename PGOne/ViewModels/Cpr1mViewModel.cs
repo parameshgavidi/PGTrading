@@ -47,41 +47,48 @@ public class Cpr1mViewModel : INotifyPropertyChanged
 
     public async Task RefreshAsync()
     {
-        var sessionDate = MarketHours.GetIstNow().Date;
-        if (!MarketHours.IsOpen() && MarketHours.GetIstNow().TimeOfDay < MarketHours.OpenTime)
-            sessionDate = sessionDate.AddDays(sessionDate.DayOfWeek == DayOfWeek.Monday ? -3 : -1);
-
-        var candles1m = await _marketData.GetCandlesResultAsync(Instrument, "1m", 450);
-        var candles15m = await _marketData.GetCandlesResultAsync(Instrument, "15m", 80);
-
-        ChartCandles = candles1m.Candles
-            .Where(c => c.Timestamp.Date == sessionDate)
-            .ToList();
-        if (ChartCandles.Count == 0)
-            ChartCandles = candles1m.Candles;
-        IsChartFromZerodha = candles1m.IsFromZerodha;
-        ChartDataMessage = candles1m.IsFromZerodha
-            ? $"Zerodha 1m candles ({ChartCandles.Count} bars) · CPR updates every 15m"
-            : candles1m.Error ?? "Demo 1m candle data";
-
-        CprSegments = _intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
-        ChartVersion++;
-
-        var quote = await _marketData.GetQuoteAsync(Instrument);
-        LastPrice = quote?.LastPrice ?? ChartCandles.LastOrDefault()?.Close ?? 0m;
-        DayChangePercent = quote?.ChangePercent ?? 0m;
-
-        var activeTime = ChartCandles.Count > 0
-            ? ChartCandles[^1].Timestamp
-            : MarketHours.GetIstNow();
-
-        var active = _intradayCpr.GetActiveSegment(CprSegments, activeTime);
-        if (active is not null)
+        try
         {
-            CurrentPivot = active.Pivot;
-            CurrentTc = active.Tc;
-            CurrentBc = active.Bc;
-            AboveCpr = LastPrice > 0 && LastPrice >= active.Pivot;
+            var sessionDate = MarketHours.GetIstNow().Date;
+            if (!MarketHours.IsOpen() && MarketHours.GetIstNow().TimeOfDay < MarketHours.OpenTime)
+                sessionDate = sessionDate.AddDays(sessionDate.DayOfWeek == DayOfWeek.Monday ? -3 : -1);
+
+            var candles1m = await _marketData.GetCandlesResultAsync(Instrument, "1m", 450);
+            var candles15m = await _marketData.GetCandlesResultAsync(Instrument, "15m", 80);
+
+            ChartCandles = candles1m.Candles
+                .Where(c => c.Timestamp.Date == sessionDate)
+                .ToList();
+            if (ChartCandles.Count == 0)
+                ChartCandles = candles1m.Candles;
+            IsChartFromZerodha = candles1m.IsFromZerodha;
+            ChartDataMessage = candles1m.IsFromZerodha
+                ? $"Zerodha 1m candles ({ChartCandles.Count} bars) · CPR updates every 15m"
+                : candles1m.Error ?? "Demo 1m candle data";
+
+            CprSegments = _intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
+            ChartVersion++;
+
+            var quote = await _marketData.GetQuoteAsync(Instrument);
+            LastPrice = quote?.LastPrice ?? ChartCandles.LastOrDefault()?.Close ?? 0m;
+            DayChangePercent = quote?.ChangePercent ?? 0m;
+
+            var activeTime = ChartCandles.Count > 0
+                ? ChartCandles[^1].Timestamp
+                : MarketHours.GetIstNow();
+
+            var active = _intradayCpr.GetActiveSegment(CprSegments, activeTime);
+            if (active is not null)
+            {
+                CurrentPivot = active.Pivot;
+                CurrentTc = active.Tc;
+                CurrentBc = active.Bc;
+                AboveCpr = LastPrice > 0 && LastPrice >= active.Pivot;
+            }
+        }
+        catch (Exception ex)
+        {
+            ChartDataMessage = $"1m CPR load failed: {ex.Message}";
         }
 
         Notify();
