@@ -4,7 +4,12 @@
     <button type="button"
             class="btn overlay-toggle @(ShowPoc ? "active" : "")"
             @onclick="TogglePocAsync">
-        POC / VA
+        POC
+    </button>
+    <button type="button"
+            class="btn overlay-toggle @(ShowPivot ? "active" : "")"
+            @onclick="TogglePivotAsync">
+        Pivot
     </button>
     <button type="button"
             class="btn overlay-toggle @(ShowCamarilla ? "active" : "")"
@@ -15,11 +20,15 @@
 
 @code {
     [Parameter] public bool ShowPoc { get; set; } = true;
+    [Parameter] public bool ShowPivot { get; set; } = true;
     [Parameter] public bool ShowCamarilla { get; set; } = true;
     [Parameter] public EventCallback<bool> ShowPocChanged { get; set; }
+    [Parameter] public EventCallback<bool> ShowPivotChanged { get; set; }
     [Parameter] public EventCallback<bool> ShowCamarillaChanged { get; set; }
 
     private async Task TogglePocAsync() => await ShowPocChanged.InvokeAsync(!ShowPoc);
+
+    private async Task TogglePivotAsync() => await ShowPivotChanged.InvokeAsync(!ShowPivot);
 
     private async Task ToggleCamarillaAsync() => await ShowCamarillaChanged.InvokeAsync(!ShowCamarilla);
 }

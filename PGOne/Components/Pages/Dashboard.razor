@@ -81,6 +81,7 @@
                                       OverlayVersion="ViewModel.OverlayVersion"
                                       Analysis="ViewModel.Analysis"
                                       ShowPocLevels="ViewModel.ShowPocOverlay"
+                                      ShowPivotLevels="ViewModel.ShowPivotOverlay"
                                       ShowCamarillaLevels="ViewModel.ShowCamarillaOverlay"
                                       Timeframe="ViewModel.SelectedTimeframe"
                                       Width="900"
@@ -94,9 +95,27 @@
                         }
                         </div>
                         <ChartOverlayToggles ShowPoc="ViewModel.ShowPocOverlay"
+                                             ShowPivot="ViewModel.ShowPivotOverlay"
                                              ShowCamarilla="ViewModel.ShowCamarillaOverlay"
                                              ShowPocChanged="v => ViewModel.SetShowPocOverlay(v)"
+                                             ShowPivotChanged="v => ViewModel.SetShowPivotOverlay(v)"
                                              ShowCamarillaChanged="v => ViewModel.SetShowCamarillaOverlay(v)" />
+                    </div>
+                    <div class="chart-legend">
+                        <span class="legend-item"><span class="legend-color buy"></span> SuperTrend BUY</span>
+                        <span class="legend-item"><span class="legend-color sell"></span> SuperTrend SELL</span>
+                        @if (ViewModel.ShowPocOverlay)
+                        {
+                            <span class="legend-item"><span class="legend-color poc"></span> POC / VA</span>
+                        }
+                        @if (ViewModel.ShowPivotOverlay)
+                        {
+                            <span class="legend-item"><span class="legend-color pivot"></span> Pivot / CPR</span>
+                        }
+                        @if (ViewModel.ShowCamarillaOverlay)
+                        {
+                            <span class="legend-item"><span class="legend-color camarilla"></span> Camarilla</span>
+                        }
                     </div>
                     @if (!string.IsNullOrEmpty(ViewModel.ChartDataMessage))
                     {

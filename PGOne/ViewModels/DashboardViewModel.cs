@@ -35,6 +35,7 @@ public class DashboardViewModel : INotifyPropertyChanged
     public int ChartVersion { get; private set; }
     public int OverlayVersion { get; private set; }
     public bool ShowPocOverlay { get; private set; } = true;
+    public bool ShowPivotOverlay { get; private set; } = true;
     public bool ShowCamarillaOverlay { get; private set; } = true;
     public bool IsChartFromZerodha { get; private set; }
     public string? ChartDataMessage { get; private set; }
@@ -170,6 +171,17 @@ public class DashboardViewModel : INotifyPropertyChanged
         ShowPocOverlay = show;
         OverlayVersion++;
         Notify(nameof(ShowPocOverlay));
+        Notify(nameof(OverlayVersion));
+    }
+
+    public void SetShowPivotOverlay(bool show)
+    {
+        if (ShowPivotOverlay == show)
+            return;
+
+        ShowPivotOverlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowPivotOverlay));
         Notify(nameof(OverlayVersion));
     }
 
@@ -327,6 +339,9 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Top10Watchlist)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ChartCandles)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(OverlayVersion)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowPocOverlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowPivotOverlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowCamarillaOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsMarketOpen)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(MarketStatus)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NiftyChange)));

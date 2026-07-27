@@ -29,6 +29,9 @@ public class MultiTimeframeAnalysis
     public string Cpr { get; set; } = "Neutral";
     public bool CprNarrow { get; set; }
     public decimal CprWidthPercent { get; set; }
+    public decimal CprPivot { get; set; }
+    public decimal CprTc { get; set; }
+    public decimal CprBc { get; set; }
 
     // 5m VWAP context.
     public decimal Vwap5M { get; set; }
