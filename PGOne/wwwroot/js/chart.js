@@ -47,7 +47,53 @@ window.pgOneChart = (function () {
         render(id);
     }
 
-    function setData(canvasId, candles, timeframe) {
+    function levelColor(level) {
+        const g = level.group || '';
+        const kind = level.kind || '';
+        if (g === 'today') {
+            if (kind === 'sell') return 'rgba(255, 82, 82, 0.85)';
+            if (kind === 'buy') return 'rgba(0, 200, 83, 0.85)';
+            return 'rgba(212, 175, 55, 0.9)';
+        }
+        if (g === 'prev') return 'rgba(160, 160, 160, 0.65)';
+        if (g === 'cam') {
+            if (kind === 'sell') return 'rgba(255, 150, 110, 0.75)';
+            if (kind === 'buy') return 'rgba(100, 210, 150, 0.75)';
+            return 'rgba(190, 190, 230, 0.8)';
+        }
+        return 'rgba(200, 200, 200, 0.55)';
+    }
+
+    function drawLevels(ctx, levels, padding, width, chartH, toY) {
+        if (!levels || levels.length === 0) return;
+
+        levels.forEach(function (lv) {
+            const price = Number(lv.price);
+            if (!price || Number.isNaN(price)) return;
+
+            const y = toY(price);
+            const color = levelColor(lv);
+            const dash = lv.group === 'prev' ? [5, 4] : [8, 4];
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lv.group === 'today' ? 1.35 : 1;
+            ctx.setLineDash(dash);
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(width - padding.right, y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.font = 'bold 10px "Segoe UI", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillStyle = color;
+            const label = (lv.label || 'Level') + ' ' + price.toFixed(2);
+            const textY = y < padding.top + 14 ? y + 14 : y - 5;
+            ctx.fillText(label, padding.left + 4, textY);
+        });
+    }
+
+    function setData(canvasId, candles, timeframe, levels) {
         const canvas = document.getElementById(canvasId);
         if (!canvas || !candles || candles.length === 0) return;
 
@@ -61,7 +107,7 @@ window.pgOneChart = (function () {
             offset = 0;
         }
 
-        states[canvasId] = { canvas, candles, timeframe, count, offset };
+        states[canvasId] = { canvas, candles, timeframe, count, offset, levels: levels || [] };
         ensureInteractions(canvas, canvasId);
         render(canvasId);
     }
@@ -114,9 +160,10 @@ window.pgOneChart = (function () {
         const collect = (key) => view.map(c => num(c[key])).filter(v => v != null && !Number.isNaN(v));
         const highs = view.map(c => Number(c.high));
         const lows = view.map(c => Number(c.low));
+        const levelPrices = (st.levels || []).map(l => Number(l.price)).filter(v => !Number.isNaN(v));
         const extra = [].concat(collect('superTrend'), collect('keltnerUpperOuter'), collect('keltnerLowerOuter'), collect('vwap'));
-        const maxPrice = Math.max(...highs, ...(extra.length ? extra : [Number.MIN_VALUE]));
-        const minPrice = Math.min(...lows, ...(extra.length ? extra : [Number.MAX_VALUE]));
+        const maxPrice = Math.max(...highs, ...(extra.length ? extra : [Number.MIN_VALUE]), ...(levelPrices.length ? levelPrices : [Number.MIN_VALUE]));
+        const minPrice = Math.min(...lows, ...(extra.length ? extra : [Number.MAX_VALUE]), ...(levelPrices.length ? levelPrices : [Number.MAX_VALUE]));
         const priceRange = (maxPrice - minPrice) || 1;
         const slot = chartW / view.length;
         const candleWidth = Math.max(1.5, slot - 2);
@@ -193,6 +240,9 @@ window.pgOneChart = (function () {
 
         // VWAP
         drawLine('vwap', '#D4AF37', [2, 2]);
+
+        // POC / VA / Camarilla horizontal levels
+        drawLevels(ctx, st.levels, padding, width, chartH, toY);
 
         // Candles
         view.forEach((candle, i) => {
