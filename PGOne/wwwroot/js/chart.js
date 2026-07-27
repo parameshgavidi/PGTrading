@@ -64,7 +64,29 @@ window.pgOneChart = (function () {
         return 'rgba(200, 200, 200, 0.55)';
     }
 
-    function drawLevels(ctx, levels, padding, width, chartH, toY) {
+    function drawPocBackground(ctx, pocToday, padding, width, chartH, toY) {
+        const left = padding.left;
+        const right = width - padding.right;
+        const top = padding.top;
+        const bottom = padding.top + chartH;
+        const w = right - left;
+
+        if (!pocToday || Number.isNaN(pocToday)) {
+            ctx.fillStyle = '#121212';
+            ctx.fillRect(left, top, w, chartH);
+            return;
+        }
+
+        const y = clamp(toY(pocToday), top, bottom);
+
+        ctx.fillStyle = 'rgba(0, 200, 83, 0.1)';
+        ctx.fillRect(left, top, w, y - top);
+
+        ctx.fillStyle = 'rgba(255, 82, 82, 0.1)';
+        ctx.fillRect(left, y, w, bottom - y);
+    }
+
+    function drawLevels(ctx, levels, padding, width, toY) {
         if (!levels || levels.length === 0) return;
 
         levels.forEach(function (lv) {
@@ -74,26 +96,20 @@ window.pgOneChart = (function () {
             const y = toY(price);
             const color = levelColor(lv);
             const dash = lv.group === 'prev' ? [5, 4] : [8, 4];
+            const isPocToday = (lv.label || '').toLowerCase().startsWith('poc today');
 
             ctx.strokeStyle = color;
-            ctx.lineWidth = lv.group === 'today' ? 1.35 : 1;
+            ctx.lineWidth = isPocToday ? 1.75 : lv.group === 'today' ? 1.35 : 1;
             ctx.setLineDash(dash);
             ctx.beginPath();
             ctx.moveTo(padding.left, y);
             ctx.lineTo(width - padding.right, y);
             ctx.stroke();
             ctx.setLineDash([]);
-
-            ctx.font = 'bold 10px "Segoe UI", sans-serif';
-            ctx.textAlign = 'left';
-            ctx.fillStyle = color;
-            const label = (lv.label || 'Level') + ' ' + price.toFixed(2);
-            const textY = y < padding.top + 14 ? y + 14 : y - 5;
-            ctx.fillText(label, padding.left + 4, textY);
         });
     }
 
-    function setData(canvasId, candles, timeframe, levels) {
+    function setData(canvasId, candles, timeframe, levels, pocToday) {
         const canvas = document.getElementById(canvasId);
         if (!canvas || !candles || candles.length === 0) return;
 
@@ -107,7 +123,11 @@ window.pgOneChart = (function () {
             offset = 0;
         }
 
-        states[canvasId] = { canvas, candles, timeframe, count, offset, levels: levels || [] };
+        states[canvasId] = {
+            canvas, candles, timeframe, count, offset,
+            levels: levels || [],
+            pocToday: num(pocToday)
+        };
         ensureInteractions(canvas, canvasId);
         render(canvasId);
     }
@@ -170,6 +190,8 @@ window.pgOneChart = (function () {
 
         const toY = (price) => padding.top + ((maxPrice - price) / priceRange) * chartH;
         const toX = (i) => padding.left + slot * i + slot / 2;
+
+        drawPocBackground(ctx, st.pocToday, padding, width, chartH, toY);
 
         // Horizontal grid + price labels
         ctx.textBaseline = 'middle';
@@ -242,7 +264,7 @@ window.pgOneChart = (function () {
         drawLine('vwap', '#D4AF37', [2, 2]);
 
         // POC / VA / Camarilla horizontal levels
-        drawLevels(ctx, st.levels, padding, width, chartH, toY);
+        drawLevels(ctx, st.levels, padding, width, toY);
 
         // Candles
         view.forEach((candle, i) => {

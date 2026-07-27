@@ -67,8 +67,11 @@
         }).ToList();
 
         var levels = BuildLevelPayload();
+        var pocToday = Analysis?.VolumeProfile.HasData == true
+            ? Analysis.VolumeProfile.Poc
+            : 0m;
 
-        await InvokeSafe("pgOneChart.drawCandlestickChart", CanvasId, payload, Timeframe, levels);
+        await InvokeSafe("pgOneChart.drawCandlestickChart", CanvasId, payload, Timeframe, levels, pocToday);
     }
 
     private List<object> BuildLevelPayload()
