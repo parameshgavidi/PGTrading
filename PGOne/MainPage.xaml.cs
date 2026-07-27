@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Components.WebView.Maui;
+
 namespace PGOne;
 
 public partial class MainPage : ContentPage
@@ -16,8 +18,16 @@ public partial class MainPage : ContentPage
         MainThread.BeginInvokeOnMainThread(NotifyBlazorUiLoaded);
     }
 
-    private void OnBlazorWebViewInitialized(object? sender, EventArgs e)
+    private void OnBlazorWebViewInitialized(object? sender, BlazorWebViewInitializedEventArgs e)
     {
+        if (e.Exception is not null)
+        {
+            ShowWebViewError(
+                "Blazor WebView failed to start: " + e.Exception.Message +
+                "\n\nRun .\\verify-build.ps1 and .\\clean.ps1 then rebuild (F5).");
+            return;
+        }
+
         statusBanner.Text = "Loading PG One UI…";
         errorPanel.IsVisible = false;
     }
