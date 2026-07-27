@@ -61,6 +61,11 @@ window.pgOneChart = (function () {
             if (kind === 'buy') return 'rgba(100, 210, 150, 0.75)';
             return 'rgba(190, 190, 230, 0.8)';
         }
+        if (g === 'cpr') {
+            if (kind === 'sell') return 'rgba(255, 193, 7, 0.75)';
+            if (kind === 'buy') return 'rgba(100, 181, 246, 0.75)';
+            return 'rgba(212, 175, 55, 0.85)';
+        }
         return 'rgba(200, 200, 200, 0.55)';
     }
 
@@ -112,6 +117,7 @@ window.pgOneChart = (function () {
     function filterLevels(st) {
         return (st.levels || []).filter(function (lv) {
             if (lv.group === 'cam' && !st.showCamarilla) return false;
+            if (lv.group === 'cpr' && !st.showPivot) return false;
             if ((lv.group === 'today' || lv.group === 'prev') && !st.showPoc) return false;
             return true;
         });
@@ -124,6 +130,7 @@ window.pgOneChart = (function () {
         const prev = states[canvasId];
         const opts = overlayOptions || {};
         const showPoc = opts.showPoc !== false;
+        const showPivot = opts.showPivot !== false;
         const showCamarilla = opts.showCamarilla !== false;
         let count, offset;
         if (prev && prev.timeframe === timeframe) {
@@ -139,6 +146,7 @@ window.pgOneChart = (function () {
             levels: levels || [],
             pocToday: num(pocToday),
             showPoc: showPoc,
+            showPivot: showPivot,
             showCamarilla: showCamarilla
         };
         ensureInteractions(canvas, canvasId);
