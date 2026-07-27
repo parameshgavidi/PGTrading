@@ -60,6 +60,7 @@ public class DashboardViewModel : INotifyPropertyChanged
     public int TrailingStopTriggeredCount => TrailingStopItems.Count(i => i.IsTriggered && !i.ExitPlaced);
     public int TrailingStopMonitoringCount => TrailingStopItems.Count;
     public bool IsDashboardReady { get; private set; }
+    public string? StartupError { get; private set; }
 
     public DashboardViewModel(
         IMarketDataService marketData,
@@ -88,6 +89,7 @@ public class DashboardViewModel : INotifyPropertyChanged
 
         try
         {
+            StartupError = null;
             await LoadChartAsync();
             await UpdatePriceAsync();
             Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
@@ -100,6 +102,11 @@ public class DashboardViewModel : INotifyPropertyChanged
             await _trailingStop.RefreshAsync();
             TrailingStopItems = _trailingStop.Items.ToList();
             _marketData.StartStreaming(SelectedInstrument);
+        }
+        catch (Exception ex)
+        {
+            StartupError = ex.Message;
+            ChartDataMessage ??= "Startup error — using partial data. Check Zerodha connection.";
         }
         finally
         {
@@ -129,8 +136,12 @@ public class DashboardViewModel : INotifyPropertyChanged
     {
         SelectedTimeframe = timeframe;
         await LoadChartAsync();
+        OverlayVersion++;
         await UpdatePriceAsync();
         UpdateSelectedTrend();
+        Notify(nameof(SelectedTimeframe));
+        Notify(nameof(Is1mCprChart));
+        Notify(nameof(OverlayVersion));
         Notify();
     }
 
@@ -220,35 +231,47 @@ public class DashboardViewModel : INotifyPropertyChanged
 
     private async Task LoadChartAsync()
     {
-        var count = GetCandleCount(SelectedTimeframe);
-        var result = await _marketData.GetCandlesResultAsync(SelectedInstrument, SelectedTimeframe, count);
-
-        if (SelectedTimeframe == "1m")
+        try
         {
-            var sessionDate = GetChartSessionDate();
-            var candles15m = await _marketData.GetCandlesResultAsync(SelectedInstrument, "15m", 80);
-            CprSegments = _intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
+            var count = GetCandleCount(SelectedTimeframe);
+            var result = await _marketData.GetCandlesResultAsync(SelectedInstrument, SelectedTimeframe, count);
 
-            var sessionCandles = result.Candles
-                .Where(c => c.Timestamp.Date == sessionDate)
-                .ToList();
-            ChartCandles = sessionCandles.Count > 0 ? sessionCandles : result.Candles;
+            if (SelectedTimeframe == "1m")
+            {
+                var sessionDate = GetChartSessionDate();
+                var candles15m = await _marketData.GetCandlesResultAsync(SelectedInstrument, "15m", 80);
+                CprSegments = _intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
+
+                var sessionCandles = result.Candles
+                    .Where(c => c.Timestamp.Date == sessionDate)
+                    .ToList();
+                ChartCandles = sessionCandles.Count > 0 ? sessionCandles : result.Candles;
+            }
+            else
+            {
+                CprSegments = Array.Empty<IntradayCprSegment>();
+                ChartCandles = result.Candles;
+            }
+
+            ChartVersion++;
+            IsChartFromZerodha = result.IsFromZerodha;
+            ChartDataMessage = result.IsFromZerodha
+                ? SelectedTimeframe == "1m"
+                    ? $"Zerodha 1m candles ({ChartCandles.Count} bars) · CPR every 15m"
+                    : $"Zerodha {SelectedTimeframe} candles ({ChartCandles.Count} bars)"
+                : result.Error ?? "Demo candle data";
+            LastCandleSummary = BuildLastCandleSummary();
+            UpdateIntradayCprState();
         }
-        else
+        catch (Exception ex)
         {
+            ChartDataMessage = $"Chart load failed: {ex.Message}";
             CprSegments = Array.Empty<IntradayCprSegment>();
-            ChartCandles = result.Candles;
+            CurrentIntradayTc = 0;
+            CurrentIntradayPivot = 0;
+            CurrentIntradayBc = 0;
+            AboveCpr = false;
         }
-
-        ChartVersion++;
-        IsChartFromZerodha = result.IsFromZerodha;
-        ChartDataMessage = result.IsFromZerodha
-            ? SelectedTimeframe == "1m"
-                ? $"Zerodha 1m candles ({ChartCandles.Count} bars) · CPR every 15m"
-                : $"Zerodha {SelectedTimeframe} candles ({ChartCandles.Count} bars)"
-            : result.Error ?? "Demo candle data";
-        LastCandleSummary = BuildLastCandleSummary();
-        UpdateIntradayCprState();
     }
 
     private static DateTime GetChartSessionDate()
@@ -262,28 +285,40 @@ public class DashboardViewModel : INotifyPropertyChanged
 
     private void UpdateIntradayCprState()
     {
-        if (SelectedTimeframe != "1m" || CprSegments.Count == 0)
+        try
+        {
+            if (SelectedTimeframe != "1m" || CprSegments.Count == 0)
+            {
+                CurrentIntradayTc = 0;
+                CurrentIntradayPivot = 0;
+                CurrentIntradayBc = 0;
+                AboveCpr = false;
+                return;
+            }
+
+            var activeTime = ChartCandles.Count > 0
+                ? ChartCandles[^1].Timestamp
+                : MarketHours.GetIstNow();
+
+            var active = _intradayCpr.GetActiveSegment(CprSegments, activeTime);
+            if (active is null)
+                return;
+
+            CurrentIntradayTc = active.Tc;
+            CurrentIntradayPivot = active.Pivot;
+            CurrentIntradayBc = active.Bc;
+
+            var lastClose = ChartCandles.Count > 0 ? ChartCandles[^1].Close : 0m;
+            var price = NiftyPrice > 0 ? NiftyPrice : lastClose;
+            AboveCpr = price > 0 && price >= active.Pivot;
+        }
+        catch
         {
             CurrentIntradayTc = 0;
             CurrentIntradayPivot = 0;
             CurrentIntradayBc = 0;
             AboveCpr = false;
-            return;
         }
-
-        var activeTime = ChartCandles.Count > 0
-            ? ChartCandles[^1].Timestamp
-            : MarketHours.GetIstNow();
-
-        var active = _intradayCpr.GetActiveSegment(CprSegments, activeTime);
-        if (active is null)
-            return;
-
-        CurrentIntradayTc = active.Tc;
-        CurrentIntradayPivot = active.Pivot;
-        CurrentIntradayBc = active.Bc;
-        var price = NiftyPrice > 0 ? NiftyPrice : ChartCandles[^1].Close;
-        AboveCpr = price >= active.Pivot;
     }
 
     private static int GetCandleCount(string timeframe) => timeframe switch
@@ -454,5 +489,6 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TrailingStopTriggeredCount)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TrailingStopMonitoringCount)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsDashboardReady)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(StartupError)));
     }
 }

@@ -1,6 +1,6 @@
 @namespace PGOne.Components
 
-<ErrorBoundary>
+<ErrorBoundary @ref="_errorBoundary">
     <ChildContent>
         <Router AppAssembly="@typeof(MauiProgram).Assembly">
             <Found Context="routeData">
@@ -15,9 +15,16 @@
         </Router>
     </ChildContent>
     <ErrorContent Context="ex">
-        <div class="content-area" style="padding:24px;color:#fff;">
+        <div class="content-area startup-error-panel">
             <h2>Something went wrong</h2>
             <p class="text-secondary">@ex.Message</p>
+            <button type="button" class="btn tf-btn" @onclick="RecoverFromError">Try again</button>
         </div>
     </ErrorContent>
 </ErrorBoundary>
+
+@code {
+    private ErrorBoundary? _errorBoundary;
+
+    private void RecoverFromError() => _errorBoundary?.Recover();
+}

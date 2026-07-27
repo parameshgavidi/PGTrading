@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <Compile Include="../PGOne/Models/**/*.cs" LinkBase="Models" />
+    <Compile Include="../PGOne/Services/MarketHours.cs" Link="Services/MarketHours.cs" />
+    <Compile Include="../PGOne/Services/IntradayCprService.cs" Link="Services/IntradayCprService.cs" />
   </ItemGroup>
 
 </Project>
