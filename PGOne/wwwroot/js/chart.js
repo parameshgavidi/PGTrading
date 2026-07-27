@@ -69,26 +69,118 @@ window.pgOneChart = (function () {
         return 'rgba(200, 200, 200, 0.55)';
     }
 
+    function parseTime(value) {
+        if (!value) return null;
+        var t = new Date(value);
+        return Number.isNaN(t.getTime()) ? null : t;
+    }
+
+    function findCprSegment(segments, time) {
+        if (!segments || !time) return null;
+        for (var i = 0; i < segments.length; i++) {
+            var s = segments[i];
+            var start = parseTime(s.start);
+            var end = parseTime(s.end);
+            if (!start || !end) continue;
+            if (time >= start && time < end) return s;
+        }
+        return segments.length ? segments[segments.length - 1] : null;
+    }
+
+    function fillChartBackground(ctx, padding, width, chartH) {
+        var left = padding.left;
+        var w = width - padding.right - left;
+        ctx.fillStyle = '#121212';
+        ctx.fillRect(left, padding.top, w, chartH);
+    }
+
     function drawPocBackground(ctx, pocToday, padding, width, chartH, toY, showPoc) {
-        const left = padding.left;
-        const right = width - padding.right;
-        const top = padding.top;
-        const bottom = padding.top + chartH;
-        const w = right - left;
+        var left = padding.left;
+        var right = width - padding.right;
+        var top = padding.top;
+        var bottom = padding.top + chartH;
+        var w = right - left;
 
         if (!showPoc || !pocToday || Number.isNaN(pocToday)) {
-            ctx.fillStyle = '#121212';
-            ctx.fillRect(left, top, w, chartH);
+            fillChartBackground(ctx, padding, width, chartH);
             return;
         }
 
-        const y = clamp(toY(pocToday), top, bottom);
+        var y = clamp(toY(pocToday), top, bottom);
 
         ctx.fillStyle = 'rgba(0, 200, 83, 0.1)';
         ctx.fillRect(left, top, w, y - top);
 
         ctx.fillStyle = 'rgba(255, 82, 82, 0.1)';
         ctx.fillRect(left, y, w, bottom - y);
+    }
+
+    function drawIntradaCprBackground(ctx, view, segments, padding, slot, chartH, toY, toX) {
+        var top = padding.top;
+        var bottom = padding.top + chartH;
+
+        view.forEach(function (candle, i) {
+            var t = parseTime(candle.time);
+            var seg = findCprSegment(segments, t);
+            if (!seg || !seg.pivot) return;
+
+            var pivotY = clamp(toY(Number(seg.pivot)), top, bottom);
+            var x0 = toX(i) - slot / 2;
+            var w = slot;
+
+            ctx.fillStyle = 'rgba(0, 200, 83, 0.12)';
+            ctx.fillRect(x0, top, w, pivotY - top);
+
+            ctx.fillStyle = 'rgba(255, 82, 82, 0.12)';
+            ctx.fillRect(x0, pivotY, w, bottom - pivotY);
+        });
+    }
+
+    function drawHLineSegment(ctx, x0, x1, y, color, dash) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.25;
+        ctx.setLineDash(dash || []);
+        ctx.beginPath();
+        ctx.moveTo(x0, y);
+        ctx.lineTo(x1, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    function drawIntradaCprLevels(ctx, view, segments, padding, chartH, slot, toY, toX) {
+        if (!segments || segments.length === 0) return;
+
+        segments.forEach(function (seg) {
+            var start = parseTime(seg.start);
+            var end = parseTime(seg.end);
+            if (!start || !end) return;
+
+            var iStart = -1, iEnd = -1;
+            view.forEach(function (candle, i) {
+                var t = parseTime(candle.time);
+                if (!t) return;
+                if (t >= start && t < end) {
+                    if (iStart < 0) iStart = i;
+                    iEnd = i;
+                }
+            });
+
+            if (iStart < 0 || iEnd < 0) return;
+
+            var x0 = toX(iStart) - slot / 2;
+            var x1 = toX(iEnd) + slot / 2;
+
+            drawHLineSegment(ctx, x0, x1, toY(Number(seg.tc)), 'rgba(100, 181, 246, 0.9)', [4, 4]);
+            drawHLineSegment(ctx, x0, x1, toY(Number(seg.pivot)), 'rgba(255, 193, 7, 0.95)', [6, 4]);
+            drawHLineSegment(ctx, x0, x1, toY(Number(seg.bc)), 'rgba(100, 181, 246, 0.9)', [4, 4]);
+
+            ctx.strokeStyle = 'rgba(0, 200, 83, 0.25)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x0, padding.top);
+            ctx.lineTo(x0, padding.top + chartH);
+            ctx.stroke();
+        });
     }
 
     function drawLevels(ctx, levels, padding, width, toY) {
@@ -132,6 +224,8 @@ window.pgOneChart = (function () {
         const showPoc = opts.showPoc !== false;
         const showPivot = opts.showPivot !== false;
         const showCamarilla = opts.showCamarilla !== false;
+        const showIntradaCpr = opts.showIntradaCpr === true;
+        const intradayCprSegments = opts.intradayCpr || [];
         let count, offset;
         if (prev && prev.timeframe === timeframe) {
             count = clamp(prev.count, 12, candles.length);
@@ -147,7 +241,9 @@ window.pgOneChart = (function () {
             pocToday: num(pocToday),
             showPoc: showPoc,
             showPivot: showPivot,
-            showCamarilla: showCamarilla
+            showCamarilla: showCamarilla,
+            showIntradaCpr: showIntradaCpr,
+            intradayCprSegments: intradayCprSegments
         };
         ensureInteractions(canvas, canvasId);
         render(canvasId);
@@ -202,9 +298,15 @@ window.pgOneChart = (function () {
         const highs = view.map(c => Number(c.high));
         const lows = view.map(c => Number(c.low));
         const levelPrices = filterLevels(st).map(l => Number(l.price)).filter(v => !Number.isNaN(v));
+        var intradayPrices = [];
+        if (st.showIntradaCpr && st.intradayCprSegments) {
+            st.intradayCprSegments.forEach(function (s) {
+                intradayPrices.push(Number(s.tc), Number(s.pivot), Number(s.bc));
+            });
+        }
         const extra = [].concat(collect('superTrend'), collect('keltnerUpperOuter'), collect('keltnerLowerOuter'), collect('vwap'));
-        const maxPrice = Math.max(...highs, ...(extra.length ? extra : [Number.MIN_VALUE]), ...(levelPrices.length ? levelPrices : [Number.MIN_VALUE]));
-        const minPrice = Math.min(...lows, ...(extra.length ? extra : [Number.MAX_VALUE]), ...(levelPrices.length ? levelPrices : [Number.MAX_VALUE]));
+        const maxPrice = Math.max(...highs, ...(extra.length ? extra : [Number.MIN_VALUE]), ...(levelPrices.length ? levelPrices : [Number.MIN_VALUE]), ...(intradayPrices.length ? intradayPrices : [Number.MIN_VALUE]));
+        const minPrice = Math.min(...lows, ...(extra.length ? extra : [Number.MAX_VALUE]), ...(levelPrices.length ? levelPrices : [Number.MAX_VALUE]), ...(intradayPrices.length ? intradayPrices : [Number.MAX_VALUE]));
         const priceRange = (maxPrice - minPrice) || 1;
         const slot = chartW / view.length;
         const candleWidth = Math.max(1.5, slot - 2);
@@ -212,7 +314,13 @@ window.pgOneChart = (function () {
         const toY = (price) => padding.top + ((maxPrice - price) / priceRange) * chartH;
         const toX = (i) => padding.left + slot * i + slot / 2;
 
-        drawPocBackground(ctx, st.pocToday, padding, width, chartH, toY, st.showPoc);
+        if (st.showIntradaCpr && st.intradayCprSegments && st.intradayCprSegments.length > 0) {
+            drawIntradaCprBackground(ctx, view, st.intradayCprSegments, padding, slot, chartH, toY, toX);
+        } else if (st.showPoc && st.pocToday) {
+            drawPocBackground(ctx, st.pocToday, padding, width, chartH, toY, true);
+        } else {
+            fillChartBackground(ctx, padding, width, chartH);
+        }
 
         // Horizontal grid + price labels
         ctx.textBaseline = 'middle';
@@ -283,6 +391,10 @@ window.pgOneChart = (function () {
 
         // VWAP
         drawLine('vwap', '#D4AF37', [2, 2]);
+
+        if (st.showIntradaCpr && st.intradayCprSegments && st.intradayCprSegments.length > 0) {
+            drawIntradaCprLevels(ctx, view, st.intradayCprSegments, padding, chartH, slot, toY, toX);
+        }
 
         // POC / VA / Camarilla horizontal levels
         drawLevels(ctx, filterLevels(st), padding, width, toY);
