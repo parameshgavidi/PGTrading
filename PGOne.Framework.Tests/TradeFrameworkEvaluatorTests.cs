@@ -191,4 +191,27 @@ public class TradeFrameworkEvaluatorTests
     var rsiCheck = AiInsightHelper.BuildChecks(analysis).First(c => c.Label.StartsWith("RSI"));
     Assert.Equal("warn", rsiCheck.State);
   }
+
+  [Fact]
+  public void Camarilla_levels_from_prev_day()
+  {
+    var prev = new Candle { High = 23850m, Low = 23650m, Close = 23773.30m };
+    var cam = CamarillaCalculator.FromPreviousDay(prev);
+
+    Assert.True(cam.HasData);
+    Assert.True(cam.H4 > cam.H3);
+    Assert.True(cam.H3 > cam.H2);
+    Assert.True(cam.H2 > cam.Pivot);
+    Assert.True(cam.Pivot > cam.L2);
+    Assert.True(cam.L2 > cam.L3);
+    Assert.True(cam.L3 > cam.L4);
+  }
+
+  [Fact]
+  public void Camarilla_bias_above_pp_and_h2()
+  {
+    var cam = new CamarillaLevels { HasData = true, Pivot = 23758m, H2 = 23810m, L2 = 23637m };
+    Assert.Equal(TrendDirection.Buy, cam.GetBias(23923m));
+    Assert.Equal(TrendDirection.Sell, cam.GetBias(23600m));
+  }
 }

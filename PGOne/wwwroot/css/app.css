@@ -1526,3 +1526,79 @@ code {
 .tag.wait { background: rgba(255, 82, 82, 0.2); color: var(--sell); }
 .tag.range { background: rgba(170, 170, 170, 0.15); color: var(--text-secondary); }
 .tag.step { background: var(--gold-glow); color: var(--gold); }
+
+.sr-panel { margin-bottom: 12px; }
+.sr-intro { font-size: 12px; margin: 0 0 10px 0; padding: 0 12px; }
+.sr-ladder {
+    padding: 8px 12px 4px;
+    border-left: 2px solid var(--border);
+    margin: 0 12px 12px;
+}
+.sr-ladder-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 8px;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.sr-ladder-row.sell .sr-price { color: var(--sell); }
+.sr-ladder-row.buy .sr-price { color: var(--buy); }
+.sr-ladder-row.neutral .sr-price { color: var(--text-secondary); }
+.sr-ladder-row.sr-near {
+    background: rgba(255, 193, 7, 0.08);
+    border-radius: 4px;
+    padding: 4px 6px;
+}
+.sr-ladder-row.sr-price-row {
+    margin-top: 8px;
+    padding: 8px 6px;
+    background: var(--gold-glow);
+    border-radius: 6px;
+    font-weight: 600;
+}
+.sr-ladder-row.sr-price-row .sr-price { color: var(--gold); }
+.sr-label { color: var(--text-secondary); white-space: nowrap; }
+.sr-line {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    min-width: 24px;
+}
+.sr-price {
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    text-align: right;
+}
+.sr-tag {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    text-align: center;
+}
+.sr-tag.buy { background: rgba(0, 200, 120, 0.15); color: var(--buy); }
+.sr-tag.sell { background: rgba(255, 82, 82, 0.15); color: var(--sell); }
+.sr-tag.sr-near-tag { color: var(--gold); }
+.sr-summary {
+    padding: 0 12px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.sr-summary-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 12px;
+}
+.sr-summary-row > span:first-child {
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+.sr-levels-text {
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.4;
+}
+.sr-empty { padding: 12px; font-size: 13px; }
