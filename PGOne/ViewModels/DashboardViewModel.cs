@@ -33,6 +33,7 @@ public class DashboardViewModel : INotifyPropertyChanged
     public string SelectedInstrument { get; private set; } = "NSE:NIFTY 50";
     public string SelectedDisplayName => InstrumentMapper.ToDisplayName(SelectedSymbol);
     public int ChartVersion { get; private set; }
+    public int OverlayVersion { get; private set; }
     public bool IsChartFromZerodha { get; private set; }
     public string? ChartDataMessage { get; private set; }
     public string? LastCandleSummary { get; private set; }
@@ -71,6 +72,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         await UpdatePriceAsync();
         Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
         CurrentSignal = await _signal.GenerateSignalAsync(SelectedSymbol);
+        OverlayVersion++;
         UpdateSelectedTrend();
         await _watchlist.RefreshTopWeightageAsync();
         SyncWatchlists();
@@ -92,6 +94,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         await UpdatePriceAsync();
         Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
         CurrentSignal = await _signal.GenerateSignalAsync(SelectedSymbol);
+        OverlayVersion++;
         UpdateSelectedTrend();
         _marketData.StartStreaming(SelectedInstrument);
         Notify();
@@ -112,6 +115,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         await UpdatePriceAsync();
         Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
         CurrentSignal = await _signal.GenerateSignalAsync(SelectedSymbol);
+        OverlayVersion++;
         UpdateSelectedTrend();
         await _watchlist.RefreshTopWeightageAsync();
         SyncWatchlists();
@@ -298,7 +302,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IndexWatchlist)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Top10Watchlist)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ChartCandles)));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ChartVersion)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(OverlayVersion)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsMarketOpen)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(MarketStatus)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NiftyChange)));

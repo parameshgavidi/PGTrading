@@ -78,6 +78,8 @@
                     <CandlestickChart CanvasId="priceChart"
                                       Candles="ViewModel.ChartCandles"
                                       ChartVersion="ViewModel.ChartVersion"
+                                      OverlayVersion="ViewModel.OverlayVersion"
+                                      Analysis="ViewModel.Analysis"
                                       Timeframe="ViewModel.SelectedTimeframe"
                                       Width="900"
                                       Height="420" />
@@ -142,8 +144,6 @@
         <aside class="dashboard-insight-rail">
             <AiInsightPanel Analysis="ViewModel.Analysis"
                             SuggestedAction="@AiInsightHelper.GetSuggestedAction(ViewModel.CurrentSignal, ViewModel.Analysis)" />
-
-            <SupportResistancePanel Analysis="ViewModel.Analysis" Price="@ViewModel.NiftyPrice" />
 
             <div class="analysis-panel card">
                 <div class="card-header">Multi Timeframe Analysis</div>
