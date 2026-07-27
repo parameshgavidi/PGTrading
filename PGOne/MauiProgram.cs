@@ -57,7 +57,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<ILongTermExitMonitorService, LongTermExitMonitorService>();
         builder.Services.AddSingleton<IStrategyService, StrategyService>();
         builder.Services.AddSingleton<ISentimentService, SentimentService>();
-        builder.Services.AddSingleton<INseSymbolResolver, NseSymbolResolver>();
+        builder.Services.AddSingleton<IIntradayCprService, IntradayCprService>();
 
         builder.Services.AddSingleton<DashboardViewModel>();
         builder.Services.AddSingleton<StrategyViewModel>();
@@ -66,6 +66,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<HoldingsViewModel>();
         builder.Services.AddSingleton<SettingsViewModel>();
         builder.Services.AddSingleton<SentimentViewModel>();
+        builder.Services.AddSingleton<Cpr1mViewModel>();
 
         return builder.Build();
     }

@@ -1247,6 +1247,45 @@ html, body {
 .legend-color.poc { background: linear-gradient(180deg, rgba(0,200,83,0.5) 50%, rgba(255,82,82,0.5) 50%); }
 .legend-color.pivot { background: rgba(212, 175, 55, 0.85); }
 .legend-color.camarilla { background: rgba(255, 150, 110, 0.75); }
+.legend-color.cpr-tc { background: rgba(100, 181, 246, 0.85); }
+
+.cpr-position-badge {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.cpr-position-badge.above-cpr {
+    background: rgba(0, 200, 83, 0.2);
+    color: var(--buy);
+    border: 1px solid rgba(0, 200, 83, 0.45);
+}
+
+.cpr-position-badge.below-cpr {
+    background: rgba(255, 82, 82, 0.2);
+    color: var(--sell);
+    border: 1px solid rgba(255, 82, 82, 0.45);
+}
+
+.cpr-levels-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.cpr-levels-strip strong {
+    color: var(--text-primary);
+}
+
+.cpr-level-label {
+    color: var(--gold);
+    font-weight: 600;
+}
 
 code {
     background: #333;
