@@ -193,6 +193,7 @@ public class MarketDataService : IMarketDataService
 
     private static int GetIntervalMinutes(string interval) => interval switch
     {
+        "1m" => 1,
         "5m" => 5,
         "15m" => 15,
         "1H" => 60,

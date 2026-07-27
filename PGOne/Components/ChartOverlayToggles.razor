@@ -9,7 +9,7 @@
     <button type="button"
             class="btn overlay-toggle @(ShowPivot ? "active" : "")"
             @onclick="TogglePivotAsync">
-        Pivot
+        @(IntradayCprMode ? "CPR" : "Pivot")
     </button>
     <button type="button"
             class="btn overlay-toggle @(ShowCamarilla ? "active" : "")"
@@ -22,6 +22,7 @@
     [Parameter] public bool ShowPoc { get; set; } = true;
     [Parameter] public bool ShowPivot { get; set; } = true;
     [Parameter] public bool ShowCamarilla { get; set; } = true;
+    [Parameter] public bool IntradayCprMode { get; set; }
     [Parameter] public EventCallback<bool> ShowPocChanged { get; set; }
     [Parameter] public EventCallback<bool> ShowPivotChanged { get; set; }
     [Parameter] public EventCallback<bool> ShowCamarillaChanged { get; set; }

@@ -17,6 +17,7 @@
     [Parameter] public int ChartVersion { get; set; }
     [Parameter] public int OverlayVersion { get; set; }
     [Parameter] public MultiTimeframeAnalysis? Analysis { get; set; }
+    [Parameter] public IReadOnlyList<IntradayCprSegment> CprSegments { get; set; } = Array.Empty<IntradayCprSegment>();
     [Parameter] public bool ShowPocLevels { get; set; } = true;
     [Parameter] public bool ShowPivotLevels { get; set; } = true;
     [Parameter] public bool ShowCamarillaLevels { get; set; } = true;
@@ -27,9 +28,11 @@
 
     private int _lastRenderedVersion = -1;
     private int _lastOverlayVersion = -1;
+    private string _lastTimeframe = "5m";
     private bool _lastShowPoc;
     private bool _lastShowPivot;
     private bool _lastShowCamarilla;
+    private int _lastCprSegmentCount;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -38,16 +41,20 @@
 
         if (ChartVersion == _lastRenderedVersion
             && OverlayVersion == _lastOverlayVersion
+            && Timeframe == _lastTimeframe
             && ShowPocLevels == _lastShowPoc
             && ShowPivotLevels == _lastShowPivot
-            && ShowCamarillaLevels == _lastShowCamarilla)
+            && ShowCamarillaLevels == _lastShowCamarilla
+            && CprSegments.Count == _lastCprSegmentCount)
             return;
 
         _lastRenderedVersion = ChartVersion;
         _lastOverlayVersion = OverlayVersion;
+        _lastTimeframe = Timeframe;
         _lastShowPoc = ShowPocLevels;
         _lastShowPivot = ShowPivotLevels;
         _lastShowCamarilla = ShowCamarillaLevels;
+        _lastCprSegmentCount = CprSegments.Count;
         await RenderAsync();
     }
 
@@ -63,6 +70,8 @@
 
     private async Task RenderAsync()
     {
+        var is1mCpr = Timeframe == "1m" && ShowPivotLevels;
+
         var payload = Candles.Select(c => new
         {
             time = c.Timestamp.ToString("o"),
@@ -80,11 +89,29 @@
         }).ToList();
 
         var levels = BuildLevelPayload();
-        var pocToday = ShowPocLevels && Analysis?.VolumeProfile.HasData == true
+        var pocToday = !is1mCpr && ShowPocLevels && Analysis?.VolumeProfile.HasData == true
             ? Analysis.VolumeProfile.Poc
             : 0m;
 
-        var overlayOptions = new { showPoc = ShowPocLevels, showPivot = ShowPivotLevels, showCamarilla = ShowCamarillaLevels };
+        var intradayCpr = is1mCpr
+            ? CprSegments.Select(s => new
+            {
+                start = s.Start.ToString("o"),
+                end = s.End.ToString("o"),
+                pivot = s.Pivot,
+                tc = s.Tc,
+                bc = s.Bc
+            }).ToList()
+            : null;
+
+        var overlayOptions = new
+        {
+            showPoc = ShowPocLevels,
+            showPivot = ShowPivotLevels,
+            showCamarilla = ShowCamarillaLevels,
+            showIntradaCpr = is1mCpr,
+            intradayCpr = intradayCpr
+        };
 
         await InvokeSafe("pgOneChart.drawCandlestickChart", CanvasId, payload, Timeframe, levels, pocToday, overlayOptions);
     }
@@ -98,7 +125,7 @@
             .Where(row => row.Group switch
             {
                 "cam" => ShowCamarillaLevels,
-                "cpr" => ShowPivotLevels,
+                "cpr" => ShowPivotLevels && Timeframe != "1m",
                 "today" or "prev" => ShowPocLevels,
                 _ => true
             })

@@ -17,6 +17,10 @@
                     @(ViewModel.NiftyChange >= 0 ? "+" : "")@ViewModel.NiftyChangePercent.ToString("N2")%
                 </span>
                 <TrendBadge Trend="ViewModel.NiftyTrend" />
+                @if (ViewModel.Is1mCprChart && ViewModel.ShowPivotOverlay)
+                {
+                    <span class="cpr-position-badge @ViewModel.CprPositionClass">@ViewModel.CprPositionLabel</span>
+                }
             </div>
         </div>
         <CandlestickChart CanvasId="liveChart"
@@ -24,6 +28,7 @@
                           ChartVersion="ViewModel.ChartVersion"
                           OverlayVersion="ViewModel.OverlayVersion"
                           Analysis="ViewModel.Analysis"
+                          CprSegments="ViewModel.CprSegments"
                           ShowPocLevels="ViewModel.ShowPocOverlay"
                           ShowPivotLevels="ViewModel.ShowPivotOverlay"
                           ShowCamarillaLevels="ViewModel.ShowCamarillaOverlay"
@@ -33,13 +38,14 @@
                           Height="520" />
         <div class="chart-toolbar">
             <div class="timeframe-buttons">
-                @foreach (var tf in new[] { "5m", "15m", "1H", "1D" })
+                @foreach (var tf in new[] { "1m", "5m", "15m", "1H", "1D" })
                 {
                     <button class="btn tf-btn @(ViewModel.SelectedTimeframe == tf ? "active" : "")"
                             @onclick="() => ViewModel.ChangeTimeframeAsync(tf)">@tf</button>
                 }
             </div>
-            <ChartOverlayToggles ShowPoc="ViewModel.ShowPocOverlay"
+            <ChartOverlayToggles IntradayCprMode="ViewModel.Is1mCprChart"
+                                 ShowPoc="ViewModel.ShowPocOverlay"
                                  ShowPivot="ViewModel.ShowPivotOverlay"
                                  ShowCamarilla="ViewModel.ShowCamarillaOverlay"
                                  ShowPocChanged="v => ViewModel.SetShowPocOverlay(v)"
@@ -62,7 +68,16 @@
             }
             @if (ViewModel.ShowPivotOverlay)
             {
-                <span class="legend-item"><span class="legend-color pivot"></span> Pivot / CPR</span>
+                @if (ViewModel.Is1mCprChart)
+                {
+                    <span class="legend-item"><span class="legend-color poc"></span> Above / below CPR (15m)</span>
+                    <span class="legend-item"><span class="legend-color pivot"></span> Pivot</span>
+                    <span class="legend-item"><span class="legend-color cpr-tc"></span> TC / BC</span>
+                }
+                else
+                {
+                    <span class="legend-item"><span class="legend-color pivot"></span> Pivot / CPR</span>
+                }
             }
             @if (ViewModel.ShowCamarillaOverlay)
             {

@@ -806,6 +806,7 @@ public class ZerodhaService : IZerodhaService
 
     private static string MapKiteInterval(string interval) => interval switch
     {
+        "1m" => "minute",
         "5m" => "5minute",
         "15m" => "15minute",
         "1H" => "60minute",
@@ -822,6 +823,7 @@ public class ZerodhaService : IZerodhaService
         // days (with slack for weekends/holidays) so Kite returns `count` bars.
         var barsPerDay = interval switch
         {
+            "1m" => 375,
             "5m" => 75,
             "15m" => 25,
             "1H" => 7,
@@ -844,6 +846,7 @@ public class ZerodhaService : IZerodhaService
 
     private static int GetIntervalMinutes(string interval) => interval switch
     {
+        "1m" => 1,
         "5m" => 5,
         "15m" => 15,
         "1H" => 60,

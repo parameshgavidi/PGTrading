@@ -1,0 +1,65 @@
+@page "/cpr-1m"
+@inject Cpr1mViewModel ViewModel
+
+<div class="page-container">
+    <div class="card chart-full cpr-1m-panel">
+        <div class="chart-header">
+            <div class="instrument-title-row">
+                <h2 class="page-heading">@ViewModel.DisplayName · 1m CPR</h2>
+                <span class="market-status @(ViewModel.IsMarketOpen ? "open" : "closed")">
+                    @ViewModel.MarketStatus
+                </span>
+            </div>
+            <div class="price-row">
+                <span class="price">@ViewModel.LastPrice.ToString("N2")</span>
+                <span class="change @(ViewModel.DayChangePercent >= 0 ? "positive" : "negative")">
+                    @(ViewModel.DayChangePercent >= 0 ? "+" : "")@ViewModel.DayChangePercent.ToString("N2")%
+                </span>
+                <span class="cpr-position-badge @ViewModel.CprPositionClass">@ViewModel.CprPositionLabel</span>
+            </div>
+        </div>
+
+        <Cpr1mChart CanvasId="cpr1mChart"
+                    Candles="ViewModel.ChartCandles"
+                    Segments="ViewModel.CprSegments"
+                    ChartVersion="ViewModel.ChartVersion"
+                    CssClass="large"
+                    Width="1200"
+                    Height="520" />
+
+        <div class="chart-toolbar">
+            <div class="cpr-levels-strip">
+                <span class="cpr-level-label">Pivot TF: 15m</span>
+                <span>TC <strong>@ViewModel.CurrentTc.ToString("N2")</strong></span>
+                <span>Pivot <strong>@ViewModel.CurrentPivot.ToString("N2")</strong></span>
+                <span>BC <strong>@ViewModel.CurrentBc.ToString("N2")</strong></span>
+            </div>
+            <button type="button" class="btn tf-btn" @onclick="RefreshAsync">Refresh</button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(ViewModel.ChartDataMessage))
+        {
+            <div class="chart-meta @(ViewModel.IsChartFromZerodha ? "zerodha" : "warning")">
+                @ViewModel.ChartDataMessage
+            </div>
+        }
+
+        <div class="chart-legend">
+            <span class="legend-item"><span class="legend-color candle-up"></span> Bullish 1m</span>
+            <span class="legend-item"><span class="legend-color candle-down"></span> Bearish 1m</span>
+            <span class="legend-item"><span class="legend-color poc"></span> Above / below CPR split</span>
+            <span class="legend-item"><span class="legend-color pivot"></span> Pivot (15m)</span>
+            <span class="legend-item"><span class="legend-color cpr-tc"></span> TC / BC</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await ViewModel.InitializeAsync();
+        ViewModel.PropertyChanged += (_, _) => InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RefreshAsync() => await ViewModel.RefreshAsync();
+}
