@@ -5,23 +5,6 @@ namespace PGOne.Models;
 /// </summary>
 public static class FrameworkPlaybook
 {
-  public static readonly IReadOnlyList<FrameworkRuleGroup> Groups =
-  [
-    new("global", "Global gates — check first", "These run before any directional trade.", GlobalGates),
-    new("rotation", "Rotation regime", "When ADX is choppy and price is inside the value area.", RotationRules),
-    new("range", "Range-bound regime", "When 1H RSI(28) is between 45 and 55.", RangeBoundRules),
-    new("step1", "Step 1 — Market bias", "1H SuperTrend (10,3) + current-day VWAP must align.", Step1Rules),
-    new("step2", "Step 2 — Trade direction", "All must pass after Step 1.", Step2Rules),
-    new("poc", "POC & value area", "Volume profile rules for bias and regime.", PocRules),
-    new("step3", "Step 3 — Entry trigger", "5M SuperTrend (7, 2.5).", Step3Rules),
-    new("step4", "Step 4 — Footprint confirmation (5m)", "Final layer only — never trade footprint alone.", Step4LongRules, "Long — all required"),
-    new("step4s", "Step 4 — Footprint confirmation (5m)", null, Step4ShortRules, "Short — all required"),
-    new("step5", "Step 5 — Exit & targets", "How to manage the trade after entry.", Step5Rules),
-    new("ready", "Framework READY — master checklist", "Every item must be true for a live directional signal.", ReadyRules),
-    new("scan", "Intraday stock scan", "Full NSE scan tab rules.", ScanRules),
-    new("not", "Do NOT", "Avoid these mistakes.", DoNotRules)
-  ];
-
   private static readonly IReadOnlyList<FrameworkRule> GlobalGates =
   [
     Rule("G0", "5m RSI reversal guard",
@@ -245,6 +228,24 @@ public static class FrameworkPlaybook
     "Chart overlay 5m SuperTrend display still uses (10, 3) in MarketDataService.AttachSuperTrend; signals use (7, 2.5) for entry",
     "StrategyConfig.EntryMode is not wired into evaluator logic",
     "Unit tests require local dotnet SDK — run command above before session if you changed framework code"
+  ];
+
+  // Declared after all rule lists — static init order would leave Rules null if placed at top.
+  public static readonly IReadOnlyList<FrameworkRuleGroup> Groups =
+  [
+    new("global", "Global gates — check first", "These run before any directional trade.", GlobalGates),
+    new("rotation", "Rotation regime", "When ADX is choppy and price is inside the value area.", RotationRules),
+    new("range", "Range-bound regime", "When 1H RSI(28) is between 45 and 55.", RangeBoundRules),
+    new("step1", "Step 1 — Market bias", "1H SuperTrend (10,3) + current-day VWAP must align.", Step1Rules),
+    new("step2", "Step 2 — Trade direction", "All must pass after Step 1.", Step2Rules),
+    new("poc", "POC & value area", "Volume profile rules for bias and regime.", PocRules),
+    new("step3", "Step 3 — Entry trigger", "5M SuperTrend (7, 2.5).", Step3Rules),
+    new("step4", "Step 4 — Footprint confirmation (5m)", "Final layer only — never trade footprint alone.", Step4LongRules, "Long — all required"),
+    new("step4s", "Step 4 — Footprint confirmation (5m)", null, Step4ShortRules, "Short — all required"),
+    new("step5", "Step 5 — Exit & targets", "How to manage the trade after entry.", Step5Rules),
+    new("ready", "Framework READY — master checklist", "Every item must be true for a live directional signal.", ReadyRules),
+    new("scan", "Intraday stock scan", "Full NSE scan tab rules.", ScanRules),
+    new("not", "Do NOT", "Avoid these mistakes.", DoNotRules)
   ];
 
   private static FrameworkRule Rule(

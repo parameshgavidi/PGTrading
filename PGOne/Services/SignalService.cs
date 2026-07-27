@@ -182,6 +182,7 @@ public class SignalService : ISignalService
             MarketBias = marketBias,
             TradeDirection = tradeDirection,
             EntryTriggered = entryTriggered,
+            PocBias = tpo.Bias,
             TpoConfirmed = tpoConfirmed,
             FootprintConfirmed = footprintConfirmed,
             FrameworkReady = frameworkReady,

@@ -139,6 +139,8 @@
                     <h4 class="framework-subheading">@group.Subtitle</h4>
                 }
                 <div class="framework-rules">
+                    @if (group.Rules is not null)
+                    {
                     @foreach (var rule in group.Rules)
                     {
                         <div class="framework-rule">
@@ -162,6 +164,7 @@
                                 }
                             </div>
                         </div>
+                    }
                     }
                 </div>
             </div>
