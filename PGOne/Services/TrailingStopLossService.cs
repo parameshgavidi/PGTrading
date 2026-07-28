@@ -9,12 +9,15 @@ public interface ITrailingStopLossService
     bool IsLoading { get; }
     bool IsMonitoring { get; }
     string? StatusMessage { get; }
+    DateTime? LastUpdatedAt { get; }
     Task RefreshAsync();
     Task SetMonitoringAsync(bool enabled);
 }
 
 public class TrailingStopLossService : ITrailingStopLossService, IDisposable
 {
+    private const int MonitorIntervalSeconds = 15;
+
     private readonly IZerodhaService _zerodha;
     private readonly IMarketDataService _marketData;
     private readonly ISuperTrendService _superTrend;
@@ -28,6 +31,7 @@ public class TrailingStopLossService : ITrailingStopLossService, IDisposable
     public bool IsLoading { get; private set; }
     public bool IsMonitoring { get; private set; }
     public string? StatusMessage { get; private set; }
+    public DateTime? LastUpdatedAt { get; private set; }
 
     public TrailingStopLossService(
         IZerodhaService zerodha,
@@ -78,14 +82,15 @@ public class TrailingStopLossService : ITrailingStopLossService, IDisposable
         finally
         {
             IsLoading = false;
+            LastUpdatedAt = DateTime.Now;
             Notify();
         }
     }
 
-    public Task SetMonitoringAsync(bool enabled)
+    public async Task SetMonitoringAsync(bool enabled)
     {
         if (enabled == IsMonitoring)
-            return Task.CompletedTask;
+            return;
 
         IsMonitoring = enabled;
         _monitorCts?.Cancel();
@@ -96,16 +101,16 @@ public class TrailingStopLossService : ITrailingStopLossService, IDisposable
         {
             _exitedKeys.Clear();
             _monitorCts = new CancellationTokenSource();
-            _ = MonitorLoopAsync(_monitorCts.Token);
             StatusMessage = "Auto-exit monitoring active — exits on 5m candle close vs ST(7,2.5).";
+            Notify();
+            await RefreshAsync();
+            _ = MonitorLoopAsync(_monitorCts.Token);
         }
         else
         {
             StatusMessage = "Auto-exit monitoring stopped.";
+            Notify();
         }
-
-        Notify();
-        return Task.CompletedTask;
     }
 
     private async Task MonitorLoopAsync(CancellationToken cancellationToken)
@@ -115,7 +120,7 @@ public class TrailingStopLossService : ITrailingStopLossService, IDisposable
             while (!cancellationToken.IsCancellationRequested)
             {
                 await RefreshAsync();
-                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(MonitorIntervalSeconds), cancellationToken);
             }
         }
         catch (OperationCanceledException)

@@ -373,10 +373,16 @@
         <div class="card">
             <div class="card-header">
                 <h2>Target profit / loss</h2>
-                <button class="btn btn-secondary btn-sm" @onclick="RefreshTargetPnLAsync"
-                        disabled="@ViewModel.IsTargetPnLLoading">
-                    Refresh
-                </button>
+                <div class="card-header-actions">
+                    @if (ViewModel.RiskControlsLastUpdated.HasValue)
+                    {
+                        <span class="refresh-timestamp">@ViewModel.RiskControlsLastUpdated.Value.ToString("HH:mm:ss")</span>
+                    }
+                    <button class="btn btn-secondary btn-sm" @onclick="RefreshTargetPnLAsync"
+                            disabled="@ViewModel.IsTargetPnLLoading">
+                        Refresh
+                    </button>
+                </div>
             </div>
 
             <p class="text-secondary">
@@ -456,10 +462,16 @@
         <div class="card">
             <div class="card-header">
                 <h2>Intraday trailing stop loss</h2>
-                <button class="btn btn-secondary btn-sm" @onclick="RefreshTrailingStopAsync"
-                        disabled="@ViewModel.IsTrailingStopLoading">
-                    Refresh
-                </button>
+                <div class="card-header-actions">
+                    @if (ViewModel.RiskControlsLastUpdated.HasValue)
+                    {
+                        <span class="refresh-timestamp">@ViewModel.RiskControlsLastUpdated.Value.ToString("HH:mm:ss")</span>
+                    }
+                    <button class="btn btn-secondary btn-sm" @onclick="RefreshTrailingStopAsync"
+                            disabled="@ViewModel.IsTrailingStopLoading">
+                        Refresh
+                    </button>
+                </div>
             </div>
 
             <p class="text-secondary">
@@ -561,7 +573,7 @@
 </div>
 
 @code {
-  private System.Timers.Timer? _refreshTimer;
+  private CancellationTokenSource? _refreshCts;
   private decimal _targetProfitInput;
   private decimal _targetLossInput;
 
@@ -577,7 +589,33 @@
   {
     ViewModel.PropertyChanged += OnViewModelPropertyChanged;
     SentimentViewModel.PropertyChanged += OnSentimentPropertyChanged;
+    _refreshCts = new CancellationTokenSource();
     _ = LoadDashboardAsync();
+    _ = RunRefreshLoopsAsync(_refreshCts.Token);
+  }
+
+  private async Task RunRefreshLoopsAsync(CancellationToken cancellationToken)
+  {
+    using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+    var tick = 0;
+
+    try
+    {
+      while (await timer.WaitForNextTickAsync(cancellationToken))
+      {
+        tick++;
+        if (tick % 4 == 0)
+          await ViewModel.RefreshAsync();
+        else
+          await ViewModel.RefreshRiskControlsAsync();
+
+        await InvokeAsync(StateHasChanged);
+      }
+    }
+    catch (OperationCanceledException)
+    {
+      // Page disposed.
+    }
   }
 
   private async Task LoadDashboardAsync()
@@ -594,9 +632,6 @@
     }
     finally
     {
-      _refreshTimer = new System.Timers.Timer(30000);
-      _refreshTimer.Elapsed += (_, _) => _ = InvokeAsync(async () => await ViewModel.RefreshAsync());
-      _refreshTimer.Start();
       await InvokeAsync(StateHasChanged);
     }
   }
@@ -701,7 +736,8 @@
 
   public void Dispose()
   {
-    _refreshTimer?.Dispose();
+    _refreshCts?.Cancel();
+    _refreshCts?.Dispose();
     ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
     SentimentViewModel.PropertyChanged -= OnSentimentPropertyChanged;
   }

@@ -71,6 +71,7 @@ public class DashboardViewModel : INotifyPropertyChanged
     public decimal TargetProfitAmount => _settings.Settings.TargetProfitAmount;
     public decimal TargetLossAmount => _settings.Settings.TargetLossAmount;
     public TargetPnLTrigger TargetPnLLastTrigger => _targetPnL.LastTrigger;
+    public DateTime? RiskControlsLastUpdated { get; private set; }
 
     public bool IsDashboardReady { get; private set; }
     public string? StartupError { get; private set; }
@@ -116,11 +117,8 @@ public class DashboardViewModel : INotifyPropertyChanged
             UpdateSelectedTrend();
             await _watchlist.RefreshTopWeightageAsync();
             SyncWatchlists();
-            await RefreshPositionsAsync();
-            await _trailingStop.RefreshAsync();
-            TrailingStopItems = _trailingStop.Items.ToList();
             await _settings.LoadAsync();
-            await _targetPnL.RefreshAsync();
+            await RefreshRiskControlsAsync();
             _marketData.StartStreaming(SelectedInstrument);
         }
         catch (Exception ex)
@@ -175,11 +173,25 @@ public class DashboardViewModel : INotifyPropertyChanged
         UpdateSelectedTrend();
         await _watchlist.RefreshTopWeightageAsync();
         SyncWatchlists();
+        await RefreshRiskControlsAsync();
+        Notify();
+    }
+
+    public async Task RefreshRiskControlsAsync()
+    {
         await RefreshPositionsAsync();
         await _trailingStop.RefreshAsync();
         TrailingStopItems = _trailingStop.Items.ToList();
         await _targetPnL.RefreshAsync();
-        Notify();
+        RiskControlsLastUpdated = DateTime.Now;
+        NotifyTargetPnL();
+        Notify(nameof(TrailingStopItems));
+        Notify(nameof(IsTrailingStopLoading));
+        Notify(nameof(TrailingStopStatusMessage));
+        Notify(nameof(IsTrailingStopMonitoring));
+        Notify(nameof(TrailingStopTriggeredCount));
+        Notify(nameof(TrailingStopMonitoringCount));
+        Notify(nameof(RiskControlsLastUpdated));
     }
 
     public async Task RefreshPositionsAsync()
@@ -203,28 +215,22 @@ public class DashboardViewModel : INotifyPropertyChanged
     }
 
     public async Task RefreshTrailingStopAsync()
-    {
-        await _trailingStop.RefreshAsync();
-        TrailingStopItems = _trailingStop.Items.ToList();
-        Notify(nameof(TrailingStopItems));
-        Notify(nameof(IsTrailingStopLoading));
-        Notify(nameof(TrailingStopStatusMessage));
-        Notify(nameof(IsTrailingStopMonitoring));
-        Notify(nameof(TrailingStopTriggeredCount));
-        Notify(nameof(TrailingStopMonitoringCount));
-    }
+        => await RefreshRiskControlsAsync();
 
     public async Task SetTrailingStopMonitoringAsync(bool enabled)
-        => await _trailingStop.SetMonitoringAsync(enabled);
-
-    public async Task RefreshTargetPnLAsync()
     {
-        await _targetPnL.RefreshAsync();
-        NotifyTargetPnL();
+        await _trailingStop.SetMonitoringAsync(enabled);
+        await RefreshRiskControlsAsync();
     }
 
+    public async Task RefreshTargetPnLAsync()
+        => await RefreshRiskControlsAsync();
+
     public async Task SetTargetPnLMonitoringAsync(bool enabled)
-        => await _targetPnL.SetMonitoringAsync(enabled);
+    {
+        await _targetPnL.SetMonitoringAsync(enabled);
+        await RefreshRiskControlsAsync();
+    }
 
     public async Task SaveTargetPnLAmountsAsync(decimal profitAmount, decimal lossAmount)
     {
@@ -560,6 +566,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TargetProfitAmount)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TargetLossAmount)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TargetPnLLastTrigger)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(RiskControlsLastUpdated)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsDashboardReady)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(StartupError)));
     }
