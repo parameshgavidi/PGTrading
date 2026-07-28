@@ -7,6 +7,12 @@ public interface IMarketDataService
     bool IsMarketOpen { get; }
     Task<List<Candle>> GetCandlesAsync(string instrument, string interval, int count = 100);
     Task<CandleSeriesResult> GetCandlesResultAsync(string instrument, string interval, int count = 100);
+    /// <summary>
+    /// 5m candles with real volume for footprint — uses nearest index future when index volume is zero.
+    /// </summary>
+    Task<(List<Candle> Candles, string VolumeSource)> GetFootprintCandlesAsync(
+        string instrument,
+        IReadOnlyList<Candle> candles5M);
     Task<decimal> GetCurrentPriceAsync(string instrument);
     Task<InstrumentQuote?> GetQuoteAsync(string instrument);
     event Action<string, decimal>? PriceUpdated;
@@ -50,6 +56,35 @@ public class MarketDataService : IMarketDataService
     // state as TradingView (which computes over full history) before we trim
     // to the visible window. SuperTrend is path-dependent, so warmup matters.
     private const int WarmupBars = 300;
+
+    public async Task<(List<Candle> Candles, string VolumeSource)> GetFootprintCandlesAsync(
+        string instrument,
+        IReadOnlyList<Candle> candles5M)
+    {
+        if (candles5M.Count == 0)
+            return ([], "none");
+
+        if (CandleVolumeMerger.HasTradeableVolume(candles5M))
+            return (CandleVolumeMerger.CopyWithVolumeFrom(candles5M, candles5M), "equity");
+
+        if (!InstrumentMapper.IsIndexSymbol(instrument))
+            return (CandleVolumeMerger.CopyWithVolumeFrom(candles5M, candles5M), "range_proxy");
+
+        var underlying = InstrumentMapper.FromZerodhaKey(instrument);
+        var futureKey = await _zerodha.ResolveNearestFutureKeyAsync(underlying);
+        if (futureKey is null)
+            return (CandleVolumeMerger.CopyWithVolumeFrom(candles5M, candles5M), "range_proxy");
+
+        var futureCandles = await _zerodha.GetHistoricalCandlesAsync(futureKey, "5m", candles5M.Count + 30);
+        if (!CandleVolumeMerger.HasTradeableVolume(futureCandles))
+            return (CandleVolumeMerger.CopyWithVolumeFrom(candles5M, candles5M), "range_proxy");
+
+        var merged = CandleVolumeMerger.CopyWithVolumeFrom(candles5M, futureCandles);
+        if (!CandleVolumeMerger.HasTradeableVolume(merged))
+            return (merged, "range_proxy");
+
+        return (merged, "futures");
+    }
 
     public async Task<CandleSeriesResult> GetCandlesResultAsync(string instrument, string interval, int count = 100)
     {

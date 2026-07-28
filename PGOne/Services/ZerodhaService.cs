@@ -26,6 +26,7 @@ public interface IZerodhaService
     Task<List<Order>> GetOrdersAsync();
     Task<OrderPlacementResult> PlaceOrderAsync(string exchange, string tradingsymbol, string transactionType, int quantity, string orderType, decimal? price = null, string product = "MIS");
     Task<NfoOptionInstrument?> ResolveOptionSymbolAsync(string underlying, decimal strike, string optionType);
+    Task<string?> ResolveNearestFutureKeyAsync(string underlying);
     Task<IReadOnlyList<string>> GetNseEquitySymbolsAsync();
     void Disconnect();
 }
@@ -39,6 +40,8 @@ public class ZerodhaService : IZerodhaService
 
     private List<string>? _nseEquitySymbols;
     private List<NfoOptionInstrument>? _nfoOptions;
+    private List<NfoFutureInstrument>? _nfoFutures;
+    private Dictionary<string, int>? _instrumentTokens;
 
     public bool IsConnected { get; private set; }
     public string? UserId { get; private set; }
@@ -186,7 +189,8 @@ public class ZerodhaService : IZerodhaService
         if (!IsConnected)
             return new CandleSeriesResult { Error = "Not connected to Zerodha." };
 
-        if (!InstrumentTokens.TryGetValue(instrument, out var token))
+        var token = await ResolveInstrumentTokenAsync(instrument);
+        if (token is null)
             return new CandleSeriesResult { Error = $"Unknown instrument: {instrument}" };
 
         try
@@ -609,6 +613,121 @@ public class ZerodhaService : IZerodhaService
         }
     }
 
+    public async Task<string?> ResolveNearestFutureKeyAsync(string underlying)
+    {
+        if (!IsConnected)
+            return null;
+
+        await EnsureInstrumentCatalogAsync();
+        if (_nfoFutures is null || _nfoFutures.Count == 0)
+            return null;
+
+        var normalized = underlying.Trim().ToUpperInvariant();
+        var today = DateTime.Today;
+
+        var future = _nfoFutures
+            .Where(f => MatchesUnderlying(f.TradingSymbol, normalized) && f.Expiry.Date >= today)
+            .OrderBy(f => f.Expiry)
+            .FirstOrDefault();
+
+        return future is null ? null : $"NFO:{future.TradingSymbol}";
+    }
+
+    private async Task<int?> ResolveInstrumentTokenAsync(string instrument)
+    {
+        if (InstrumentTokens.TryGetValue(instrument, out var hardcoded))
+            return hardcoded;
+
+        if (!IsConnected)
+            return null;
+
+        await EnsureInstrumentCatalogAsync();
+        return _instrumentTokens?.GetValueOrDefault(instrument);
+    }
+
+    private async Task EnsureInstrumentCatalogAsync()
+    {
+        if (_instrumentTokens is not null && _nfoFutures is not null && _nfoOptions is not null)
+            return;
+
+        _instrumentTokens = new Dictionary<string, int>(InstrumentTokens);
+        _nfoFutures = new List<NfoFutureInstrument>();
+        _nfoOptions = new List<NfoOptionInstrument>();
+
+        if (!IsConnected)
+            return;
+
+        try
+        {
+            var request = CreateRequest(HttpMethod.Get, "/instruments");
+            var response = await _http.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+                return;
+
+            using var reader = new StringReader(await response.Content.ReadAsStringAsync());
+            _ = reader.ReadLine();
+
+            while (reader.ReadLine() is { } line)
+            {
+                var parts = ParseCsvLine(line);
+                if (parts.Length < 12)
+                    continue;
+
+                var exchange = parts[11].Trim('"');
+                var tradingSymbol = parts[2].Trim('"');
+                var instrumentType = parts[9].Trim('"');
+
+                if (!int.TryParse(parts[0].Trim('"'), NumberStyles.Integer, CultureInfo.InvariantCulture, out var token))
+                    continue;
+
+                _instrumentTokens[$"{exchange}:{tradingSymbol}"] = token;
+
+                if (!exchange.Equals("NFO", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (instrumentType.Equals("FUT", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!DateTime.TryParse(parts[5].Trim('"'), CultureInfo.InvariantCulture, DateTimeStyles.None, out var futExpiry))
+                        continue;
+
+                    _nfoFutures.Add(new NfoFutureInstrument
+                    {
+                        TradingSymbol = tradingSymbol,
+                        Expiry = futExpiry,
+                        InstrumentToken = token
+                    });
+                    continue;
+                }
+
+                if (!instrumentType.Equals("CE", StringComparison.OrdinalIgnoreCase)
+                    && !instrumentType.Equals("PE", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (!DateTime.TryParse(parts[5].Trim('"'), CultureInfo.InvariantCulture, DateTimeStyles.None, out var expiry))
+                    continue;
+
+                if (!decimal.TryParse(parts[6].Trim('"'), NumberStyles.Any, CultureInfo.InvariantCulture, out var strike))
+                    continue;
+
+                if (!int.TryParse(parts[8].Trim('"'), NumberStyles.Integer, CultureInfo.InvariantCulture, out var lotSize))
+                    lotSize = 1;
+
+                _nfoOptions.Add(new NfoOptionInstrument
+                {
+                    TradingSymbol = tradingSymbol,
+                    LotSize = lotSize,
+                    Expiry = expiry,
+                    Strike = strike,
+                    OptionType = instrumentType.ToUpperInvariant()
+                });
+            }
+        }
+        catch
+        {
+            // Footprint and options degrade gracefully when the instruments dump fails.
+        }
+    }
+
     public async Task<NfoOptionInstrument?> ResolveOptionSymbolAsync(string underlying, decimal strike, string optionType)
     {
         if (!IsConnected)
@@ -635,66 +754,8 @@ public class ZerodhaService : IZerodhaService
 
     private async Task<List<NfoOptionInstrument>> LoadNfoOptionsAsync()
     {
-        if (_nfoOptions is not null)
-            return _nfoOptions;
-
-        if (!IsConnected)
-            return [];
-
-        try
-        {
-            var request = CreateRequest(HttpMethod.Get, "/instruments");
-            var response = await _http.SendAsync(request);
-            var csv = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-                return [];
-
-            var options = new List<NfoOptionInstrument>();
-            using var reader = new StringReader(csv);
-            _ = reader.ReadLine();
-
-            while (reader.ReadLine() is { } line)
-            {
-                var parts = ParseCsvLine(line);
-                if (parts.Length < 12)
-                    continue;
-
-                var exchange = parts[11].Trim('"');
-                var instrumentType = parts[9].Trim('"');
-                if (!exchange.Equals("NFO", StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                if (!instrumentType.Equals("CE", StringComparison.OrdinalIgnoreCase)
-                    && !instrumentType.Equals("PE", StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                if (!DateTime.TryParse(parts[5].Trim('"'), CultureInfo.InvariantCulture, DateTimeStyles.None, out var expiry))
-                    continue;
-
-                if (!decimal.TryParse(parts[6].Trim('"'), NumberStyles.Any, CultureInfo.InvariantCulture, out var strike))
-                    continue;
-
-                if (!int.TryParse(parts[8].Trim('"'), NumberStyles.Integer, CultureInfo.InvariantCulture, out var lotSize))
-                    lotSize = 1;
-
-                options.Add(new NfoOptionInstrument
-                {
-                    TradingSymbol = parts[2].Trim('"'),
-                    LotSize = lotSize,
-                    Expiry = expiry,
-                    Strike = strike,
-                    OptionType = instrumentType.ToUpperInvariant()
-                });
-            }
-
-            _nfoOptions = options;
-            return _nfoOptions;
-        }
-        catch
-        {
-            return [];
-        }
+        await EnsureInstrumentCatalogAsync();
+        return _nfoOptions ?? [];
     }
 
     private static bool MatchesUnderlying(string tradingSymbol, string underlying) =>

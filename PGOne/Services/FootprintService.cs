@@ -4,7 +4,7 @@ namespace PGOne.Services;
 
 public interface IFootprintService
 {
-  FootprintAnalysis Analyze(List<Candle> candles5M, TrendDirection bias);
+  FootprintAnalysis Analyze(List<Candle> candles5M, TrendDirection bias, string volumeSource = "equity");
 }
 
 public class FootprintService : IFootprintService
@@ -14,7 +14,7 @@ public class FootprintService : IFootprintService
   private const decimal ImbalanceRatio = 1.4m;
   private const decimal AbsorptionVolumeRatio = 1.5m;
 
-  public FootprintAnalysis Analyze(List<Candle> candles5M, TrendDirection bias)
+  public FootprintAnalysis Analyze(List<Candle> candles5M, TrendDirection bias, string volumeSource = "equity")
   {
     if (candles5M.Count < Lookback + 2)
       return new FootprintAnalysis { Summary = "Insufficient 5m data" };
@@ -82,12 +82,16 @@ public class FootprintService : IFootprintService
 
     var nearVolumeNode = avgRange > 0 && range < avgRange * 0.6m && volRatio >= 1.2m;
 
+    var usesRangeProxy = slice.All(c => c.Volume <= 0)
+      || volumeSource == "range_proxy";
+
     var result = new FootprintAnalysis
     {
       Delta = Math.Round(delta, 2),
       PositiveDelta = delta > 0,
       NegativeDelta = delta < 0,
-      UsesVolumeProxy = slice.All(c => c.Volume <= 0),
+      VolumeSource = volumeSource,
+      UsesVolumeProxy = usesRangeProxy,
       StackedBuyImbalance = maxBuyStreak >= MinStackedBars,
       StackedSellImbalance = maxSellStreak >= MinStackedBars,
       AbsorptionAgainstLong = absorptionAgainstLong,
@@ -118,6 +122,8 @@ public class FootprintService : IFootprintService
 
     if (fp.UsesVolumeProxy)
       parts.Add("range proxy (no volume)");
+    else if (fp.VolumeSource == "futures")
+      parts.Add("index fut vol");
 
     if (fp.StackedBuyImbalance) parts.Add("buy imbalances");
     if (fp.StackedSellImbalance) parts.Add("sell imbalances");
