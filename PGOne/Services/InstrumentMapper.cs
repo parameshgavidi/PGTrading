@@ -45,6 +45,15 @@ public static class InstrumentMapper
         _ => instrument.Contains(':') ? instrument.Split(':', 2)[1] : instrument
     };
 
+    public static bool IsIndexSymbol(string instrumentOrSymbol)
+    {
+        var symbol = instrumentOrSymbol.Contains(':')
+            ? FromZerodhaKey(instrumentOrSymbol)
+            : instrumentOrSymbol;
+
+        return symbol.ToUpperInvariant() is "NIFTY" or "BANKNIFTY" or "SENSEX";
+    }
+
     public static string ResolveStInstrument(string symbol, string exchange)
     {
         if (!exchange.Equals("NFO", StringComparison.OrdinalIgnoreCase))
