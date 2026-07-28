@@ -111,20 +111,30 @@ public class FootprintService : IFootprintService
   private static string BuildSummary(FootprintAnalysis fp, TrendDirection bias)
   {
     if (bias == TrendDirection.Buy && fp.ConfirmsLong)
-      return "Delta +, stacked buy imbalances, no absorption against";
+      return fp.VolumeSource == "futures" && fp.FuturesSymbol is not null
+        ? $"Fut buy confirmed · {FootprintDisplayHelper.GetShortDeltaLabel(fp)} · {fp.FuturesSymbol}"
+        : "Delta +, stacked buy imbalances, no absorption against";
 
     if (bias == TrendDirection.Sell && fp.ConfirmsShort)
-      return "Delta −, stacked sell imbalances, no absorption against";
+      return fp.VolumeSource == "futures" && fp.FuturesSymbol is not null
+        ? $"Fut sell confirmed · {FootprintDisplayHelper.GetShortDeltaLabel(fp)} · {fp.FuturesSymbol}"
+        : "Delta −, stacked sell imbalances, no absorption against";
 
     var parts = new List<string>();
-    if (fp.PositiveDelta) parts.Add("Delta +");
-    else if (fp.NegativeDelta) parts.Add("Delta −");
-    else parts.Add("Delta flat");
+    if (fp.VolumeSource == "futures" && !string.IsNullOrEmpty(fp.FuturesSymbol))
+    {
+      parts.Add($"Fut {FootprintDisplayHelper.GetShortDeltaLabel(fp)}");
+      parts.Add(fp.FuturesSymbol);
+    }
+    else
+    {
+      if (fp.PositiveDelta) parts.Add("Delta +");
+      else if (fp.NegativeDelta) parts.Add("Delta −");
+      else parts.Add("Delta flat");
 
-    if (fp.UsesVolumeProxy)
-      parts.Add("range proxy (no volume)");
-    else if (fp.VolumeSource == "futures")
-      parts.Add(fp.FuturesSymbol is not null ? $"{fp.FuturesSymbol} (fut)" : "index fut");
+      if (fp.UsesVolumeProxy)
+        parts.Add("range proxy (no volume)");
+    }
 
     if (fp.StackedBuyImbalance) parts.Add("buy imbalances");
     if (fp.StackedSellImbalance) parts.Add("sell imbalances");

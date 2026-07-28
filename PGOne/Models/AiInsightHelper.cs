@@ -35,7 +35,7 @@ public static class AiInsightHelper
             new($"RSI(28) {analysis.RsiTrend:N0}", rsiState),
             new(tpoPass ? "POC Confirmed" : analysis.Tpo.Summary, tpoPass ? "pass" : analysis.IsRotationRegime ? "fail" : "warn"),
             new($"{TrendUi.GetIcon(analysis.Trend5MEntry)} Entry ST {TrendUi.GetSuperTrendLabel(analysis.Trend5MEntry)}", entryPass ? "pass" : "warn"),
-            new(footprintPass ? "Footprint OK" : analysis.Footprint.Summary, footprintPass ? "pass" : "warn")
+            new(footprintPass ? $"Footprint OK · {FootprintDisplayHelper.GetShortDeltaLabel(analysis.Footprint)}" : FootprintDisplayHelper.GetInsightLabel(analysis.Footprint), footprintPass ? "pass" : "warn")
         ];
     }
 
