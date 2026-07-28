@@ -226,6 +226,8 @@ window.pgOneChart = (function () {
         const showCamarilla = opts.showCamarilla !== false;
         const showIntradaCpr = opts.showIntradaCpr === true;
         const intradayCprSegments = opts.intradayCpr || [];
+        const showKeltner = opts.showKeltner === true;
+        const showVwap = opts.showVwap === true;
         let count, offset;
         if (prev && prev.timeframe === timeframe) {
             count = clamp(prev.count, 12, candles.length);
@@ -243,7 +245,9 @@ window.pgOneChart = (function () {
             showPivot: showPivot,
             showCamarilla: showCamarilla,
             showIntradaCpr: showIntradaCpr,
-            intradayCprSegments: intradayCprSegments
+            intradayCprSegments: intradayCprSegments,
+            showKeltner: showKeltner,
+            showVwap: showVwap
         };
         ensureInteractions(canvas, canvasId);
         render(canvasId);
@@ -304,7 +308,14 @@ window.pgOneChart = (function () {
                 intradayPrices.push(Number(s.tc), Number(s.pivot), Number(s.bc));
             });
         }
-        const extra = [].concat(collect('superTrend'), collect('keltnerUpperOuter'), collect('keltnerLowerOuter'), collect('vwap'));
+        const extra = [].concat(collect('superTrend'));
+        if (st.showKeltner) {
+            extra.push.apply(extra, collect('keltnerUpperOuter'));
+            extra.push.apply(extra, collect('keltnerLowerOuter'));
+        }
+        if (st.showVwap) {
+            extra.push.apply(extra, collect('vwap'));
+        }
         const maxPrice = Math.max(...highs, ...(extra.length ? extra : [Number.MIN_VALUE]), ...(levelPrices.length ? levelPrices : [Number.MIN_VALUE]), ...(intradayPrices.length ? intradayPrices : [Number.MIN_VALUE]));
         const minPrice = Math.min(...lows, ...(extra.length ? extra : [Number.MAX_VALUE]), ...(levelPrices.length ? levelPrices : [Number.MAX_VALUE]), ...(intradayPrices.length ? intradayPrices : [Number.MAX_VALUE]));
         const priceRange = (maxPrice - minPrice) || 1;
@@ -382,15 +393,19 @@ window.pgOneChart = (function () {
             ctx.setLineDash([]);
         };
 
-        // Keltner Channels
-        drawLine('keltnerUpperOuter', 'rgba(120,144,255,0.55)');
-        drawLine('keltnerUpperInner', 'rgba(120,144,255,0.35)');
-        drawLine('keltnerMid', 'rgba(120,144,255,0.45)', [4, 3]);
-        drawLine('keltnerLowerInner', 'rgba(120,144,255,0.35)');
-        drawLine('keltnerLowerOuter', 'rgba(120,144,255,0.55)');
+        // Keltner Channels (1m / 5m)
+        if (st.showKeltner) {
+            drawLine('keltnerUpperOuter', 'rgba(120,144,255,0.55)');
+            drawLine('keltnerUpperInner', 'rgba(120,144,255,0.35)');
+            drawLine('keltnerMid', 'rgba(120,144,255,0.45)', [4, 3]);
+            drawLine('keltnerLowerInner', 'rgba(120,144,255,0.35)');
+            drawLine('keltnerLowerOuter', 'rgba(120,144,255,0.55)');
+        }
 
-        // VWAP
-        drawLine('vwap', '#D4AF37', [2, 2]);
+        // VWAP (5m only)
+        if (st.showVwap) {
+            drawLine('vwap', '#D4AF37', [2, 2]);
+        }
 
         if (st.showIntradaCpr && st.intradayCprSegments && st.intradayCprSegments.length > 0) {
             drawIntradaCprLevels(ctx, view, st.intradayCprSegments, padding, chartH, slot, toY, toX);

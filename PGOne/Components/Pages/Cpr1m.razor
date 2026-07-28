@@ -23,6 +23,8 @@
                     Candles="ViewModel.ChartCandles"
                     Segments="ViewModel.CprSegments"
                     ChartVersion="ViewModel.ChartVersion"
+                    OverlayVersion="ViewModel.OverlayVersion"
+                    ShowKeltnerLevels="ViewModel.ShowKeltnerOverlay"
                     CssClass="large"
                     Width="1200"
                     Height="520" />
@@ -33,6 +35,13 @@
                 <span>TC <strong>@ViewModel.CurrentTc.ToString("N2")</strong></span>
                 <span>Pivot <strong>@ViewModel.CurrentPivot.ToString("N2")</strong></span>
                 <span>BC <strong>@ViewModel.CurrentBc.ToString("N2")</strong></span>
+            </div>
+            <div class="chart-overlay-toggles">
+                <button type="button"
+                        class="btn overlay-toggle @(ViewModel.ShowKeltnerOverlay ? "active" : "")"
+                        @onclick="ToggleKeltnerAsync">
+                    Keltner
+                </button>
             </div>
             <button type="button" class="btn tf-btn" @onclick="RefreshAsync">Refresh</button>
         </div>
@@ -50,6 +59,10 @@
             <span class="legend-item"><span class="legend-color poc"></span> Above / below CPR split</span>
             <span class="legend-item"><span class="legend-color pivot"></span> Pivot (15m)</span>
             <span class="legend-item"><span class="legend-color cpr-tc"></span> TC / BC</span>
+            @if (ViewModel.ShowKeltnerOverlay)
+            {
+                <span class="legend-item"><span class="legend-color keltner"></span> Keltner (20, 1.5/2.0)</span>
+            }
         </div>
     </div>
 </div>
@@ -62,4 +75,6 @@
     }
 
     private async Task RefreshAsync() => await ViewModel.RefreshAsync();
+
+    private void ToggleKeltnerAsync() => ViewModel.SetShowKeltnerOverlay(!ViewModel.ShowKeltnerOverlay);
 }

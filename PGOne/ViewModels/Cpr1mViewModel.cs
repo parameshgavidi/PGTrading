@@ -18,6 +18,8 @@ public class Cpr1mViewModel : INotifyPropertyChanged
     public List<Candle> ChartCandles { get; private set; } = new();
     public IReadOnlyList<IntradayCprSegment> CprSegments { get; private set; } = Array.Empty<IntradayCprSegment>();
     public int ChartVersion { get; private set; }
+    public int OverlayVersion { get; private set; }
+    public bool ShowKeltnerOverlay { get; private set; } = true;
 
     public decimal LastPrice { get; private set; }
     public decimal DayChangePercent { get; private set; }
@@ -94,6 +96,17 @@ public class Cpr1mViewModel : INotifyPropertyChanged
         Notify();
     }
 
+    public void SetShowKeltnerOverlay(bool show)
+    {
+        if (ShowKeltnerOverlay == show)
+            return;
+
+        ShowKeltnerOverlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowKeltnerOverlay));
+        Notify(nameof(OverlayVersion));
+    }
+
     private void StartAutoRefresh()
     {
         if (_refreshTimer is not null)
@@ -119,6 +132,8 @@ public class Cpr1mViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ChartCandles)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CprSegments)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ChartVersion)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(OverlayVersion)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowKeltnerOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LastPrice)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DayChangePercent)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentPivot)));

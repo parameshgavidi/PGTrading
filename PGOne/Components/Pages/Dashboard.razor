@@ -96,6 +96,7 @@
                                       ShowPocLevels="ViewModel.ShowPocOverlay"
                                       ShowPivotLevels="ViewModel.ShowPivotOverlay"
                                       ShowCamarillaLevels="ViewModel.ShowCamarillaOverlay"
+                                      ShowKeltnerLevels="ViewModel.ShowKeltnerOverlay"
                                       Timeframe="ViewModel.SelectedTimeframe"
                                       Width="900"
                                       Height="420" />
@@ -108,12 +109,15 @@
                         }
                         </div>
                         <ChartOverlayToggles IntradayCprMode="ViewModel.Is1mCprChart"
+                                             ShowKeltnerToggle="@(ViewModel.SelectedTimeframe == "1m" || ViewModel.SelectedTimeframe == "5m")"
                                              ShowPoc="ViewModel.ShowPocOverlay"
                                              ShowPivot="ViewModel.ShowPivotOverlay"
                                              ShowCamarilla="ViewModel.ShowCamarillaOverlay"
+                                             ShowKeltner="ViewModel.ShowKeltnerOverlay"
                                              ShowPocChanged="v => ViewModel.SetShowPocOverlay(v)"
                                              ShowPivotChanged="v => ViewModel.SetShowPivotOverlay(v)"
-                                             ShowCamarillaChanged="v => ViewModel.SetShowCamarillaOverlay(v)" />
+                                             ShowCamarillaChanged="v => ViewModel.SetShowCamarillaOverlay(v)"
+                                             ShowKeltnerChanged="v => ViewModel.SetShowKeltnerOverlay(v)" />
                     </div>
                     <div class="chart-legend">
                         <span class="legend-item"><span class="legend-color buy"></span> SuperTrend BUY</span>
@@ -138,6 +142,10 @@
                         @if (ViewModel.ShowCamarillaOverlay)
                         {
                             <span class="legend-item"><span class="legend-color camarilla"></span> Camarilla</span>
+                        }
+                        @if (ViewModel.ShowKeltnerOverlay && (ViewModel.SelectedTimeframe == "1m" || ViewModel.SelectedTimeframe == "5m"))
+                        {
+                            <span class="legend-item"><span class="legend-color keltner"></span> Keltner (20, 1.5/2.0)</span>
                         }
                     </div>
                     @if (!string.IsNullOrEmpty(ViewModel.ChartDataMessage))
