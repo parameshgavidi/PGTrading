@@ -258,7 +258,7 @@
                     </tr>
                     <tr>
                         <td>Footprint</td>
-                        <td class="@(ViewModel.Analysis.FootprintConfirmed ? "buy" : "sell")">@ViewModel.Analysis.Footprint.Summary</td>
+                        <td class="@FootprintDisplayHelper.GetDisplayClass(ViewModel.Analysis.Footprint)">@ViewModel.Analysis.Footprint.Summary</td>
                     </tr>
                     @if (ViewModel.Analysis.VolumeProfile.HasData)
                     {
