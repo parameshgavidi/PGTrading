@@ -25,6 +25,7 @@ public interface IZerodhaService
     Task<List<Holding>> GetHoldingsAsync();
     Task<List<Order>> GetOrdersAsync();
     Task<OrderPlacementResult> PlaceOrderAsync(string exchange, string tradingsymbol, string transactionType, int quantity, string orderType, decimal? price = null, string product = "MIS");
+    Task<OrderPlacementResult> ExitPositionAsync(Position position);
     Task<NfoOptionInstrument?> ResolveOptionSymbolAsync(string underlying, decimal strike, string optionType);
     Task<string?> ResolveNearestFutureKeyAsync(string underlying);
     Task<IReadOnlyList<string>> GetNseEquitySymbolsAsync();
@@ -540,6 +541,58 @@ public class ZerodhaService : IZerodhaService
         {
             return new List<Order>();
         }
+    }
+
+    public async Task<OrderPlacementResult> ExitPositionAsync(Position position)
+    {
+        if (position.Quantity == 0)
+            return OrderPlacementResult.Fail("Position already flat.");
+
+        var transactionType = position.Quantity > 0 ? "SELL" : "BUY";
+        var quantity = Math.Abs(position.Quantity);
+        var product = string.IsNullOrWhiteSpace(position.Product) ? "MIS" : position.Product;
+
+        var instrumentKey = OrderPriceHelper.BuildInstrumentKey(position);
+        var ltp = await GetLtpAsync(instrumentKey);
+        if (ltp <= 0)
+            ltp = position.LastPrice;
+
+        if (ltp > 0)
+        {
+            var limitPrice = OrderPriceHelper.RoundToTick(ltp, position.Exchange);
+            var limitResult = await PlaceOrderAsync(
+                position.Exchange,
+                position.Symbol,
+                transactionType,
+                quantity,
+                "LIMIT",
+                limitPrice,
+                product);
+
+            if (limitResult.IsSuccess)
+                return limitResult;
+
+            var limitError = limitResult.ErrorMessage ?? "Limit order rejected.";
+            var marketResult = await PlaceOrderAsync(
+                position.Exchange,
+                position.Symbol,
+                transactionType,
+                quantity,
+                "MARKET",
+                product: product);
+
+            return marketResult.IsSuccess
+                ? marketResult
+                : OrderPlacementResult.Fail($"{limitError} · MARKET fallback: {marketResult.ErrorMessage}");
+        }
+
+        return await PlaceOrderAsync(
+            position.Exchange,
+            position.Symbol,
+            transactionType,
+            quantity,
+            "MARKET",
+            product: product);
     }
 
     public async Task<OrderPlacementResult> PlaceOrderAsync(

@@ -389,7 +389,7 @@
                     <li>Profit: exit all when <strong>total open P&amp;L ≥ target</strong> (e.g. ₹1,500)</li>
                     <li>Loss: exit all when <strong>total open P&amp;L ≤ −limit</strong> (e.g. −₹1,500)</li>
                     <li>Includes all products with open net quantity (MIS, NRML, CNC, etc.)</li>
-                    <li>Places LIMIT square-off at LTP for each position</li>
+                    <li>Places LIMIT at live LTP (tick-rounded), then MARKET if limit is rejected</li>
                 </ul>
 
                 <div class="target-pnl-form">
