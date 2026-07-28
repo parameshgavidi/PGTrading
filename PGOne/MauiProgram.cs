@@ -54,6 +54,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<ILongTermFrameworkService, LongTermFrameworkService>();
         builder.Services.AddSingleton<IHoldingsService, HoldingsService>();
         builder.Services.AddSingleton<ITrailingStopLossService, TrailingStopLossService>();
+        builder.Services.AddSingleton<ITargetPnLMonitorService, TargetPnLMonitorService>();
         builder.Services.AddSingleton<ILongTermExitMonitorService, LongTermExitMonitorService>();
         builder.Services.AddSingleton<IStrategyService, StrategyService>();
         builder.Services.AddSingleton<ISentimentService, SentimentService>();

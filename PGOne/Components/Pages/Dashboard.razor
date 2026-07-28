@@ -335,6 +335,12 @@
                 {
                     <div class="status-message">Refreshing positions...</div>
                 }
+                <div class="holdings-summary">
+                    <span class="summary-pill @(ViewModel.AggregatePnL >= 0 ? "buy" : "sell")">
+                        Open P&amp;L: ₹@ViewModel.AggregatePnL.ToString("N2")
+                    </span>
+                    <span class="summary-pill">@ViewModel.Positions.Count position(s)</span>
+                </div>
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -360,6 +366,90 @@
                         }
                     </tbody>
                 </table>
+            }
+        </div>
+
+        <div class="risk-controls-grid">
+        <div class="card">
+            <div class="card-header">
+                <h2>Target profit / loss</h2>
+                <button class="btn btn-secondary btn-sm" @onclick="RefreshTargetPnLAsync"
+                        disabled="@ViewModel.IsTargetPnLLoading">
+                    Refresh
+                </button>
+            </div>
+
+            <p class="text-secondary">
+                Sum open-position P&amp;L from Zerodha. When aggregate hits your target, square-off all open positions.
+            </p>
+
+            <div class="framework-panel">
+                <div class="framework-panel-title">Book profit or loss (₹)</div>
+                <ul class="framework-conditions">
+                    <li>Profit: exit all when <strong>total open P&amp;L ≥ target</strong> (e.g. ₹1,500)</li>
+                    <li>Loss: exit all when <strong>total open P&amp;L ≤ −limit</strong> (e.g. −₹1,500)</li>
+                    <li>Includes all products with open net quantity (MIS, NRML, CNC, etc.)</li>
+                    <li>Places LIMIT square-off at LTP for each position</li>
+                </ul>
+
+                <div class="target-pnl-form">
+                    <label class="form-field">
+                        <span>Book profit at (₹)</span>
+                        <input type="number" step="100" min="0" class="form-input"
+                               @bind="_targetProfitInput" @bind:event="oninput" />
+                    </label>
+                    <label class="form-field">
+                        <span>Book loss at (₹)</span>
+                        <input type="number" step="100" min="0" class="form-input"
+                               @bind="_targetLossInput" @bind:event="oninput" />
+                    </label>
+                    <button class="btn btn-secondary btn-sm" @onclick="SaveTargetPnLAmountsAsync">
+                        Save targets
+                    </button>
+                </div>
+
+                <div class="holdings-summary target-pnl-live">
+                    <span class="summary-pill @(ViewModel.AggregatePnL >= 0 ? "buy" : "sell")">
+                        Live P&amp;L: ₹@ViewModel.AggregatePnL.ToString("N2")
+                    </span>
+                    @if (ViewModel.TargetProfitAmount > 0)
+                    {
+                        <span class="summary-pill">
+                            Profit target: +₹@ViewModel.TargetProfitAmount.ToString("N0")
+                        </span>
+                    }
+                    @if (ViewModel.TargetLossAmount > 0)
+                    {
+                        <span class="summary-pill sell">
+                            Loss limit: −₹@ViewModel.TargetLossAmount.ToString("N0")
+                        </span>
+                    }
+                    @if (ViewModel.IsTargetPnLMonitoring)
+                    {
+                        <span class="summary-pill buy">Auto-exit on</span>
+                    }
+                </div>
+
+                <div class="trailing-stop-controls">
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@ViewModel.IsTargetPnLMonitoring"
+                               @onchange="OnTargetPnLMonitoringChanged" />
+                        Auto-exit when target P&amp;L hit
+                    </label>
+                    @if (!string.IsNullOrEmpty(ViewModel.TargetPnLStatusMessage))
+                    {
+                        <span class="trailing-stop-status">@ViewModel.TargetPnLStatusMessage</span>
+                    }
+                </div>
+            </div>
+
+            @if (!ViewModel.IsConnected)
+            {
+                <div class="holdings-banner warning">Connect to Zerodha in Settings to monitor P&amp;L.</div>
+            }
+            else if (ViewModel.TargetPnLOpenCount == 0)
+            {
+                <div class="empty-state">No open positions — set targets and enable monitoring before entries.</div>
             }
         </div>
 
@@ -466,11 +556,14 @@
                 </table>
             }
         </div>
+        </div>
     </div>
 </div>
 
 @code {
   private System.Timers.Timer? _refreshTimer;
+  private decimal _targetProfitInput;
+  private decimal _targetLossInput;
 
   private readonly List<NewsHeadline> _fallbackHeadlines =
   [
@@ -492,6 +585,8 @@
     try
     {
       await ViewModel.InitializeAsync();
+      _targetProfitInput = ViewModel.TargetProfitAmount;
+      _targetLossInput = ViewModel.TargetLossAmount;
     }
     catch (Exception)
     {
@@ -551,6 +646,26 @@
   {
     var enabled = e.Value is true;
     await ViewModel.SetTrailingStopMonitoringAsync(enabled);
+  }
+
+  private async Task RefreshTargetPnLAsync()
+  {
+    await ViewModel.RefreshTargetPnLAsync();
+    await InvokeAsync(StateHasChanged);
+  }
+
+  private async Task SaveTargetPnLAmountsAsync()
+  {
+    await ViewModel.SaveTargetPnLAmountsAsync(_targetProfitInput, _targetLossInput);
+    _targetProfitInput = ViewModel.TargetProfitAmount;
+    _targetLossInput = ViewModel.TargetLossAmount;
+    await InvokeAsync(StateHasChanged);
+  }
+
+  private async Task OnTargetPnLMonitoringChanged(ChangeEventArgs e)
+  {
+    var enabled = e.Value is true;
+    await ViewModel.SetTargetPnLMonitoringAsync(enabled);
   }
 
   private async Task SelectSymbol(string symbol)

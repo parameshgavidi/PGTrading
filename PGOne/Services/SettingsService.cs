@@ -49,6 +49,8 @@ public class SettingsService : ISettingsService
         Settings.AccessToken = settings.AccessToken;
         Settings.LotSize = settings.LotSize;
         Settings.RiskPercent = settings.RiskPercent;
+        Settings.TargetProfitAmount = settings.TargetProfitAmount;
+        Settings.TargetLossAmount = settings.TargetLossAmount;
         Settings.AutoTradingEnabled = settings.AutoTradingEnabled;
         Settings.DesktopNotifications = settings.DesktopNotifications;
         Settings.TelegramNotifications = settings.TelegramNotifications;

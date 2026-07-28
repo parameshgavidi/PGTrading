@@ -12,6 +12,8 @@ public class DashboardViewModel : INotifyPropertyChanged
     private readonly IWatchlistService _watchlist;
     private readonly IZerodhaService _zerodha;
     private readonly ITrailingStopLossService _trailingStop;
+    private readonly ITargetPnLMonitorService _targetPnL;
+    private readonly ISettingsService _settings;
     private readonly IIntradayCprService _intradayCpr;
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -60,6 +62,16 @@ public class DashboardViewModel : INotifyPropertyChanged
     public bool IsTrailingStopMonitoring => _trailingStop.IsMonitoring;
     public int TrailingStopTriggeredCount => TrailingStopItems.Count(i => i.IsTriggered && !i.ExitPlaced);
     public int TrailingStopMonitoringCount => TrailingStopItems.Count;
+
+    public decimal AggregatePnL => _targetPnL.AggregatePnL;
+    public int TargetPnLOpenCount => _targetPnL.OpenPositionCount;
+    public bool IsTargetPnLLoading => _targetPnL.IsLoading;
+    public string? TargetPnLStatusMessage => _targetPnL.StatusMessage;
+    public bool IsTargetPnLMonitoring => _targetPnL.IsMonitoring;
+    public decimal TargetProfitAmount => _settings.Settings.TargetProfitAmount;
+    public decimal TargetLossAmount => _settings.Settings.TargetLossAmount;
+    public TargetPnLTrigger TargetPnLLastTrigger => _targetPnL.LastTrigger;
+
     public bool IsDashboardReady { get; private set; }
     public string? StartupError { get; private set; }
 
@@ -69,6 +81,8 @@ public class DashboardViewModel : INotifyPropertyChanged
         IWatchlistService watchlist,
         IZerodhaService zerodha,
         ITrailingStopLossService trailingStop,
+        ITargetPnLMonitorService targetPnL,
+        ISettingsService settings,
         IIntradayCprService intradayCpr)
     {
         _marketData = marketData;
@@ -76,11 +90,14 @@ public class DashboardViewModel : INotifyPropertyChanged
         _watchlist = watchlist;
         _zerodha = zerodha;
         _trailingStop = trailingStop;
+        _targetPnL = targetPnL;
+        _settings = settings;
         _intradayCpr = intradayCpr;
 
         _marketData.PriceUpdated += OnPriceUpdated;
         _watchlist.WatchlistUpdated += OnWatchlistUpdated;
         _trailingStop.Updated += OnTrailingStopUpdated;
+        _targetPnL.Updated += OnTargetPnLUpdated;
     }
 
     public async Task InitializeAsync()
@@ -102,6 +119,8 @@ public class DashboardViewModel : INotifyPropertyChanged
             await RefreshPositionsAsync();
             await _trailingStop.RefreshAsync();
             TrailingStopItems = _trailingStop.Items.ToList();
+            await _settings.LoadAsync();
+            await _targetPnL.RefreshAsync();
             _marketData.StartStreaming(SelectedInstrument);
         }
         catch (Exception ex)
@@ -159,6 +178,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         await RefreshPositionsAsync();
         await _trailingStop.RefreshAsync();
         TrailingStopItems = _trailingStop.Items.ToList();
+        await _targetPnL.RefreshAsync();
         Notify();
     }
 
@@ -196,6 +216,37 @@ public class DashboardViewModel : INotifyPropertyChanged
 
     public async Task SetTrailingStopMonitoringAsync(bool enabled)
         => await _trailingStop.SetMonitoringAsync(enabled);
+
+    public async Task RefreshTargetPnLAsync()
+    {
+        await _targetPnL.RefreshAsync();
+        NotifyTargetPnL();
+    }
+
+    public async Task SetTargetPnLMonitoringAsync(bool enabled)
+        => await _targetPnL.SetMonitoringAsync(enabled);
+
+    public async Task SaveTargetPnLAmountsAsync(decimal profitAmount, decimal lossAmount)
+    {
+        await _settings.LoadAsync();
+        _settings.Settings.TargetProfitAmount = Math.Max(0, profitAmount);
+        _settings.Settings.TargetLossAmount = Math.Max(0, lossAmount);
+        await _settings.SaveSettingsAsync();
+        Notify(nameof(TargetProfitAmount));
+        Notify(nameof(TargetLossAmount));
+    }
+
+    private void OnTargetPnLUpdated() => NotifyTargetPnL();
+
+    private void NotifyTargetPnL()
+    {
+        Notify(nameof(AggregatePnL));
+        Notify(nameof(TargetPnLOpenCount));
+        Notify(nameof(IsTargetPnLLoading));
+        Notify(nameof(TargetPnLStatusMessage));
+        Notify(nameof(IsTargetPnLMonitoring));
+        Notify(nameof(TargetPnLLastTrigger));
+    }
 
     public void SetShowPocOverlay(bool show)
     {
@@ -501,6 +552,14 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsTrailingStopMonitoring)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TrailingStopTriggeredCount)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TrailingStopMonitoringCount)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AggregatePnL)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TargetPnLOpenCount)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsTargetPnLLoading)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TargetPnLStatusMessage)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsTargetPnLMonitoring)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TargetProfitAmount)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TargetLossAmount)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TargetPnLLastTrigger)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsDashboardReady)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(StartupError)));
     }

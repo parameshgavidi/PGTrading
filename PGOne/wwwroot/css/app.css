@@ -672,6 +672,44 @@ html, body {
     flex-shrink: 0;
 }
 
+.risk-controls-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+@media (max-width: 1100px) {
+    .risk-controls-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.target-pnl-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 10px;
+    align-items: end;
+    margin-top: 12px;
+}
+
+.target-pnl-form .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.target-pnl-live {
+    margin-top: 12px;
+}
+
+@media (max-width: 700px) {
+    .target-pnl-form {
+        grid-template-columns: 1fr;
+    }
+}
+
 .analysis-panel { flex: 1; min-width: 0; }
 .signal-panel { flex: 1.5; }
 
