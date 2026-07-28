@@ -143,66 +143,52 @@ public class TargetPnLMonitorService : ITargetPnLMonitorService, IDisposable
 
     private async Task ExitAllPositionsAsync(List<Position> positions, TargetPnLTrigger trigger)
     {
-        var label = trigger == TargetPnLTrigger.Profit ? "profit target" : "loss limit";
+        var label = trigger == TargetPnLTrigger.Profit ? "Profit target" : "Loss limit";
         var placed = 0;
-        var failed = 0;
+        var skipped = 0;
+        var errors = new List<string>();
 
         foreach (var position in positions)
         {
-            if (await TryExitPositionAsync(position))
+            var key = PositionKey(position);
+            if (_exitedKeys.Contains(key))
+            {
+                skipped++;
+                continue;
+            }
+
+            var result = await _zerodha.ExitPositionAsync(position);
+            if (result.IsSuccess)
+            {
+                _exitedKeys.Add(key);
                 placed++;
+            }
             else
-                failed++;
+            {
+                errors.Add($"{position.Symbol}: {result.ErrorMessage}");
+            }
         }
 
         if (placed > 0)
         {
-            StatusMessage = trigger == TargetPnLTrigger.Profit
-                ? $"Profit target hit (₹{AggregatePnL:N2}) — square-off placed for {placed} position(s)."
-                : $"Loss limit hit (₹{AggregatePnL:N2}) — square-off placed for {placed} position(s).";
-
-            if (failed > 0)
-                StatusMessage += $" {failed} failed.";
+            StatusMessage = $"{label} hit (₹{AggregatePnL:N2}) — exit placed for {placed} position(s).";
+            if (errors.Count > 0)
+                StatusMessage += $" {errors.Count} failed: {errors[0]}";
         }
-        else if (failed > 0)
+        else if (errors.Count > 0)
         {
-            StatusMessage = $"{label} hit but failed to place exit orders.";
+            StatusMessage = $"{label} hit (₹{AggregatePnL:N2}) — exit failed: {errors[0]}";
+            if (errors.Count > 1)
+                StatusMessage += $" (+{errors.Count - 1} more)";
         }
-    }
-
-    private async Task<bool> TryExitPositionAsync(Position position)
-    {
-        var key = PositionKey(position);
-        if (_exitedKeys.Contains(key))
-            return false;
-
-        var transactionType = position.Quantity > 0 ? "SELL" : "BUY";
-        var quantity = Math.Abs(position.Quantity);
-        var limitPrice = position.LastPrice;
-
-        if (limitPrice <= 0)
+        else if (skipped > 0 && skipped == positions.Count)
         {
-            StatusMessage = $"Failed to exit {position.Symbol}: no price available";
-            return false;
+            StatusMessage = $"{label} hit — exit orders already sent for all open positions.";
         }
-
-        var result = await _zerodha.PlaceOrderAsync(
-            position.Exchange,
-            position.Symbol,
-            transactionType,
-            quantity,
-            "LIMIT",
-            limitPrice,
-            position.Product);
-
-        if (result.IsSuccess)
+        else
         {
-            _exitedKeys.Add(key);
-            return true;
+            StatusMessage = $"{label} hit but no open positions to exit.";
         }
-
-        StatusMessage = $"Failed to exit {position.Symbol}: {result.ErrorMessage}";
-        return false;
     }
 
     private static string PositionKey(Position position) =>
