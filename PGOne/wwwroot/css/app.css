@@ -710,7 +710,18 @@ html, body {
     }
 }
 
-.analysis-panel { flex: 1; min-width: 0; }
+.card-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.refresh-timestamp {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
 .signal-panel { flex: 1.5; }
 
 .analysis-table {

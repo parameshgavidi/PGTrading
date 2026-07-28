@@ -11,12 +11,15 @@ public interface ITargetPnLMonitorService
     bool IsMonitoring { get; }
     string? StatusMessage { get; }
     TargetPnLTrigger LastTrigger { get; }
+    DateTime? LastUpdatedAt { get; }
     Task RefreshAsync();
     Task SetMonitoringAsync(bool enabled);
 }
 
 public class TargetPnLMonitorService : ITargetPnLMonitorService, IDisposable
 {
+    private const int MonitorIntervalSeconds = 15;
+
     private readonly IZerodhaService _zerodha;
     private readonly ISettingsService _settings;
 
@@ -31,6 +34,7 @@ public class TargetPnLMonitorService : ITargetPnLMonitorService, IDisposable
     public bool IsMonitoring { get; private set; }
     public string? StatusMessage { get; private set; }
     public TargetPnLTrigger LastTrigger { get; private set; } = TargetPnLTrigger.None;
+    public DateTime? LastUpdatedAt { get; private set; }
 
     public TargetPnLMonitorService(IZerodhaService zerodha, ISettingsService settings)
     {
@@ -77,14 +81,15 @@ public class TargetPnLMonitorService : ITargetPnLMonitorService, IDisposable
         finally
         {
             IsLoading = false;
+            LastUpdatedAt = DateTime.Now;
             Notify();
         }
     }
 
-    public Task SetMonitoringAsync(bool enabled)
+    public async Task SetMonitoringAsync(bool enabled)
     {
         if (enabled == IsMonitoring)
-            return Task.CompletedTask;
+            return;
 
         IsMonitoring = enabled;
         _monitorCts?.Cancel();
@@ -96,7 +101,6 @@ public class TargetPnLMonitorService : ITargetPnLMonitorService, IDisposable
             _exitedKeys.Clear();
             LastTrigger = TargetPnLTrigger.None;
             _monitorCts = new CancellationTokenSource();
-            _ = MonitorLoopAsync(_monitorCts.Token);
 
             var profit = _settings.Settings.TargetProfitAmount;
             var loss = _settings.Settings.TargetLossAmount;
@@ -107,14 +111,16 @@ public class TargetPnLMonitorService : ITargetPnLMonitorService, IDisposable
                     : loss > 0
                         ? $"Auto-exit active — book loss at −₹{loss:N0} aggregate P&L."
                         : "Set profit or loss target amounts to enable auto-exit.";
+
+            Notify();
+            await RefreshAsync();
+            _ = MonitorLoopAsync(_monitorCts.Token);
         }
         else
         {
             StatusMessage = "Target P&L auto-exit stopped.";
+            Notify();
         }
-
-        Notify();
-        return Task.CompletedTask;
     }
 
     private async Task MonitorLoopAsync(CancellationToken cancellationToken)
@@ -124,7 +130,7 @@ public class TargetPnLMonitorService : ITargetPnLMonitorService, IDisposable
             while (!cancellationToken.IsCancellationRequested)
             {
                 await RefreshAsync();
-                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(MonitorIntervalSeconds), cancellationToken);
             }
         }
         catch (OperationCanceledException)
