@@ -132,9 +132,47 @@ window.pgOneCprChart = (function () {
         ctx.setLineDash([]);
     }
 
-    function setData(canvasId, candles, segments) {
+    function drawKeltnerLines(ctx, view, toX, toY) {
+        var keys = [
+            { key: 'keltnerUpperOuter', color: 'rgba(120,144,255,0.55)', dash: [] },
+            { key: 'keltnerUpperInner', color: 'rgba(120,144,255,0.35)', dash: [] },
+            { key: 'keltnerMid', color: 'rgba(120,144,255,0.45)', dash: [4, 3] },
+            { key: 'keltnerLowerInner', color: 'rgba(120,144,255,0.35)', dash: [] },
+            { key: 'keltnerLowerOuter', color: 'rgba(120,144,255,0.55)', dash: [] }
+        ];
+
+        keys.forEach(function (line) {
+            ctx.strokeStyle = line.color;
+            ctx.lineWidth = 1.25;
+            ctx.setLineDash(line.dash);
+            ctx.beginPath();
+            var started = false;
+            view.forEach(function (candle, i) {
+                var v = candle[line.key];
+                if (v == null || Number.isNaN(Number(v))) {
+                    started = false;
+                    return;
+                }
+                var x = toX(i);
+                var y = toY(Number(v));
+                if (!started) {
+                    ctx.moveTo(x, y);
+                    started = true;
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            ctx.stroke();
+            ctx.setLineDash([]);
+        });
+    }
+
+    function setData(canvasId, candles, segments, overlayOptions) {
         var canvas = document.getElementById(canvasId);
         if (!canvas || !candles || candles.length === 0) return;
+
+        var opts = overlayOptions || {};
+        var showKeltner = opts.showKeltner === true;
 
         var prev = states[canvasId];
         var count, offset;
@@ -151,7 +189,8 @@ window.pgOneCprChart = (function () {
             candles: candles,
             segments: segments || [],
             count: count,
-            offset: offset
+            offset: offset,
+            showKeltner: showKeltner
         };
         ensureInteractions(canvas, canvasId);
         render(canvasId);
@@ -208,8 +247,17 @@ window.pgOneCprChart = (function () {
         segments.forEach(function (s) {
             segPrices.push(Number(s.tc), Number(s.pivot), Number(s.bc));
         });
-        var maxPrice = Math.max.apply(null, highs.concat(segPrices.length ? segPrices : [Number.MIN_VALUE]));
-        var minPrice = Math.min.apply(null, lows.concat(segPrices.length ? segPrices : [Number.MAX_VALUE]));
+        var keltnerPrices = [];
+        if (st.showKeltner) {
+            view.forEach(function (c) {
+                if (c.keltnerUpperOuter != null) keltnerPrices.push(Number(c.keltnerUpperOuter));
+                if (c.keltnerLowerOuter != null) keltnerPrices.push(Number(c.keltnerLowerOuter));
+            });
+        }
+        var maxCandidates = highs.concat(segPrices, keltnerPrices);
+        var minCandidates = lows.concat(segPrices, keltnerPrices);
+        var maxPrice = Math.max.apply(null, maxCandidates.length ? maxCandidates : [Number.MIN_VALUE]);
+        var minPrice = Math.min.apply(null, minCandidates.length ? minCandidates : [Number.MAX_VALUE]);
         var priceRange = (maxPrice - minPrice) || 1;
         var slot = chartW / view.length;
         var candleWidth = Math.max(1, slot - 2);
@@ -218,6 +266,10 @@ window.pgOneCprChart = (function () {
         var toX = function (i) { return padding.left + slot * i + slot / 2; };
 
         drawCprBackground(ctx, view, segments, padding, slot, chartH, toY, toX);
+
+        if (st.showKeltner) {
+            drawKeltnerLines(ctx, view, toX, toY);
+        }
 
         ctx.textBaseline = 'middle';
         for (var g = 0; g <= 4; g++) {

@@ -16,21 +16,29 @@
     [Parameter] public List<Candle> Candles { get; set; } = new();
     [Parameter] public IReadOnlyList<IntradayCprSegment> Segments { get; set; } = Array.Empty<IntradayCprSegment>();
     [Parameter] public int ChartVersion { get; set; }
+    [Parameter] public int OverlayVersion { get; set; }
+    [Parameter] public bool ShowKeltnerLevels { get; set; } = true;
     [Parameter] public string CssClass { get; set; } = string.Empty;
     [Parameter] public int Width { get; set; } = 1200;
     [Parameter] public int Height { get; set; } = 520;
 
     private int _lastRenderedVersion = -1;
+    private int _lastOverlayVersion = -1;
+    private bool _lastShowKeltner;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (Candles.Count == 0)
             return;
 
-        if (ChartVersion == _lastRenderedVersion)
+        if (ChartVersion == _lastRenderedVersion
+            && OverlayVersion == _lastOverlayVersion
+            && ShowKeltnerLevels == _lastShowKeltner)
             return;
 
         _lastRenderedVersion = ChartVersion;
+        _lastOverlayVersion = OverlayVersion;
+        _lastShowKeltner = ShowKeltnerLevels;
         await RenderAsync();
     }
 
@@ -52,7 +60,12 @@
             open = c.Open,
             high = c.High,
             low = c.Low,
-            close = c.Close
+            close = c.Close,
+            keltnerUpperInner = c.KeltnerUpperInner,
+            keltnerLowerInner = c.KeltnerLowerInner,
+            keltnerUpperOuter = c.KeltnerUpperOuter,
+            keltnerLowerOuter = c.KeltnerLowerOuter,
+            keltnerMid = c.KeltnerMid
         }).ToList();
 
         var segmentPayload = Segments.Select(s => new
@@ -64,6 +77,8 @@
             bc = s.Bc
         }).ToList();
 
-        await InvokeSafe("pgOneCprChart.draw", CanvasId, payload, segmentPayload);
+        var overlayOptions = new { showKeltner = ShowKeltnerLevels };
+
+        await InvokeSafe("pgOneCprChart.draw", CanvasId, payload, segmentPayload, overlayOptions);
     }
 }

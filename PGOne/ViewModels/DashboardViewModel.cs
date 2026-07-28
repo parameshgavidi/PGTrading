@@ -38,6 +38,7 @@ public class DashboardViewModel : INotifyPropertyChanged
     public bool ShowPocOverlay { get; private set; } = true;
     public bool ShowPivotOverlay { get; private set; } = true;
     public bool ShowCamarillaOverlay { get; private set; } = true;
+    public bool ShowKeltnerOverlay { get; private set; } = true;
     public IReadOnlyList<IntradayCprSegment> CprSegments { get; private set; } = Array.Empty<IntradayCprSegment>();
     public decimal CurrentIntradayTc { get; private set; }
     public decimal CurrentIntradayPivot { get; private set; }
@@ -226,6 +227,17 @@ public class DashboardViewModel : INotifyPropertyChanged
         ShowCamarillaOverlay = show;
         OverlayVersion++;
         Notify(nameof(ShowCamarillaOverlay));
+        Notify(nameof(OverlayVersion));
+    }
+
+    public void SetShowKeltnerOverlay(bool show)
+    {
+        if (ShowKeltnerOverlay == show)
+            return;
+
+        ShowKeltnerOverlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowKeltnerOverlay));
         Notify(nameof(OverlayVersion));
     }
 
@@ -463,6 +475,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowPocOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowPivotOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowCamarillaOverlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowKeltnerOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CprSegments)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentIntradayTc)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentIntradayPivot)));

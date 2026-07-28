@@ -172,13 +172,14 @@ public class MarketDataService : IMarketDataService
     {
         AttachSuperTrend(candles);
 
-        // Keltner Channels + VWAP are used for the 5m range-bound playbook.
-        if (interval == "5m")
+        // Keltner on 1m and 5m; VWAP only on 5m range-bound playbook.
+        if (interval is "1m" or "5m")
         {
             var cfg = _settings.Strategy;
             _indicators.ApplyKeltner(candles, cfg.KeltnerEmaLength, cfg.KeltnerAtrLength,
                 cfg.KeltnerMultiplierInner, cfg.KeltnerMultiplierOuter);
-            _indicators.ApplyVwap(candles);
+            if (interval == "5m")
+                _indicators.ApplyVwap(candles);
         }
 
         return candles;

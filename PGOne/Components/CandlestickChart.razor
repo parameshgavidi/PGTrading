@@ -21,6 +21,7 @@
     [Parameter] public bool ShowPocLevels { get; set; } = true;
     [Parameter] public bool ShowPivotLevels { get; set; } = true;
     [Parameter] public bool ShowCamarillaLevels { get; set; } = true;
+    [Parameter] public bool ShowKeltnerLevels { get; set; } = true;
     [Parameter] public string Timeframe { get; set; } = "5m";
     [Parameter] public string CssClass { get; set; } = string.Empty;
     [Parameter] public int Width { get; set; } = 800;
@@ -32,6 +33,7 @@
     private bool _lastShowPoc;
     private bool _lastShowPivot;
     private bool _lastShowCamarilla;
+    private bool _lastShowKeltner;
     private int _lastCprSegmentCount;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -45,6 +47,7 @@
             && ShowPocLevels == _lastShowPoc
             && ShowPivotLevels == _lastShowPivot
             && ShowCamarillaLevels == _lastShowCamarilla
+            && ShowKeltnerLevels == _lastShowKeltner
             && CprSegments.Count == _lastCprSegmentCount)
             return;
 
@@ -54,6 +57,7 @@
         _lastShowPoc = ShowPocLevels;
         _lastShowPivot = ShowPivotLevels;
         _lastShowCamarilla = ShowCamarillaLevels;
+        _lastShowKeltner = ShowKeltnerLevels;
         _lastCprSegmentCount = CprSegments.Count;
         await RenderAsync();
     }
@@ -108,7 +112,9 @@
             showPivot = ShowPivotLevels,
             showCamarilla = ShowCamarillaLevels,
             showIntradaCpr = is1mCpr && segmentPayload.Count > 0,
-            intradayCpr = segmentPayload
+            intradayCpr = segmentPayload,
+            showKeltner = ShowKeltnerLevels,
+            showVwap = Timeframe == "5m"
         };
 
         await InvokeSafe("pgOneChart.drawCandlestickChart", CanvasId, payload, Timeframe, levels, pocToday, overlayOptions);
