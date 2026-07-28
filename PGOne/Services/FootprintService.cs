@@ -4,7 +4,7 @@ namespace PGOne.Services;
 
 public interface IFootprintService
 {
-  FootprintAnalysis Analyze(List<Candle> candles5M, TrendDirection bias, string volumeSource = "equity", string? futuresSymbol = null);
+  FootprintAnalysis Analyze(List<Candle> candles5M, string volumeSource = "equity", string? futuresSymbol = null);
 }
 
 public class FootprintService : IFootprintService
@@ -14,7 +14,7 @@ public class FootprintService : IFootprintService
   private const decimal ImbalanceRatio = 1.4m;
   private const decimal AbsorptionVolumeRatio = 1.5m;
 
-  public FootprintAnalysis Analyze(List<Candle> candles5M, TrendDirection bias, string volumeSource = "equity", string? futuresSymbol = null)
+  public FootprintAnalysis Analyze(List<Candle> candles5M, string volumeSource = "equity", string? futuresSymbol = null)
   {
     if (candles5M.Count < Lookback + 2)
       return new FootprintAnalysis { Summary = "Insufficient 5m data" };
@@ -101,25 +101,16 @@ public class FootprintService : IFootprintService
       HasUnfinishedAuction = unfinishedAuction
     };
 
-    result.Summary = BuildSummary(result, bias);
+    result.Summary = BuildSummary(result);
     return result;
   }
 
   private static (decimal Buy, decimal Sell) EstimateBidAskVolume(Candle candle) =>
     FootprintVolumeEstimator.EstimateBidAskVolume(candle);
 
-  private static string BuildSummary(FootprintAnalysis fp, TrendDirection bias)
+  private static string BuildSummary(FootprintAnalysis fp)
   {
-    if (bias == TrendDirection.Buy && fp.ConfirmsLong)
-      return fp.VolumeSource == "futures" && fp.FuturesSymbol is not null
-        ? $"Fut buy confirmed · {FootprintDisplayHelper.GetShortDeltaLabel(fp)} · {fp.FuturesSymbol}"
-        : "Delta +, stacked buy imbalances, no absorption against";
-
-    if (bias == TrendDirection.Sell && fp.ConfirmsShort)
-      return fp.VolumeSource == "futures" && fp.FuturesSymbol is not null
-        ? $"Fut sell confirmed · {FootprintDisplayHelper.GetShortDeltaLabel(fp)} · {fp.FuturesSymbol}"
-        : "Delta −, stacked sell imbalances, no absorption against";
-
+    // Technical summary only — display label is set in SignalService after footprint confirmation.
     var parts = new List<string>();
     if (fp.VolumeSource == "futures" && !string.IsNullOrEmpty(fp.FuturesSymbol))
     {

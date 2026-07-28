@@ -53,4 +53,29 @@ public static class FootprintDisplayHelper
 
         return "Δ flat";
     }
+
+    /// <summary>
+    /// Canonical footprint label for dashboard, AI panel, and framework logs.
+    /// "Confirmed" only when framework step 4 passed (trade direction + footprint alignment).
+    /// </summary>
+    public static string GetDisplayLabel(FootprintAnalysis fp, bool footprintConfirmed)
+    {
+        if (fp.Summary is "Insufficient 5m data" or "No data")
+            return fp.Summary;
+
+        if (footprintConfirmed)
+        {
+            var symbolPart = fp.VolumeSource == "futures" && !string.IsNullOrEmpty(fp.FuturesSymbol)
+                ? $" · {fp.FuturesSymbol}"
+                : "";
+
+            return $"Footprint OK · {GetFlowBiasLabel(fp)} · {GetShortDeltaLabel(fp)}{symbolPart}";
+        }
+
+        return GetInsightLabel(fp);
+    }
+
+    /// <summary>CSS class for footprint row — colors by order-flow bias, not framework pass/fail.</summary>
+    public static string GetDisplayClass(FootprintAnalysis fp) =>
+        TrendUi.GetClass(GetFlowBias(fp));
 }

@@ -115,17 +115,14 @@ public class SignalService : ISignalService
             tpo,
             config);
 
-        var footprintBias = tradeDirection != TrendDirection.Neutral
-            ? tradeDirection
-            : marketBias != TrendDirection.Neutral ? marketBias : trend1H;
-
         var instrumentKey = MapInstrument(instrument);
         var (footprintCandles, volumeSource, futuresSymbol) = await _marketData.GetFootprintCandlesAsync(instrumentKey, candles5M);
-        var footprint = _footprint.Analyze(footprintCandles, footprintBias, volumeSource, futuresSymbol);
+        var footprint = _footprint.Analyze(footprintCandles, volumeSource, futuresSymbol);
 
         var entryTriggered = TradeFrameworkEvaluator.EntryTriggered(tradeDirection, trend5MEntry);
         var tpoConfirmed = tradeDirection != TrendDirection.Neutral && tpo.Confirms(tradeDirection);
         var footprintConfirmed = TradeFrameworkEvaluator.FootprintConfirmed(tradeDirection, footprint);
+        footprint.Summary = FootprintDisplayHelper.GetDisplayLabel(footprint, footprintConfirmed);
         var frameworkReady = TradeFrameworkEvaluator.IsFrameworkReady(
             tradeDirection,
             trend5MEntry,
