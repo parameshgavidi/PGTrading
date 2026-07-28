@@ -14,17 +14,27 @@ public static class FootprintDisplayHelper
         return abs.ToString("N0");
     }
 
+    public static TrendDirection GetFlowBias(FootprintAnalysis fp) => fp.PositiveDelta
+        ? TrendDirection.Buy
+        : fp.NegativeDelta
+            ? TrendDirection.Sell
+            : TrendDirection.Neutral;
+
+    public static string GetFlowBiasLabel(FootprintAnalysis fp) =>
+        TrendUi.GetBiasLabel(GetFlowBias(fp));
+
     public static string GetInsightLabel(FootprintAnalysis fp)
     {
         if (fp.VolumeSource == "futures" && !string.IsNullOrEmpty(fp.FuturesSymbol))
         {
+            var bias = GetFlowBiasLabel(fp);
             var deltaPart = fp.PositiveDelta
-                ? $"buy vol > sell (Δ +{FormatVolumeDelta(fp.Delta)})"
+                ? $"buy > sell (Δ +{FormatVolumeDelta(fp.Delta)})"
                 : fp.NegativeDelta
-                    ? $"sell vol > buy (Δ −{FormatVolumeDelta(fp.Delta)})"
-                    : "buy/sell balanced (Δ flat)";
+                    ? $"sell > buy (Δ −{FormatVolumeDelta(fp.Delta)})"
+                    : $"balanced (Δ flat)";
 
-            return $"Fut footprint · {deltaPart} · {fp.FuturesSymbol}";
+            return $"{bias} fut flow · {deltaPart} · {fp.FuturesSymbol}";
         }
 
         if (fp.UsesVolumeProxy)
