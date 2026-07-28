@@ -4,7 +4,7 @@ namespace PGOne.Services;
 
 public interface IFootprintService
 {
-  FootprintAnalysis Analyze(List<Candle> candles5M, TrendDirection bias, string volumeSource = "equity");
+  FootprintAnalysis Analyze(List<Candle> candles5M, TrendDirection bias, string volumeSource = "equity", string? futuresSymbol = null);
 }
 
 public class FootprintService : IFootprintService
@@ -14,7 +14,7 @@ public class FootprintService : IFootprintService
   private const decimal ImbalanceRatio = 1.4m;
   private const decimal AbsorptionVolumeRatio = 1.5m;
 
-  public FootprintAnalysis Analyze(List<Candle> candles5M, TrendDirection bias, string volumeSource = "equity")
+  public FootprintAnalysis Analyze(List<Candle> candles5M, TrendDirection bias, string volumeSource = "equity", string? futuresSymbol = null)
   {
     if (candles5M.Count < Lookback + 2)
       return new FootprintAnalysis { Summary = "Insufficient 5m data" };
@@ -91,6 +91,7 @@ public class FootprintService : IFootprintService
       PositiveDelta = delta > 0,
       NegativeDelta = delta < 0,
       VolumeSource = volumeSource,
+      FuturesSymbol = futuresSymbol,
       UsesVolumeProxy = usesRangeProxy,
       StackedBuyImbalance = maxBuyStreak >= MinStackedBars,
       StackedSellImbalance = maxSellStreak >= MinStackedBars,
@@ -123,7 +124,7 @@ public class FootprintService : IFootprintService
     if (fp.UsesVolumeProxy)
       parts.Add("range proxy (no volume)");
     else if (fp.VolumeSource == "futures")
-      parts.Add("index fut vol");
+      parts.Add(fp.FuturesSymbol is not null ? $"{fp.FuturesSymbol} (fut)" : "index fut");
 
     if (fp.StackedBuyImbalance) parts.Add("buy imbalances");
     if (fp.StackedSellImbalance) parts.Add("sell imbalances");
