@@ -36,10 +36,10 @@ public static class CandleVolumeMerger
     /// <summary>
     /// Copies exchange volume from a liquid proxy series onto index candles.
     /// </summary>
-    public static List<Candle> CopyWithVolumeFrom(List<Candle> priceCandles, IReadOnlyList<Candle> volumeCandles)
+    public static List<Candle> CopyWithVolumeFrom(IReadOnlyList<Candle> priceCandles, IReadOnlyList<Candle> volumeCandles)
     {
         if (priceCandles.Count == 0)
-            return priceCandles;
+            return [];
 
         if (volumeCandles.Count == 0)
             return CloneCandles(priceCandles);
