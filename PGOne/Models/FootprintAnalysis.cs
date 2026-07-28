@@ -19,6 +19,8 @@ public class FootprintAnalysis
   public bool UsesVolumeProxy { get; set; }
   /// <summary>equity, futures, range_proxy, or none.</summary>
   public string VolumeSource { get; set; } = "none";
+  /// <summary>Nearest NFO future symbol when VolumeSource is futures.</summary>
+  public string? FuturesSymbol { get; set; }
   public string Summary { get; set; } = "No data";
 
   public bool ConfirmsLong => PositiveDelta && StackedBuyImbalance && !AbsorptionAgainstLong;

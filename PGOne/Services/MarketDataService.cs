@@ -10,7 +10,7 @@ public interface IMarketDataService
     /// <summary>
     /// 5m candles with real volume for footprint — uses nearest index future when index volume is zero.
     /// </summary>
-    Task<(List<Candle> Candles, string VolumeSource)> GetFootprintCandlesAsync(
+    Task<(List<Candle> Candles, string VolumeSource, string? FuturesSymbol)> GetFootprintCandlesAsync(
         string instrument,
         IReadOnlyList<Candle> candles5M);
     Task<decimal> GetCurrentPriceAsync(string instrument);
@@ -57,33 +57,35 @@ public class MarketDataService : IMarketDataService
     // to the visible window. SuperTrend is path-dependent, so warmup matters.
     private const int WarmupBars = 300;
 
-    public async Task<(List<Candle> Candles, string VolumeSource)> GetFootprintCandlesAsync(
+    public async Task<(List<Candle> Candles, string VolumeSource, string? FuturesSymbol)> GetFootprintCandlesAsync(
         string instrument,
         IReadOnlyList<Candle> candles5M)
     {
         if (candles5M.Count == 0)
-            return ([], "none");
+            return ([], "none", null);
 
         if (CandleVolumeMerger.HasTradeableVolume(candles5M))
-            return (CandleVolumeMerger.CopyWithVolumeFrom(candles5M, candles5M), "equity");
+            return (CandleVolumeMerger.CopyWithVolumeFrom(candles5M, candles5M), "equity", null);
 
         if (!InstrumentMapper.IsIndexSymbol(instrument))
-            return (CandleVolumeMerger.CopyWithVolumeFrom(candles5M, candles5M), "range_proxy");
+            return (CandleVolumeMerger.CopyWithVolumeFrom(candles5M, candles5M), "range_proxy", null);
 
         var underlying = InstrumentMapper.FromZerodhaKey(instrument);
         var futureKey = await _zerodha.ResolveNearestFutureKeyAsync(underlying);
         if (futureKey is null)
-            return (CandleVolumeMerger.CopyWithVolumeFrom(candles5M, candles5M), "range_proxy");
+            return (CandleVolumeMerger.CopyWithVolumeFrom(candles5M, candles5M), "range_proxy", null);
 
+        var futuresSymbol = futureKey.Contains(':') ? futureKey.Split(':', 2)[1] : futureKey;
         var futureCandles = await _zerodha.GetHistoricalCandlesAsync(futureKey, "5m", candles5M.Count + 30);
         if (!CandleVolumeMerger.HasTradeableVolume(futureCandles))
-            return (CandleVolumeMerger.CopyWithVolumeFrom(candles5M, candles5M), "range_proxy");
+            return (CandleVolumeMerger.CopyWithVolumeFrom(candles5M, candles5M), "range_proxy", null);
 
-        var merged = CandleVolumeMerger.CopyWithVolumeFrom(candles5M, futureCandles);
-        if (!CandleVolumeMerger.HasTradeableVolume(merged))
-            return (merged, "range_proxy");
+        // Footprint uses nearest index future OHLCV (price + volume), not index with merged volume.
+        var futuresBars = CandleVolumeMerger.SelectFuturesBarsMatchingIndex(candles5M, futureCandles);
+        if (futuresBars.Count < 10 || !CandleVolumeMerger.HasTradeableVolume(futuresBars))
+            return (CandleVolumeMerger.CopyWithVolumeFrom(candles5M, candles5M), "range_proxy", null);
 
-        return (merged, "futures");
+        return (futuresBars, "futures", futuresSymbol);
     }
 
     public async Task<CandleSeriesResult> GetCandlesResultAsync(string instrument, string interval, int count = 100)
