@@ -386,15 +386,15 @@
             </div>
 
             <p class="text-secondary">
-                Sum open-position P&amp;L from Zerodha. When aggregate hits your target, square-off all open positions.
+                Sum <strong>open MIS (intraday)</strong> P&amp;L from Zerodha. Delivery holdings (CNC) like existing portfolio stocks are excluded.
             </p>
 
             <div class="framework-panel">
                 <div class="framework-panel-title">Book profit or loss (₹)</div>
                 <ul class="framework-conditions">
-                    <li>Profit: exit all when <strong>total open P&amp;L ≥ target</strong> (e.g. ₹1,500)</li>
-                    <li>Loss: exit all when <strong>total open P&amp;L ≤ −limit</strong> (e.g. −₹1,500)</li>
-                    <li>Includes all products with open net quantity (MIS, NRML, CNC, etc.)</li>
+                    <li>Profit: exit all <strong>open MIS</strong> when intraday P&amp;L ≥ target</li>
+                    <li>Loss: exit all <strong>open MIS</strong> when intraday P&amp;L ≤ −limit</li>
+                    <li>Does not sell CNC/delivery holdings — only today&apos;s MIS positions with open quantity</li>
                     <li>Places LIMIT at live LTP (tick-rounded), then MARKET if limit is rejected</li>
                 </ul>
 
@@ -416,7 +416,7 @@
 
                 <div class="holdings-summary target-pnl-live">
                     <span class="summary-pill @(ViewModel.AggregatePnL >= 0 ? "buy" : "sell")">
-                        Live P&amp;L: ₹@ViewModel.AggregatePnL.ToString("N2")
+                        MIS P&amp;L: ₹@ViewModel.AggregatePnL.ToString("N2")
                     </span>
                     @if (ViewModel.TargetProfitAmount > 0)
                     {
