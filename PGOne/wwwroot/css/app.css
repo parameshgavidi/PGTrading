@@ -1733,3 +1733,76 @@ code {
     line-height: 1.4;
 }
 .sr-empty { padding: 12px; font-size: 13px; }
+
+/* Multi Chart — side-by-side panels with independent timeframes */
+.multi-chart-page {
+    padding: 0;
+}
+
+.multi-chart-top {
+    align-items: flex-start;
+}
+
+.multi-chart-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.multi-chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.multi-chart-panel {
+    min-width: 0;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+}
+
+.multi-chart-panel-title {
+    font-size: var(--font-secondary);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 6px;
+}
+
+.chart-header.compact {
+    margin-bottom: 4px;
+}
+
+.chart-header.compact .price-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.chart-area.multi {
+    height: 360px;
+}
+
+.chart-legend.compact {
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 11px;
+}
+
+.multi-chart-page .watchlist-panel {
+    max-height: calc(100vh - 120px);
+}
+
+@media (max-width: 1280px) {
+    .multi-chart-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-area.multi {
+        height: 320px;
+    }
+}

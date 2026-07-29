@@ -1,0 +1,100 @@
+@namespace PGOne.Components
+@using PGOne.Models
+@using PGOne.ViewModels
+
+<div class="chart-panel card multi-chart-panel">
+    <div class="multi-chart-panel-title">@Panel.Title</div>
+  <div class="chart-header compact">
+        <div class="price-row">
+            <TrendBadge Trend="Panel.ChartTrend" />
+            @if (Panel.SupportsIntradayCprOverlay && Panel.ShowIntradayCprOverlay)
+            {
+                <span class="cpr-position-badge @Panel.CprPositionClass">@Panel.CprPositionLabel</span>
+            }
+        </div>
+    </div>
+    <CandlestickChart CanvasId="@Panel.CanvasId"
+                      Candles="Panel.ChartCandles"
+                      ChartVersion="Panel.ChartVersion"
+                      OverlayVersion="Panel.OverlayVersion"
+                      Analysis="Analysis"
+                      CprSegments="Panel.CprSegments"
+                      ShowPocLevels="Panel.ShowPocOverlay"
+                      ShowPivotLevels="Panel.ShowPivotOverlay"
+                      ShowCamarillaLevels="Panel.ShowCamarillaOverlay"
+                      ShowKeltnerLevels="Panel.ShowKeltnerOverlay"
+                      ShowIntradayCprLevels="Panel.ShowIntradayCprOverlay"
+                      Timeframe="Panel.SelectedTimeframe"
+                      CssClass="multi"
+                      Width="700"
+                      Height="360" />
+    <div class="chart-toolbar">
+        <div class="timeframe-buttons">
+            @foreach (var tf in Timeframes)
+            {
+                <button type="button"
+                        class="btn tf-btn @(Panel.SelectedTimeframe == tf ? "active" : "")"
+                        @onclick="() => OnTimeframeAsync(tf)">@tf</button>
+            }
+        </div>
+        <ChartOverlayToggles ShowIntradayCprToggle="Panel.SupportsIntradayCprOverlay"
+                             ShowKeltnerToggle="@(Panel.SelectedTimeframe == "1m" || Panel.SelectedTimeframe == "5m")"
+                             ShowPoc="Panel.ShowPocOverlay"
+                             ShowDayCpr="Panel.ShowPivotOverlay"
+                             ShowCamarilla="Panel.ShowCamarillaOverlay"
+                             ShowIntradayCpr="Panel.ShowIntradayCprOverlay"
+                             ShowKeltner="Panel.ShowKeltnerOverlay"
+                             ShowPocChanged="v => OnShowPoc(v)"
+                             ShowDayCprChanged="v => OnShowPivot(v)"
+                             ShowCamarillaChanged="v => OnShowCamarilla(v)"
+                             ShowIntradayCprChanged="v => OnShowIntradayCpr(v)"
+                             ShowKeltnerChanged="v => OnShowKeltner(v)" />
+    </div>
+    <div class="chart-legend compact">
+        <span class="legend-item"><span class="legend-color buy"></span> ST BUY</span>
+        <span class="legend-item"><span class="legend-color sell"></span> ST SELL</span>
+        @if (Panel.ShowPocOverlay)
+        {
+            <span class="legend-item"><span class="legend-color poc"></span> POC / VA</span>
+        }
+        @if (Panel.ShowPivotOverlay)
+        {
+            <span class="legend-item"><span class="legend-color pivot"></span> Day CPR</span>
+        }
+        @if (Panel.ShowIntradayCprOverlay && Panel.SupportsIntradayCprOverlay)
+        {
+            <span class="legend-item"><span class="legend-color cpr-tc"></span> 1m CPR bands</span>
+        }
+        @if (Panel.ShowCamarillaOverlay)
+        {
+            <span class="legend-item"><span class="legend-color camarilla"></span> Camarilla</span>
+        }
+        @if (Panel.ShowKeltnerOverlay && (Panel.SelectedTimeframe == "1m" || Panel.SelectedTimeframe == "5m"))
+        {
+            <span class="legend-item"><span class="legend-color keltner"></span> Keltner</span>
+        }
+    </div>
+    @if (!string.IsNullOrEmpty(Panel.ChartDataMessage))
+    {
+        <div class="chart-meta @(Panel.IsChartFromZerodha ? "zerodha" : "warning")">@Panel.ChartDataMessage</div>
+    }
+    @if (!string.IsNullOrEmpty(Panel.LastCandleSummary))
+    {
+        <div class="chart-meta">Last bar: @Panel.LastCandleSummary</div>
+    }
+</div>
+
+@code {
+    private static readonly string[] Timeframes = ["1m", "5m", "15m", "1H"];
+
+    [Parameter, EditorRequired] public ChartPanelModel Panel { get; set; } = new();
+    [Parameter, EditorRequired] public MultiTimeframeAnalysis Analysis { get; set; } = new();
+    [Parameter, EditorRequired] public MultiChartViewModel ViewModel { get; set; } = default!;
+
+    private Task OnTimeframeAsync(string tf) => ViewModel.ChangePanelTimeframeAsync(Panel, tf);
+    private void OnShowPoc(bool v) => ViewModel.SetPanelShowPoc(Panel, v);
+    private void OnShowPivot(bool v) => ViewModel.SetPanelShowPivot(Panel, v);
+    private void OnShowCamarilla(bool v) => ViewModel.SetPanelShowCamarilla(Panel, v);
+    private void OnShowKeltner(bool v) => ViewModel.SetPanelShowKeltner(Panel, v);
+    private void OnShowIntradayCpr(bool v) => ViewModel.SetPanelShowIntradayCpr(Panel, v);
+}

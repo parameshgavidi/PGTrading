@@ -1,0 +1,140 @@
+@page "/multi-chart"
+@inject MultiChartViewModel ViewModel
+@implements IDisposable
+
+<div class="multi-chart-page">
+    <div class="dashboard-top multi-chart-top">
+        <div class="watchlist-panel card">
+            <div class="watchlist-section">
+                <div class="watchlist-section-title">Indices</div>
+                <div class="watchlist-items">
+                    @foreach (var item in ViewModel.IndexWatchlist)
+                    {
+                        <div class="watchlist-row favorite @(ViewModel.SelectedSymbol == item.Symbol ? "selected" : "")"
+                             @onclick="() => SelectSymbol(item.Symbol)">
+                            <div class="watchlist-row-main">
+                                <span class="symbol">@InstrumentMapper.ToIndexShortName(item.Symbol)</span>
+                                <span class="bs-badge @TrendUi.GetClass(item.Trend)">@TrendUi.GetBadgeLabel(item.Trend)</span>
+                            </div>
+                            <div class="watchlist-row-meta">
+                                <span class="index-change @(item.ChangePercent >= 0 ? "positive" : "negative")">
+                                    @(item.ChangePercent >= 0 ? "+" : "")@item.ChangePercent.ToString("N2")%
+                                </span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="watchlist-section">
+                <div class="watchlist-section-title">Top 10 Weight</div>
+                <div class="watchlist-items">
+                    @foreach (var item in ViewModel.Top10Watchlist)
+                    {
+                        <div class="watchlist-row @(ViewModel.SelectedSymbol == item.Symbol ? "selected" : "")"
+                             @onclick="() => SelectSymbol(item.Symbol)">
+                            <div class="watchlist-row-main">
+                                <span class="symbol">@item.Symbol</span>
+                                <span class="bs-badge @TrendUi.GetClass(item.Trend)">@TrendUi.GetBadgeLabel(item.Trend)</span>
+                            </div>
+                            <div class="watchlist-row-meta">
+                                <span class="index-change @(item.ChangePercent >= 0 ? "positive" : "negative")">
+                                    @(item.ChangePercent >= 0 ? "+" : "")@item.ChangePercent.ToString("N2")%
+                                </span>
+                                @if (item.Weight > 0)
+                                {
+                                    <span class="weight-label">@item.Weight.ToString("N1")%</span>
+                                }
+                                <span class="sparkline @(item.ChangePercent >= 0 ? "up" : item.ChangePercent < 0 ? "down" : "")">@item.Sparkline</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="multi-chart-main card">
+            <div class="chart-header">
+                <div class="instrument-info">
+                    <div class="instrument-title-row">
+                        <h2>@ViewModel.SelectedDisplayName</h2>
+                        <span class="market-status @(ViewModel.IsMarketOpen ? "open" : "closed")">
+                            @ViewModel.MarketStatus
+                        </span>
+                    </div>
+                    <div class="price-row">
+                        <span class="price">@ViewModel.LivePrice.ToString("N2")</span>
+                        <span class="change @(ViewModel.LiveChange >= 0 ? "positive" : "negative")">
+                            @(ViewModel.LiveChange >= 0 ? "▲" : "▼") @Math.Abs(ViewModel.LiveChange).ToString("N2") (@ViewModel.LiveChangePercent%)
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(ViewModel.StartupError))
+            {
+                <div class="chart-meta warning">Startup: @ViewModel.StartupError</div>
+            }
+            @if (!ViewModel.IsReady)
+            {
+                <div class="chart-meta">Loading charts…</div>
+            }
+
+            <div class="multi-chart-grid">
+                <ChartPanelCard Panel="ViewModel.Panel5m"
+                                Analysis="ViewModel.Analysis"
+                                ViewModel="ViewModel" />
+                <ChartPanelCard Panel="ViewModel.Panel15m"
+                                Analysis="ViewModel.Analysis"
+                                ViewModel="ViewModel" />
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private CancellationTokenSource? _refreshCts;
+
+    protected override void OnInitialized()
+    {
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        _refreshCts = new CancellationTokenSource();
+        _ = LoadAsync();
+        _ = RunRefreshLoopAsync(_refreshCts.Token);
+    }
+
+    private async Task LoadAsync()
+    {
+        await ViewModel.InitializeAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RunRefreshLoopAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(60));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await ViewModel.RefreshAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Page closed.
+        }
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+        InvokeAsync(StateHasChanged);
+
+    private async Task SelectSymbol(string symbol) => await ViewModel.SelectInstrumentAsync(symbol);
+
+    public void Dispose()
+    {
+        _refreshCts?.Cancel();
+        _refreshCts?.Dispose();
+        ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+    }
+}
