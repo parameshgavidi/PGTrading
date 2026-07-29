@@ -50,6 +50,7 @@ public class DashboardViewModel : INotifyPropertyChanged
     public string CprPositionLabel => AboveCpr ? "Above CPR" : "Below CPR";
     public string CprPositionClass => AboveCpr ? "above-cpr" : "below-cpr";
     public bool Is1mCprChart => SelectedTimeframe == "1m";
+    public bool SupportsIntradayCprOverlay => SelectedTimeframe is "1m" or "15m";
     public bool IsChartFromZerodha { get; private set; }
     public string? ChartDataMessage { get; private set; }
     public string? LastCandleSummary { get; private set; }
@@ -160,6 +161,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         UpdateSelectedTrend();
         Notify(nameof(SelectedTimeframe));
         Notify(nameof(Is1mCprChart));
+        Notify(nameof(SupportsIntradayCprOverlay));
         Notify(nameof(OverlayVersion));
         Notify();
     }
@@ -337,6 +339,12 @@ public class DashboardViewModel : INotifyPropertyChanged
                     .ToList();
                 ChartCandles = sessionCandles.Count > 0 ? sessionCandles : result.Candles;
             }
+            else if (SelectedTimeframe == "15m")
+            {
+                var sessionDate = GetChartSessionDate();
+                CprSegments = _intradayCpr.BuildSegments(result.Candles, sessionDate);
+                ChartCandles = result.Candles;
+            }
             else
             {
                 CprSegments = Array.Empty<IntradayCprSegment>();
@@ -346,9 +354,12 @@ public class DashboardViewModel : INotifyPropertyChanged
             ChartVersion++;
             IsChartFromZerodha = result.IsFromZerodha;
             ChartDataMessage = result.IsFromZerodha
-                ? SelectedTimeframe == "1m"
-                    ? $"Zerodha 1m candles ({ChartCandles.Count} bars) · CPR every 15m"
-                    : $"Zerodha {SelectedTimeframe} candles ({ChartCandles.Count} bars)"
+                ? SelectedTimeframe switch
+                {
+                    "1m" => $"Zerodha 1m candles ({ChartCandles.Count} bars) · 1m CPR bands (15m pivot)",
+                    "15m" => $"Zerodha 15m candles ({ChartCandles.Count} bars) · 1m CPR bands",
+                    _ => $"Zerodha {SelectedTimeframe} candles ({ChartCandles.Count} bars)"
+                }
                 : result.Error ?? "Demo candle data";
             LastCandleSummary = BuildLastCandleSummary();
             UpdateIntradayCprState();
@@ -377,7 +388,7 @@ public class DashboardViewModel : INotifyPropertyChanged
     {
         try
         {
-            if (SelectedTimeframe != "1m" || CprSegments.Count == 0)
+            if (!SupportsIntradayCprOverlay || CprSegments.Count == 0)
             {
                 CurrentIntradayTc = 0;
                 CurrentIntradayPivot = 0;
@@ -563,6 +574,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CprPositionLabel)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CprPositionClass)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Is1mCprChart)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SupportsIntradayCprOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsMarketOpen)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(MarketStatus)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NiftyChange)));
