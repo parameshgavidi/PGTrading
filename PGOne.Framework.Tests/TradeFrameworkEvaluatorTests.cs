@@ -93,6 +93,55 @@ public class TradeFrameworkEvaluatorTests
   }
 
   [Fact]
+  public void Rangebound_score_reflects_partial_alignment_not_flat_45()
+  {
+    var footprint = new FootprintAnalysis { PositiveDelta = true };
+    var tpo = new TpoConfirmationAnalysis { BuyConfirmed = true };
+
+    var score = TradeFrameworkEvaluator.CalculateScore(
+      marketBias: TrendDirection.Buy,
+      tradeDirection: TrendDirection.Neutral,
+      trend1H: TrendDirection.Buy,
+      trend15M: TrendDirection.Buy,
+      trend5MEntry: TrendDirection.Buy,
+      strength1H: TrendStrength.Weak,
+      aboveVwap: true,
+      footprint,
+      tpo,
+      isRotationRegime: false,
+      isRangebound: true,
+      frameworkReady: false);
+
+    Assert.True(score > 45);
+    Assert.True(score <= 54);
+    Assert.Equal("Range-bound", TradeFrameworkEvaluator.GetScoreStrengthLabel(score, true, false, false));
+  }
+
+  [Fact]
+  public void Rotation_regime_caps_score_at_48()
+  {
+    var footprint = new FootprintAnalysis();
+    var tpo = new TpoConfirmationAnalysis();
+
+    var score = TradeFrameworkEvaluator.CalculateScore(
+      TrendDirection.Buy,
+      TrendDirection.Buy,
+      TrendDirection.Buy,
+      TrendDirection.Buy,
+      TrendDirection.Buy,
+      TrendStrength.Strong,
+      aboveVwap: true,
+      footprint,
+      tpo,
+      isRotationRegime: true,
+      isRangebound: false,
+      frameworkReady: false);
+
+    Assert.True(score <= 48);
+    Assert.Equal("Rotation", TradeFrameworkEvaluator.GetScoreStrengthLabel(score, false, true, false));
+  }
+
+  [Fact]
   public void Framework_playbook_groups_have_rules()
   {
     Assert.All(FrameworkPlaybook.Groups, group =>

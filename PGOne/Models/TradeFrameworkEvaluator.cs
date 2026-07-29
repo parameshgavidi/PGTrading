@@ -105,16 +105,21 @@ public static class TradeFrameworkEvaluator
     bool isRangebound,
     bool frameworkReady)
   {
-    if (isRotationRegime || isRangebound)
-      return 45;
-
     var score = 25;
 
     if (marketBias != TrendDirection.Neutral) score += 10;
     if (tradeDirection != TrendDirection.Neutral) score += 15;
-    if (trend1H == tradeDirection) score += 5;
-    if (trend15M == tradeDirection) score += 10;
-    if (trend5MEntry == tradeDirection) score += 10;
+
+    var alignment = tradeDirection != TrendDirection.Neutral ? tradeDirection : marketBias;
+    if (alignment != TrendDirection.Neutral)
+    {
+      if (trend1H == alignment) score += 5;
+      if (trend15M == alignment) score += 10;
+      if (trend5MEntry == alignment) score += 10;
+
+      if (alignment == TrendDirection.Buy && aboveVwap) score += 5;
+      if (alignment == TrendDirection.Sell && !aboveVwap) score += 5;
+    }
 
     score += strength1H switch
     {
@@ -123,18 +128,54 @@ public static class TradeFrameworkEvaluator
       _ => 0
     };
 
-    if (tradeDirection == TrendDirection.Buy && aboveVwap) score += 5;
-    if (tradeDirection == TrendDirection.Sell && !aboveVwap) score += 5;
+    if (tradeDirection != TrendDirection.Neutral && tpo.Confirms(tradeDirection)) score += 10;
+    else if (marketBias != TrendDirection.Neutral && tpo.Confirms(marketBias)) score += 5;
 
-    if (tpo.Confirms(tradeDirection)) score += 10;
     if (tpo.StrongTrendDay) score += 5;
 
     if (footprint.Confirms(tradeDirection)) score += 15;
-    else if (footprint.PositiveDelta || footprint.NegativeDelta) score += 5;
+    else if (tradeDirection != TrendDirection.Neutral && (footprint.PositiveDelta || footprint.NegativeDelta)) score += 5;
+    else if (marketBias != TrendDirection.Neutral)
+    {
+      var flowBias = footprint.PositiveDelta
+        ? TrendDirection.Buy
+        : footprint.NegativeDelta
+          ? TrendDirection.Sell
+          : TrendDirection.Neutral;
+      if (flowBias == marketBias) score += 5;
+    }
 
     if (frameworkReady) score += 10;
 
+    if (isRotationRegime)
+      score = Math.Min(score, 48);
+    else if (isRangebound)
+      score = Math.Min(score, 54);
+
     return Math.Clamp(score, 0, 99);
+  }
+
+  public static string GetScoreStrengthLabel(
+    int score,
+    bool isRangebound,
+    bool isRotationRegime,
+    bool frameworkReady)
+  {
+    if (frameworkReady)
+      return "Ready";
+
+    if (isRotationRegime)
+      return "Rotation";
+
+    if (isRangebound)
+      return "Range-bound";
+
+    return score switch
+    {
+      >= 75 => "Strong",
+      >= 55 => "Moderate",
+      _ => "Weak"
+    };
   }
 
   public static string GetBlockingReason(

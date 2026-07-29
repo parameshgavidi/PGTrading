@@ -32,12 +32,24 @@
         _ => "low"
     };
 
-    private string GetStrengthClass() => Analysis.Strength1H switch
+    private string GetStrengthClass()
     {
-        TrendStrength.Strong => "strong",
-        TrendStrength.Moderate => "moderate",
-        _ => "weak"
-    };
+        if (Analysis.FrameworkReady)
+            return "strong";
+
+        if (Analysis.IsRotationRegime)
+            return "weak";
+
+        if (Analysis.IsRangebound)
+            return "moderate";
+
+        return Analysis.OverallScore switch
+        {
+            >= 70 => "strong",
+            >= 50 => "moderate",
+            _ => "weak"
+        };
+    }
 
     private string GetActionClass() => SuggestedAction switch
     {
