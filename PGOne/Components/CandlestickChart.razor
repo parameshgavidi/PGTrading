@@ -22,6 +22,7 @@
     [Parameter] public bool ShowPivotLevels { get; set; } = true;
     [Parameter] public bool ShowCamarillaLevels { get; set; } = true;
     [Parameter] public bool ShowKeltnerLevels { get; set; } = true;
+    [Parameter] public bool ShowIntradayCprLevels { get; set; } = true;
     [Parameter] public string Timeframe { get; set; } = "5m";
     [Parameter] public string CssClass { get; set; } = string.Empty;
     [Parameter] public int Width { get; set; } = 800;
@@ -34,6 +35,7 @@
     private bool _lastShowPivot;
     private bool _lastShowCamarilla;
     private bool _lastShowKeltner;
+    private bool _lastShowIntradayCpr;
     private int _lastCprSegmentCount;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -48,6 +50,7 @@
             && ShowPivotLevels == _lastShowPivot
             && ShowCamarillaLevels == _lastShowCamarilla
             && ShowKeltnerLevels == _lastShowKeltner
+            && ShowIntradayCprLevels == _lastShowIntradayCpr
             && CprSegments.Count == _lastCprSegmentCount)
             return;
 
@@ -58,6 +61,7 @@
         _lastShowPivot = ShowPivotLevels;
         _lastShowCamarilla = ShowCamarillaLevels;
         _lastShowKeltner = ShowKeltnerLevels;
+        _lastShowIntradayCpr = ShowIntradayCprLevels;
         _lastCprSegmentCount = CprSegments.Count;
         await RenderAsync();
     }
@@ -74,7 +78,18 @@
 
     private async Task RenderAsync()
     {
-        var is1mCpr = Timeframe == "1m" && ShowPivotLevels;
+        var is1m = Timeframe == "1m";
+
+        var segmentPayload = CprSegments.Select(s => new
+        {
+            start = s.Start.ToString("o"),
+            end = s.End.ToString("o"),
+            pivot = s.Pivot,
+            tc = s.Tc,
+            bc = s.Bc
+        }).ToList();
+
+        var showIntradayCpr = is1m && ShowIntradayCprLevels && segmentPayload.Count > 0;
 
         var payload = Candles.Select(c => new
         {
@@ -93,25 +108,16 @@
         }).ToList();
 
         var levels = BuildLevelPayload();
-        var pocToday = !is1mCpr && ShowPocLevels && Analysis?.VolumeProfile.HasData == true
+        var pocToday = !is1m && ShowPocLevels && Analysis?.VolumeProfile.HasData == true
             ? Analysis.VolumeProfile.Poc
             : 0m;
-
-        var segmentPayload = CprSegments.Select(s => new
-        {
-            start = s.Start.ToString("o"),
-            end = s.End.ToString("o"),
-            pivot = s.Pivot,
-            tc = s.Tc,
-            bc = s.Bc
-        }).ToList();
 
         var overlayOptions = new
         {
             showPoc = ShowPocLevels,
             showPivot = ShowPivotLevels,
             showCamarilla = ShowCamarillaLevels,
-            showIntradaCpr = is1mCpr && segmentPayload.Count > 0,
+            showIntradaCpr = showIntradayCpr,
             intradayCpr = segmentPayload,
             showKeltner = ShowKeltnerLevels,
             showVwap = Timeframe == "5m"

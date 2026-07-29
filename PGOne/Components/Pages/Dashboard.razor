@@ -72,7 +72,7 @@
                                     @(ViewModel.NiftyChange >= 0 ? "▲" : "▼") @Math.Abs(ViewModel.NiftyChange).ToString("N2") (@ViewModel.NiftyChangePercent%)
                                 </span>
                                 <TrendBadge Trend="ViewModel.NiftyTrend" />
-                                @if (ViewModel.Is1mCprChart && ViewModel.ShowPivotOverlay)
+                                @if (ViewModel.Is1mCprChart && ViewModel.ShowIntradayCprOverlay)
                                 {
                                     <span class="cpr-position-badge @ViewModel.CprPositionClass">@ViewModel.CprPositionLabel</span>
                                 }
@@ -97,6 +97,7 @@
                                       ShowPivotLevels="ViewModel.ShowPivotOverlay"
                                       ShowCamarillaLevels="ViewModel.ShowCamarillaOverlay"
                                       ShowKeltnerLevels="ViewModel.ShowKeltnerOverlay"
+                                      ShowIntradayCprLevels="ViewModel.ShowIntradayCprOverlay"
                                       Timeframe="ViewModel.SelectedTimeframe"
                                       Width="900"
                                       Height="420" />
@@ -108,15 +109,17 @@
                                     @onclick="() => ChangeTimeframe(tf)">@tf</button>
                         }
                         </div>
-                        <ChartOverlayToggles IntradayCprMode="ViewModel.Is1mCprChart"
+                        <ChartOverlayToggles ShowIntradayCprToggle="ViewModel.Is1mCprChart"
                                              ShowKeltnerToggle="@(ViewModel.SelectedTimeframe == "1m" || ViewModel.SelectedTimeframe == "5m")"
                                              ShowPoc="ViewModel.ShowPocOverlay"
                                              ShowPivot="ViewModel.ShowPivotOverlay"
                                              ShowCamarilla="ViewModel.ShowCamarillaOverlay"
+                                             ShowIntradayCpr="ViewModel.ShowIntradayCprOverlay"
                                              ShowKeltner="ViewModel.ShowKeltnerOverlay"
                                              ShowPocChanged="v => ViewModel.SetShowPocOverlay(v)"
                                              ShowPivotChanged="v => ViewModel.SetShowPivotOverlay(v)"
                                              ShowCamarillaChanged="v => ViewModel.SetShowCamarillaOverlay(v)"
+                                             ShowIntradayCprChanged="v => ViewModel.SetShowIntradayCprOverlay(v)"
                                              ShowKeltnerChanged="v => ViewModel.SetShowKeltnerOverlay(v)" />
                     </div>
                     <div class="chart-legend">
@@ -126,18 +129,15 @@
                         {
                             <span class="legend-item"><span class="legend-color poc"></span> POC / VA</span>
                         }
-                        @if (ViewModel.ShowPivotOverlay)
+                        @if (ViewModel.ShowPivotOverlay && !ViewModel.Is1mCprChart)
                         {
-                            @if (ViewModel.Is1mCprChart)
-                            {
-                                <span class="legend-item"><span class="legend-color poc"></span> Above / below CPR (15m)</span>
-                                <span class="legend-item"><span class="legend-color pivot"></span> Pivot</span>
-                                <span class="legend-item"><span class="legend-color cpr-tc"></span> TC / BC</span>
-                            }
-                            else
-                            {
-                                <span class="legend-item"><span class="legend-color pivot"></span> Pivot / CPR</span>
-                            }
+                            <span class="legend-item"><span class="legend-color pivot"></span> Pivot / CPR</span>
+                        }
+                        @if (ViewModel.ShowIntradayCprOverlay && ViewModel.Is1mCprChart)
+                        {
+                            <span class="legend-item"><span class="legend-color poc"></span> Above / below CPR (15m)</span>
+                            <span class="legend-item"><span class="legend-color pivot"></span> Pivot</span>
+                            <span class="legend-item"><span class="legend-color cpr-tc"></span> TC / BC</span>
                         }
                         @if (ViewModel.ShowCamarillaOverlay)
                         {
