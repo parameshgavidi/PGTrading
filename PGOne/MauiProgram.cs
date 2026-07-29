@@ -68,6 +68,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<HoldingsViewModel>();
         builder.Services.AddSingleton<SettingsViewModel>();
         builder.Services.AddSingleton<SentimentViewModel>();
+        builder.Services.AddSingleton<MultiChartViewModel>();
         builder.Services.AddSingleton<Cpr1mViewModel>();
 
         return builder.Build();
