@@ -204,7 +204,11 @@ public class SignalService : ISignalService
             CamarillaBandBias = camarilla.GetBandBias(last5MClose),
             ReferencePrice = last5MClose,
             OverallScore = score,
-            Strength = strength1H.ToString()
+            Strength = TradeFrameworkEvaluator.GetScoreStrengthLabel(
+                score,
+                isRangebound,
+                isRotationRegime,
+                frameworkReady)
         };
     }
 
