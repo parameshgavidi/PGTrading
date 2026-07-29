@@ -180,9 +180,15 @@ public class DashboardViewModel : INotifyPropertyChanged
     public async Task RefreshRiskControlsAsync()
     {
         await RefreshPositionsAsync();
-        await _trailingStop.RefreshAsync();
+
+        if (!_trailingStop.IsMonitoring)
+            await _trailingStop.RefreshAsync();
+
         TrailingStopItems = _trailingStop.Items.ToList();
-        await _targetPnL.RefreshAsync();
+
+        if (!_targetPnL.IsMonitoring)
+            await _targetPnL.RefreshAsync();
+
         RiskControlsLastUpdated = DateTime.Now;
         NotifyTargetPnL();
         Notify(nameof(TrailingStopItems));

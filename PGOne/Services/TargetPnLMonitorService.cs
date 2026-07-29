@@ -59,7 +59,7 @@ public class TargetPnLMonitorService : ITargetPnLMonitorService, IDisposable
                 return;
             }
 
-            var positions = await _zerodha.GetPositionsAsync();
+            var positions = await _zerodha.GetMisPositionsAsync(includeClosed: false);
             var open = positions.Where(p => p.Quantity != 0).ToList();
             OpenPositionCount = open.Count;
             AggregatePnL = open.Sum(p => p.PnL);
@@ -105,11 +105,11 @@ public class TargetPnLMonitorService : ITargetPnLMonitorService, IDisposable
             var profit = _settings.Settings.TargetProfitAmount;
             var loss = _settings.Settings.TargetLossAmount;
             StatusMessage = profit > 0 && loss > 0
-                ? $"Auto-exit active — book profit at +₹{profit:N0} or loss at −₹{loss:N0} aggregate P&L."
+                ? $"Auto-exit active — MIS open P&L at +₹{profit:N0} or −₹{loss:N0}."
                 : profit > 0
-                    ? $"Auto-exit active — book profit at +₹{profit:N0} aggregate P&L."
+                    ? $"Auto-exit active — MIS open P&L at +₹{profit:N0}."
                     : loss > 0
-                        ? $"Auto-exit active — book loss at −₹{loss:N0} aggregate P&L."
+                        ? $"Auto-exit active — MIS open P&L at −₹{loss:N0}."
                         : "Set profit or loss target amounts to enable auto-exit.";
 
             Notify();
