@@ -16,7 +16,7 @@
                     @(ViewModel.NiftyChange >= 0 ? "+" : "")@ViewModel.NiftyChangePercent.ToString("N2")%
                 </span>
                 <TrendBadge Trend="ViewModel.NiftyTrend" />
-                @if (ViewModel.Is1mCprChart && ViewModel.ShowIntradayCprOverlay)
+                @if (ViewModel.SupportsIntradayCprOverlay && ViewModel.ShowIntradayCprOverlay)
                 {
                     <span class="cpr-position-badge @ViewModel.CprPositionClass">@ViewModel.CprPositionLabel</span>
                 }
@@ -45,15 +45,15 @@
                             @onclick="() => ViewModel.ChangeTimeframeAsync(tf)">@tf</button>
                 }
             </div>
-            <ChartOverlayToggles ShowIntradayCprToggle="ViewModel.Is1mCprChart"
+            <ChartOverlayToggles ShowIntradayCprToggle="ViewModel.SupportsIntradayCprOverlay"
                                  ShowKeltnerToggle="@(ViewModel.SelectedTimeframe == "1m" || ViewModel.SelectedTimeframe == "5m")"
                                  ShowPoc="ViewModel.ShowPocOverlay"
-                                 ShowPivot="ViewModel.ShowPivotOverlay"
+                                 ShowDayCpr="ViewModel.ShowPivotOverlay"
                                  ShowCamarilla="ViewModel.ShowCamarillaOverlay"
                                  ShowIntradayCpr="ViewModel.ShowIntradayCprOverlay"
                                  ShowKeltner="ViewModel.ShowKeltnerOverlay"
                                  ShowPocChanged="v => ViewModel.SetShowPocOverlay(v)"
-                                 ShowPivotChanged="v => ViewModel.SetShowPivotOverlay(v)"
+                                 ShowDayCprChanged="v => ViewModel.SetShowPivotOverlay(v)"
                                  ShowCamarillaChanged="v => ViewModel.SetShowCamarillaOverlay(v)"
                                  ShowIntradayCprChanged="v => ViewModel.SetShowIntradayCprOverlay(v)"
                                  ShowKeltnerChanged="v => ViewModel.SetShowKeltnerOverlay(v)" />
@@ -75,14 +75,14 @@
             {
                 <span class="legend-item"><span class="legend-color poc"></span> POC / VA</span>
             }
-            @if (ViewModel.ShowPivotOverlay && !ViewModel.Is1mCprChart)
+            @if (ViewModel.ShowPivotOverlay)
             {
-                <span class="legend-item"><span class="legend-color pivot"></span> Pivot / CPR</span>
+                <span class="legend-item"><span class="legend-color pivot"></span> Day CPR</span>
             }
-            @if (ViewModel.ShowIntradayCprOverlay && ViewModel.Is1mCprChart)
+            @if (ViewModel.ShowIntradayCprOverlay && ViewModel.SupportsIntradayCprOverlay)
             {
-                <span class="legend-item"><span class="legend-color poc"></span> Above / below CPR (15m)</span>
-                <span class="legend-item"><span class="legend-color pivot"></span> Pivot</span>
+                <span class="legend-item"><span class="legend-color poc"></span> 1m CPR above / below (15m pivot)</span>
+                <span class="legend-item"><span class="legend-color pivot"></span> Intraday pivot</span>
                 <span class="legend-item"><span class="legend-color cpr-tc"></span> TC / BC</span>
             }
             @if (ViewModel.ShowCamarillaOverlay)

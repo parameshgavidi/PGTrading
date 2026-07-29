@@ -78,8 +78,6 @@
 
     private async Task RenderAsync()
     {
-        var is1m = Timeframe == "1m";
-
         var segmentPayload = CprSegments.Select(s => new
         {
             start = s.Start.ToString("o"),
@@ -89,7 +87,8 @@
             bc = s.Bc
         }).ToList();
 
-        var showIntradayCpr = is1m && ShowIntradayCprLevels && segmentPayload.Count > 0;
+        var supportsIntradayCpr = Timeframe is "1m" or "15m";
+        var showIntradayCpr = supportsIntradayCpr && ShowIntradayCprLevels && segmentPayload.Count > 0;
 
         var payload = Candles.Select(c => new
         {
@@ -108,7 +107,7 @@
         }).ToList();
 
         var levels = BuildLevelPayload();
-        var pocToday = !is1m && ShowPocLevels && Analysis?.VolumeProfile.HasData == true
+        var pocToday = !supportsIntradayCpr && ShowPocLevels && Analysis?.VolumeProfile.HasData == true
             ? Analysis.VolumeProfile.Poc
             : 0m;
 
@@ -135,7 +134,7 @@
             .Where(row => row.Group switch
             {
                 "cam" => ShowCamarillaLevels,
-                "cpr" => ShowPivotLevels && Timeframe != "1m",
+                "cpr" => ShowPivotLevels,
                 "today" or "prev" => ShowPocLevels,
                 _ => true
             })

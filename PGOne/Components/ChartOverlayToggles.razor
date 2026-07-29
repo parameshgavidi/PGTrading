@@ -7,9 +7,9 @@
         POC
     </button>
     <button type="button"
-            class="btn overlay-toggle @(ShowPivot ? "active" : "")"
-            @onclick="TogglePivotAsync">
-        Pivot
+            class="btn overlay-toggle @(ShowDayCpr ? "active" : "")"
+            @onclick="ToggleDayCprAsync">
+        CPR
     </button>
     @if (ShowIntradayCprToggle)
     {
@@ -36,21 +36,21 @@
 
 @code {
     [Parameter] public bool ShowPoc { get; set; } = true;
-    [Parameter] public bool ShowPivot { get; set; } = true;
+    [Parameter] public bool ShowDayCpr { get; set; } = true;
     [Parameter] public bool ShowCamarilla { get; set; } = true;
     [Parameter] public bool ShowIntradayCprToggle { get; set; }
     [Parameter] public bool ShowIntradayCpr { get; set; } = true;
     [Parameter] public bool ShowKeltnerToggle { get; set; }
     [Parameter] public bool ShowKeltner { get; set; } = true;
     [Parameter] public EventCallback<bool> ShowPocChanged { get; set; }
-    [Parameter] public EventCallback<bool> ShowPivotChanged { get; set; }
+    [Parameter] public EventCallback<bool> ShowDayCprChanged { get; set; }
     [Parameter] public EventCallback<bool> ShowCamarillaChanged { get; set; }
     [Parameter] public EventCallback<bool> ShowIntradayCprChanged { get; set; }
     [Parameter] public EventCallback<bool> ShowKeltnerChanged { get; set; }
 
     private async Task TogglePocAsync() => await ShowPocChanged.InvokeAsync(!ShowPoc);
 
-    private async Task TogglePivotAsync() => await ShowPivotChanged.InvokeAsync(!ShowPivot);
+    private async Task ToggleDayCprAsync() => await ShowDayCprChanged.InvokeAsync(!ShowDayCpr);
 
     private async Task ToggleIntradayCprAsync() => await ShowIntradayCprChanged.InvokeAsync(!ShowIntradayCpr);
 
