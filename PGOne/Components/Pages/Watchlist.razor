@@ -71,8 +71,7 @@
 
             case WatchlistTab.IntradayScan:
                 <p class="text-secondary">
-                    Scans <strong>Nifty 500</strong> in two phases: batch Step 1 screen (1H ST + VWAP + RSI on all stocks),
-                    then full framework (15m, POC, footprint) only on bullish candidates. MIS quantity ~₹5,000 per stock.
+                    Fast scan on <strong>Nifty 50</strong> only (~50 stocks). Two phases: Step 1 screen all, then full framework on candidates. MIS ~₹5,000 per stock.
                 </p>
 
                 <div class="framework-panel">
@@ -90,7 +89,7 @@
 
                 <div class="button-row">
                     <button class="btn btn-primary" @onclick="ScanIntradayAsync" disabled="@ViewModel.IsIntradayScanning">
-                        @(ViewModel.IsIntradayScanning ? "Scanning..." : "Scan Nifty 500")
+                        @(ViewModel.IsIntradayScanning ? "Scanning..." : "Scan Nifty 50")
                     </button>
                 </div>
 
