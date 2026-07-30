@@ -1,117 +1,54 @@
 @page "/cpr-1m"
-@inject Cpr1mViewModel ViewModel
+@inject DashboardViewModel ViewModel
 
 <div class="page-container">
     <div class="card chart-full cpr-1m-panel">
         <div class="chart-header">
             <div class="instrument-title-row">
-                <h2 class="page-heading">@ViewModel.DisplayName · 1m CPR</h2>
+                <h2 class="page-heading">@ViewModel.SelectedDisplayName · 1m CPR</h2>
                 <span class="market-status @(ViewModel.IsMarketOpen ? "open" : "closed")">
                     @ViewModel.MarketStatus
                 </span>
             </div>
             <div class="price-row">
-                <span class="price">@ViewModel.LastPrice.ToString("N2")</span>
-                <span class="change @(ViewModel.DayChangePercent >= 0 ? "positive" : "negative")">
-                    @(ViewModel.DayChangePercent >= 0 ? "+" : "")@ViewModel.DayChangePercent.ToString("N2")%
+                <span class="price">@ViewModel.NiftyPrice.ToString("N2")</span>
+                <span class="change @(ViewModel.NiftyChange >= 0 ? "positive" : "negative")">
+                    @(ViewModel.NiftyChange >= 0 ? "▲" : "▼") @Math.Abs(ViewModel.NiftyChange).ToString("N2") (@ViewModel.NiftyChangePercent%)
                 </span>
-                @if (ViewModel.ShowIntradayCprOverlay)
+                <TrendBadge Trend="ViewModel.NiftyTrend" />
+                @if (ViewModel.SupportsIntradayCprOverlay && ViewModel.ShowIntradayCprOverlay)
                 {
                     <span class="cpr-position-badge @ViewModel.CprPositionClass">@ViewModel.CprPositionLabel</span>
                 }
             </div>
         </div>
 
-        <CandlestickChart CanvasId="cpr1mChart"
-                          Candles="ViewModel.ChartCandles"
-                          ChartVersion="ViewModel.ChartVersion"
-                          OverlayVersion="ViewModel.OverlayVersion"
-                          Analysis="ViewModel.Analysis"
-                          CprSegments="ViewModel.CprSegments"
-                          ShowPocLevels="ViewModel.ShowPocOverlay"
-                          ShowPivotLevels="ViewModel.ShowPivotOverlay"
-                          ShowCamarillaLevels="ViewModel.ShowCamarillaOverlay"
-                          ShowKeltnerLevels="ViewModel.ShowKeltnerOverlay"
-                          ShowIntradayCprLevels="ViewModel.ShowIntradayCprOverlay"
-                          ShowSuperTrendOverlay="ViewModel.ShowSuperTrendOverlay"
-                          ShowEma20Overlay="ViewModel.ShowEma20Overlay"
-                          ShowVwapOverlay="ViewModel.ShowVwapOverlay"
-                          Timeframe="1m"
-                          CssClass="large"
-                          Width="1200"
-                          Height="520" />
-
-        <div class="chart-toolbar">
-            <div class="cpr-levels-strip">
-                <span class="cpr-level-label">Pivot TF: 15m</span>
-                <span>TC <strong>@ViewModel.CurrentTc.ToString("N2")</strong></span>
-                <span>Pivot <strong>@ViewModel.CurrentPivot.ToString("N2")</strong></span>
-                <span>BC <strong>@ViewModel.CurrentBc.ToString("N2")</strong></span>
-            </div>
-            <ChartOverlayToggles ShowIntradayCprToggle="ViewModel.SupportsIntradayCprOverlay"
-                                 ShowKeltnerToggle="true"
-                                 Show5mStudyToggles="ViewModel.Supports5mStudyToggles"
-                                 ShowPoc="ViewModel.ShowPocOverlay"
-                                 ShowDayCpr="ViewModel.ShowPivotOverlay"
-                                 ShowCamarilla="ViewModel.ShowCamarillaOverlay"
-                                 ShowIntradayCpr="ViewModel.ShowIntradayCprOverlay"
-                                 ShowKeltner="ViewModel.ShowKeltnerOverlay"
-                                 ShowSuperTrend="ViewModel.ShowSuperTrendOverlay"
-                                 ShowEma20="ViewModel.ShowEma20Overlay"
-                                 ShowVwap="ViewModel.ShowVwapOverlay"
-                                 ShowPocChanged="v => ViewModel.SetShowPocOverlay(v)"
-                                 ShowDayCprChanged="v => ViewModel.SetShowPivotOverlay(v)"
-                                 ShowCamarillaChanged="v => ViewModel.SetShowCamarillaOverlay(v)"
-                                 ShowIntradayCprChanged="v => ViewModel.SetShowIntradayCprOverlay(v)"
-                                 ShowKeltnerChanged="v => ViewModel.SetShowKeltnerOverlay(v)"
-                                 ShowSuperTrendChanged="v => ViewModel.SetShowSuperTrendOverlay(v)"
-                                 ShowEma20Changed="v => ViewModel.SetShowEma20Overlay(v)"
-                                 ShowVwapChanged="v => ViewModel.SetShowVwapOverlay(v)" />
-            <button type="button" class="btn tf-btn" @onclick="RefreshAsync">Refresh</button>
-        </div>
-
-        @if (!string.IsNullOrEmpty(ViewModel.ChartDataMessage))
+        @if (!string.IsNullOrEmpty(ViewModel.StartupError))
         {
-            <div class="chart-meta @(ViewModel.IsChartFromZerodha ? "zerodha" : "warning")">
-                @ViewModel.ChartDataMessage
-            </div>
+            <div class="chart-meta warning">Startup: @ViewModel.StartupError</div>
+        }
+        @if (!ViewModel.IsDashboardReady)
+        {
+            <div class="chart-meta">Loading market data…</div>
         }
 
-        <div class="chart-legend">
-            <span class="legend-item"><span class="legend-color candle-up"></span> Bullish 1m</span>
-            <span class="legend-item"><span class="legend-color candle-down"></span> Bearish 1m</span>
-            @if (ViewModel.ShowPocOverlay)
-            {
-                <span class="legend-item"><span class="legend-color poc"></span> POC / VA</span>
-            }
-            @if (ViewModel.ShowPivotOverlay)
-            {
-                <span class="legend-item"><span class="legend-color pivot"></span> Day CPR</span>
-            }
-            @if (ViewModel.ShowIntradayCprOverlay)
-            {
-                <span class="legend-item"><span class="legend-color poc"></span> Above / below CPR split</span>
-                <span class="legend-item"><span class="legend-color pivot"></span> CPR (intraday)</span>
-                <span class="legend-item"><span class="legend-color cpr-tc"></span> TC / BC</span>
-            }
-            @if (ViewModel.ShowCamarillaOverlay)
-            {
-                <span class="legend-item"><span class="legend-color camarilla"></span> Camarilla</span>
-            }
-            @if (ViewModel.ShowKeltnerOverlay)
-            {
-                <span class="legend-item"><span class="legend-color keltner"></span> Keltner (20, 1.5/2.0)</span>
-            }
-        </div>
+        <InstrumentChartPanel ViewModel="ViewModel"
+                              CanvasId="cpr1mChart"
+                              CssClass="large"
+                              Width="1200"
+                              Height="520" />
     </div>
 </div>
 
 @code {
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         ViewModel.PropertyChanged += (_, _) => InvokeAsync(StateHasChanged);
-        _ = ViewModel.InitializeAsync();
-    }
 
-    private async Task RefreshAsync() => await ViewModel.RefreshAsync();
+        if (!ViewModel.IsDashboardReady)
+            await ViewModel.InitializeAsync();
+
+        if (ViewModel.SelectedTimeframe != "1m")
+            await ViewModel.ChangeTimeframeAsync("1m");
+    }
 }
