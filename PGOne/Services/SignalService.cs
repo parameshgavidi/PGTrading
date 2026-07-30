@@ -261,7 +261,10 @@ public class SignalService : ISignalService
                 score,
                 isRangebound,
                 isRotationRegime,
-                frameworkReady)
+                frameworkReady,
+                FootprintDisplayHelper.FootprintOpposesBias(
+                    footprint,
+                    tradeDirection != TrendDirection.Neutral ? tradeDirection : marketBias))
         };
     }
 

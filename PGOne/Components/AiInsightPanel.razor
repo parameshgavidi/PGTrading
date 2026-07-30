@@ -1,4 +1,5 @@
 @namespace PGOne.Components
+@using PGOne.Models
 
 <div class="ai-insight-panel card">
     <div class="ai-insight-title">AI Analysis</div>
@@ -9,26 +10,37 @@
         }
     </div>
     <div class="ai-probability">
-        <div class="ai-probability-label">Probability</div>
-        <div class="ai-probability-value @GetProbabilityClass()">@Analysis.OverallScore%</div>
-        <div class="ai-probability-strength @GetStrengthClass()">@Analysis.Strength</div>
+        <div class="ai-probability-label">@ProbabilityLabel</div>
+        <div class="ai-probability-value @GetProbabilityClass()">@Recommendation.Probability%</div>
+        <div class="ai-probability-strength @GetStrengthClass()">@Recommendation.Strength</div>
     </div>
     <div class="ai-suggested">
         <div class="ai-suggested-label">Suggested</div>
-        <div class="ai-suggested-action @GetActionClass()">@SuggestedAction</div>
+        <div class="ai-suggested-action @GetActionClass()">@Recommendation.ActionHeadline</div>
+        @if (!string.IsNullOrWhiteSpace(Recommendation.ActionDetail))
+        {
+            <div class="ai-suggested-detail">@Recommendation.ActionDetail</div>
+        }
     </div>
 </div>
 
 @code {
     [Parameter] public MultiTimeframeAnalysis Analysis { get; set; } = new();
-    [Parameter] public string SuggestedAction { get; set; } = "HOLD / NEUTRAL";
+    [Parameter] public Signal Signal { get; set; } = new();
+
+    private AiInsightRecommendation Recommendation =>
+        AiInsightHelper.BuildRecommendation(Signal, Analysis);
 
     private IReadOnlyList<AiCheck> Checks => AiInsightHelper.BuildChecks(Analysis);
 
-    private string GetProbabilityClass() => Analysis.OverallScore switch
+    private string ProbabilityLabel => Analysis.FrameworkReady
+        ? "Entry Probability"
+        : "Setup Score";
+
+    private string GetProbabilityClass() => Recommendation.Probability switch
     {
-        >= 70 => "high",
-        >= 45 => "mid",
+        >= 75 => "high",
+        >= 50 => "mid",
         _ => "low"
     };
 
@@ -37,25 +49,25 @@
         if (Analysis.FrameworkReady)
             return "strong";
 
-        if (Analysis.IsRotationRegime)
+        if (Recommendation.Strength.Contains("Conflict", StringComparison.OrdinalIgnoreCase))
             return "weak";
 
-        if (Analysis.IsRangebound)
+        if (Analysis.IsRotationRegime || Analysis.IsRangebound)
             return "moderate";
 
-        return Analysis.OverallScore switch
+        return Recommendation.Probability switch
         {
-            >= 70 => "strong",
+            >= 75 => "strong",
             >= 50 => "moderate",
             _ => "weak"
         };
     }
 
-    private string GetActionClass() => SuggestedAction switch
+    private string GetActionClass() => Recommendation.ActionKind switch
     {
-        var s when s.StartsWith("BUY", StringComparison.Ordinal) => "buy",
-        var s when s.StartsWith("SELL", StringComparison.Ordinal) => "sell",
-        "WAIT" => "wait",
+        "buy" => "buy",
+        "sell" => "sell",
+        "wait" => "wait",
         _ => "neutral"
     };
 }
