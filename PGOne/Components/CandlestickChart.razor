@@ -92,19 +92,19 @@
     {
         var segmentPayload = CprSegments.Select(s => new
         {
-            start = ToChartEpochMs(s.Start),
-            end = ToChartEpochMs(s.End),
+            start = ToChartJsTime(s.Start),
+            end = ToChartJsTime(s.End),
             pivot = s.Pivot,
             tc = s.Tc,
             bc = s.Bc
         }).ToList();
 
         var supportsIntradayCpr = Timeframe is "1m" or "15m";
-        var showIntradayCpr = supportsIntradayCpr && ShowIntradayCprLevels && segmentPayload.Count > 0;
+        var showIntradayCpr = supportsIntradayCpr && ShowIntradayCprLevels;
 
         var payload = Candles.Select(c => new
         {
-            time = ToChartEpochMs(c.Timestamp),
+            time = ToChartJsTime(c.Timestamp),
             open = c.Open,
             high = c.High,
             low = c.Low,
@@ -164,10 +164,6 @@
             .ToList();
     }
 
-  private static long ToChartEpochMs(DateTime timestamp)
-  {
-      var istOffset = TimeSpan.FromHours(5.5);
-      var dto = new DateTimeOffset(DateTime.SpecifyKind(timestamp, DateTimeKind.Unspecified), istOffset);
-      return dto.ToUnixTimeMilliseconds();
-  }
+    private static string ToChartJsTime(DateTime timestamp) =>
+        timestamp.ToString("yyyy-MM-ddTHH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
 }

@@ -25,6 +25,7 @@
     private int _lastRenderedVersion = -1;
     private int _lastOverlayVersion = -1;
     private bool _lastShowKeltner;
+    private int _lastSegmentCount;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -33,12 +34,14 @@
 
         if (ChartVersion == _lastRenderedVersion
             && OverlayVersion == _lastOverlayVersion
-            && ShowKeltnerLevels == _lastShowKeltner)
+            && ShowKeltnerLevels == _lastShowKeltner
+            && Segments.Count == _lastSegmentCount)
             return;
 
         _lastRenderedVersion = ChartVersion;
         _lastOverlayVersion = OverlayVersion;
         _lastShowKeltner = ShowKeltnerLevels;
+        _lastSegmentCount = Segments.Count;
         await RenderAsync();
     }
 

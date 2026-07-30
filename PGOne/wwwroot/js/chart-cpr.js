@@ -291,7 +291,9 @@ window.pgOneCprChart = (function () {
         var toY = function (price) { return padding.top + ((maxPrice - price) / priceRange) * chartH; };
         var toX = function (i) { return padding.left + slot * i + slot / 2; };
 
-        drawCprBackground(ctx, view, segments, padding, slot, chartH, toY, toX);
+        // Plain chart background (no green/red CPR shadow)
+        ctx.fillStyle = '#121212';
+        ctx.fillRect(padding.left, padding.top, chartW, chartH);
 
         if (st.showKeltner) {
             drawKeltnerLines(ctx, view, toX, toY);
