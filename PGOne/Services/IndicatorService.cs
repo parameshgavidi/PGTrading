@@ -15,6 +15,7 @@ public interface IIndicatorService
     CprAnalysis GetCprAnalysis(List<Candle> candles);
     void ApplyKeltner(List<Candle> candles, int emaPeriod, int atrPeriod, double multiplierInner, double multiplierOuter);
     void ApplyVwap(List<Candle> candles);
+    void ApplyEma20(List<Candle> candles, int period = 20);
 }
 
 public class IndicatorService : IIndicatorService
@@ -240,6 +241,16 @@ public class IndicatorService : IIndicatorService
 
             c.Vwap = cumVol > 0 ? cumPv / cumVol : cumTypical / cumCount;
         }
+    }
+
+    public void ApplyEma20(List<Candle> candles, int period = 20)
+    {
+        if (candles.Count == 0)
+            return;
+
+        var values = Ema(candles.Select(c => c.Close).ToList(), period);
+        for (var i = 0; i < candles.Count; i++)
+            candles[i].Ema20 = values[i];
     }
 
     private static decimal?[] Ema(List<decimal> values, int period)

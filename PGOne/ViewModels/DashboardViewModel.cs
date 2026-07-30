@@ -38,10 +38,14 @@ public class DashboardViewModel : INotifyPropertyChanged
     public int ChartVersion { get; private set; }
     public int OverlayVersion { get; private set; }
     public bool ShowPocOverlay { get; private set; } = true;
-    public bool ShowPivotOverlay { get; private set; } = true;
-    public bool ShowCamarillaOverlay { get; private set; } = true;
-    public bool ShowKeltnerOverlay { get; private set; } = true;
-    public bool ShowIntradayCprOverlay { get; private set; } = true;
+    public bool ShowPivotOverlay { get; private set; } = false;
+    public bool ShowCamarillaOverlay { get; private set; } = false;
+    public bool ShowKeltnerOverlay { get; private set; } = false;
+    public bool ShowIntradayCprOverlay { get; private set; } = false;
+    public bool ShowSuperTrendOverlay { get; private set; } = false;
+    public bool ShowEma20Overlay { get; private set; } = false;
+    public bool ShowVwapOverlay { get; private set; } = false;
+    public bool Supports5mStudyToggles => SelectedTimeframe == "5m";
     public IReadOnlyList<IntradayCprSegment> CprSegments { get; private set; } = Array.Empty<IntradayCprSegment>();
     public decimal CurrentIntradayTc { get; private set; }
     public decimal CurrentIntradayPivot { get; private set; }
@@ -154,6 +158,9 @@ public class DashboardViewModel : INotifyPropertyChanged
 
     public async Task ChangeTimeframeAsync(string timeframe)
     {
+        if (SelectedTimeframe == timeframe)
+            return;
+
         SelectedTimeframe = timeframe;
         await LoadChartAsync();
         OverlayVersion++;
@@ -162,6 +169,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         Notify(nameof(SelectedTimeframe));
         Notify(nameof(Is1mCprChart));
         Notify(nameof(SupportsIntradayCprOverlay));
+        Notify(nameof(Supports5mStudyToggles));
         Notify(nameof(OverlayVersion));
         Notify();
     }
@@ -321,6 +329,39 @@ public class DashboardViewModel : INotifyPropertyChanged
         Notify(nameof(CprPositionClass));
     }
 
+    public void SetShowSuperTrendOverlay(bool show)
+    {
+        if (ShowSuperTrendOverlay == show)
+            return;
+
+        ShowSuperTrendOverlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowSuperTrendOverlay));
+        Notify(nameof(OverlayVersion));
+    }
+
+    public void SetShowEma20Overlay(bool show)
+    {
+        if (ShowEma20Overlay == show)
+            return;
+
+        ShowEma20Overlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowEma20Overlay));
+        Notify(nameof(OverlayVersion));
+    }
+
+    public void SetShowVwapOverlay(bool show)
+    {
+        if (ShowVwapOverlay == show)
+            return;
+
+        ShowVwapOverlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowVwapOverlay));
+        Notify(nameof(OverlayVersion));
+    }
+
     private async Task LoadChartAsync()
     {
         try
@@ -352,6 +393,8 @@ public class DashboardViewModel : INotifyPropertyChanged
             }
 
             ChartVersion++;
+            Notify(nameof(ChartVersion));
+            Notify(nameof(CprSegments));
             IsChartFromZerodha = result.IsFromZerodha;
             ChartDataMessage = result.IsFromZerodha
                 ? SelectedTimeframe switch
@@ -566,6 +609,10 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowCamarillaOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowKeltnerOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowIntradayCprOverlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowSuperTrendOverlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowEma20Overlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowVwapOverlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Supports5mStudyToggles)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CprSegments)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentIntradayTc)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentIntradayPivot)));

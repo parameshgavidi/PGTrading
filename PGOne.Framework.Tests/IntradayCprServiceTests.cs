@@ -44,7 +44,14 @@ public class IntradayCprServiceTests
 
         var segments = _service.BuildSegments([prevBar, bar915], sessionDate);
         Assert.NotEmpty(segments);
-        Assert.Equal(sessionOpen.AddMinutes(15), segments[0].Start);
+        Assert.Equal(sessionOpen, segments[0].Start);
+        Assert.Equal(sessionOpen.AddMinutes(15), segments[0].End);
         Assert.Equal(95m, segments[0].Pivot);
+
+        Assert.Equal(sessionOpen.AddMinutes(15), segments[1].Start);
+        Assert.Equal(95m, segments[1].Pivot);
+
+        Assert.Equal(sessionOpen.AddMinutes(30), segments[2].Start);
+        Assert.Equal(98.33m, segments[2].Pivot);
     }
 }

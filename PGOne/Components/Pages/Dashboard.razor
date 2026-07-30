@@ -87,77 +87,10 @@
                     {
                         <div class="chart-meta">Loading market data…</div>
                     }
-                    <CandlestickChart CanvasId="priceChart"
-                                      Candles="ViewModel.ChartCandles"
-                                      ChartVersion="ViewModel.ChartVersion"
-                                      OverlayVersion="ViewModel.OverlayVersion"
-                                      Analysis="ViewModel.Analysis"
-                                      CprSegments="ViewModel.CprSegments"
-                                      ShowPocLevels="ViewModel.ShowPocOverlay"
-                                      ShowPivotLevels="ViewModel.ShowPivotOverlay"
-                                      ShowCamarillaLevels="ViewModel.ShowCamarillaOverlay"
-                                      ShowKeltnerLevels="ViewModel.ShowKeltnerOverlay"
-                                      ShowIntradayCprLevels="ViewModel.ShowIntradayCprOverlay"
-                                      Timeframe="ViewModel.SelectedTimeframe"
-                                      Width="900"
-                                      Height="420" />
-                    <div class="chart-toolbar">
-                        <div class="timeframe-buttons">
-                        @foreach (var tf in new[] { "1m", "5m", "15m", "1H" })
-                        {
-                            <button class="btn tf-btn @(ViewModel.SelectedTimeframe == tf ? "active" : "")"
-                                    @onclick="() => ChangeTimeframe(tf)">@tf</button>
-                        }
-                        </div>
-                        <ChartOverlayToggles ShowIntradayCprToggle="ViewModel.SupportsIntradayCprOverlay"
-                                             ShowKeltnerToggle="@(ViewModel.SelectedTimeframe == "1m" || ViewModel.SelectedTimeframe == "5m")"
-                                             ShowPoc="ViewModel.ShowPocOverlay"
-                                             ShowDayCpr="ViewModel.ShowPivotOverlay"
-                                             ShowCamarilla="ViewModel.ShowCamarillaOverlay"
-                                             ShowIntradayCpr="ViewModel.ShowIntradayCprOverlay"
-                                             ShowKeltner="ViewModel.ShowKeltnerOverlay"
-                                             ShowPocChanged="v => ViewModel.SetShowPocOverlay(v)"
-                                             ShowDayCprChanged="v => ViewModel.SetShowPivotOverlay(v)"
-                                             ShowCamarillaChanged="v => ViewModel.SetShowCamarillaOverlay(v)"
-                                             ShowIntradayCprChanged="v => ViewModel.SetShowIntradayCprOverlay(v)"
-                                             ShowKeltnerChanged="v => ViewModel.SetShowKeltnerOverlay(v)" />
-                    </div>
-                    <div class="chart-legend">
-                        <span class="legend-item"><span class="legend-color buy"></span> SuperTrend BUY</span>
-                        <span class="legend-item"><span class="legend-color sell"></span> SuperTrend SELL</span>
-                        @if (ViewModel.ShowPocOverlay)
-                        {
-                            <span class="legend-item"><span class="legend-color poc"></span> POC / VA</span>
-                        }
-                        @if (ViewModel.ShowPivotOverlay)
-                        {
-                            <span class="legend-item"><span class="legend-color pivot"></span> Day CPR</span>
-                        }
-                        @if (ViewModel.ShowIntradayCprOverlay && ViewModel.SupportsIntradayCprOverlay)
-                        {
-                            <span class="legend-item"><span class="legend-color poc"></span> 1m CPR above / below (15m pivot)</span>
-                            <span class="legend-item"><span class="legend-color pivot"></span> CPR (intraday)</span>
-                            <span class="legend-item"><span class="legend-color cpr-tc"></span> TC / BC</span>
-                        }
-                        @if (ViewModel.ShowCamarillaOverlay)
-                        {
-                            <span class="legend-item"><span class="legend-color camarilla"></span> Camarilla</span>
-                        }
-                        @if (ViewModel.ShowKeltnerOverlay && (ViewModel.SelectedTimeframe == "1m" || ViewModel.SelectedTimeframe == "5m"))
-                        {
-                            <span class="legend-item"><span class="legend-color keltner"></span> Keltner (20, 1.5/2.0)</span>
-                        }
-                    </div>
-                    @if (!string.IsNullOrEmpty(ViewModel.ChartDataMessage))
-                    {
-                        <div class="chart-meta @(ViewModel.IsChartFromZerodha ? "zerodha" : "warning")">
-                            @ViewModel.ChartDataMessage
-                        </div>
-                    }
-                    @if (!string.IsNullOrEmpty(ViewModel.LastCandleSummary))
-                    {
-                        <div class="chart-meta">Last bar: @ViewModel.LastCandleSummary</div>
-                    }
+                    <InstrumentChartPanel ViewModel="ViewModel"
+                                          CanvasId="priceChart"
+                                          Width="900"
+                                          Height="420" />
                 </div>
             </div>
 
@@ -651,6 +584,8 @@
     try
     {
       await ViewModel.InitializeAsync();
+      if (ViewModel.SelectedTimeframe != "5m")
+        await ViewModel.ChangeTimeframeAsync("5m");
       _targetProfitInput = ViewModel.TargetProfitAmount;
       _targetLossInput = ViewModel.TargetLossAmount;
     }
@@ -687,11 +622,6 @@
       "negative" => "🔴",
       _ => "🟡"
   };
-
-  private async Task ChangeTimeframe(string timeframe)
-  {
-    await ViewModel.ChangeTimeframeAsync(timeframe);
-  }
 
   private async Task RefreshPositionsAsync()
   {

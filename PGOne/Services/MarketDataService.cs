@@ -179,7 +179,10 @@ public class MarketDataService : IMarketDataService
             _indicators.ApplyKeltner(candles, cfg.KeltnerEmaLength, cfg.KeltnerAtrLength,
                 cfg.KeltnerMultiplierInner, cfg.KeltnerMultiplierOuter);
             if (interval == "5m")
+            {
                 _indicators.ApplyVwap(candles);
+                _indicators.ApplyEma20(candles, 20);
+            }
         }
 
         return candles;
