@@ -49,6 +49,9 @@ public class IntradayCprServiceTests
         Assert.Equal(95m, segments[0].Pivot);
 
         Assert.Equal(sessionOpen.AddMinutes(15), segments[1].Start);
-        Assert.Equal(98.33m, segments[1].Pivot);
+        Assert.Equal(95m, segments[1].Pivot);
+
+        Assert.Equal(sessionOpen.AddMinutes(30), segments[2].Start);
+        Assert.Equal(98.33m, segments[2].Pivot);
     }
 }
