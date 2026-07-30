@@ -584,6 +584,8 @@
     try
     {
       await ViewModel.InitializeAsync();
+      if (ViewModel.SelectedTimeframe != "5m")
+        await ViewModel.ChangeTimeframeAsync("5m");
       _targetProfitInput = ViewModel.TargetProfitAmount;
       _targetLossInput = ViewModel.TargetLossAmount;
     }
@@ -620,11 +622,6 @@
       "negative" => "🔴",
       _ => "🟡"
   };
-
-  private async Task ChangeTimeframe(string timeframe)
-  {
-    await ViewModel.ChangeTimeframeAsync(timeframe);
-  }
 
   private async Task RefreshPositionsAsync()
   {

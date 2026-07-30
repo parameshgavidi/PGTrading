@@ -158,6 +158,9 @@ public class DashboardViewModel : INotifyPropertyChanged
 
     public async Task ChangeTimeframeAsync(string timeframe)
     {
+        if (SelectedTimeframe == timeframe)
+            return;
+
         SelectedTimeframe = timeframe;
         await LoadChartAsync();
         OverlayVersion++;

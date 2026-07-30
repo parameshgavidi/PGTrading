@@ -1,5 +1,6 @@
 @page "/cpr-1m"
 @inject DashboardViewModel ViewModel
+@implements IDisposable
 
 <div class="page-container">
     <div class="card chart-full cpr-1m-panel">
@@ -43,7 +44,7 @@
 @code {
     protected override async Task OnInitializedAsync()
     {
-        ViewModel.PropertyChanged += (_, _) => InvokeAsync(StateHasChanged);
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
 
         if (!ViewModel.IsDashboardReady)
             await ViewModel.InitializeAsync();
@@ -51,4 +52,9 @@
         if (ViewModel.SelectedTimeframe != "1m")
             await ViewModel.ChangeTimeframeAsync("1m");
     }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+        InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
 }
