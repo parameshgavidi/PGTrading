@@ -57,7 +57,9 @@ public class SignalService : ISignalService
             return null;
 
         var trend1H = _superTrend.GetTrend(candles1H, config.SuperTrend1HPeriod, config.SuperTrend1HMultiplier);
-        var vwap5M = candles5M.LastOrDefault(c => c.Vwap.HasValue)?.Vwap ?? 0m;
+        var vwap5M = candles5M.Count > 0
+            ? candles5M[^1].Vwap ?? candles5M.LastOrDefault(c => c.Vwap.HasValue)?.Vwap ?? 0m
+            : 0m;
         var last5MClose = candles5M[^1].Close;
         var aboveVwap = vwap5M > 0 && last5MClose >= vwap5M;
         var marketBias = TradeFrameworkEvaluator.GetMarketBias(trend1H, aboveVwap);
@@ -128,7 +130,9 @@ public class SignalService : ISignalService
         if (rsi5M < config.RsiReversalThreshold)
             reversalReason = $"5m RSI {rsi5M:0} < {config.RsiReversalThreshold:0}";
 
-        var vwap5M = candles5M.LastOrDefault(c => c.Vwap.HasValue)?.Vwap ?? 0m;
+        var vwap5M = candles5M.Count > 0
+            ? candles5M[^1].Vwap ?? candles5M.LastOrDefault(c => c.Vwap.HasValue)?.Vwap ?? 0m
+            : 0m;
         var last5MClose = candles5M.Count > 0 ? candles5M[^1].Close : 0m;
         var aboveVwap = vwap5M > 0 && last5MClose >= vwap5M;
 

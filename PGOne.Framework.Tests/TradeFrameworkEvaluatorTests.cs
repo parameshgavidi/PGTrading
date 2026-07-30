@@ -257,6 +257,46 @@ public class TradeFrameworkEvaluatorTests
   }
 
   [Fact]
+  public void Blocking_reason_step1_vwap_conflict_is_explicit()
+  {
+    Assert.Equal(
+      "Step 1 — 1H ST bullish but price below session VWAP",
+      TradeFrameworkEvaluator.GetBlockingReason(
+        TrendDirection.Neutral,
+        TrendDirection.Neutral,
+        TrendDirection.Buy,
+        TrendDirection.Neutral,
+        TrendDirection.Neutral,
+        adx1H: 25m,
+        rsi1H: 60m,
+        aboveVwap: false,
+        new FootprintAnalysis(),
+        new TpoConfirmationAnalysis(),
+        waitForReversal: false,
+        isRotationRegime: false,
+        isRangebound: false,
+        Config));
+
+    Assert.Equal(
+      "Step 1 — 1H ST bearish but price above session VWAP",
+      TradeFrameworkEvaluator.GetBlockingReason(
+        TrendDirection.Neutral,
+        TrendDirection.Neutral,
+        TrendDirection.Sell,
+        TrendDirection.Neutral,
+        TrendDirection.Neutral,
+        adx1H: 25m,
+        rsi1H: 40m,
+        aboveVwap: true,
+        new FootprintAnalysis(),
+        new TpoConfirmationAnalysis(),
+        waitForReversal: false,
+        isRotationRegime: false,
+        isRangebound: false,
+        Config));
+  }
+
+  [Fact]
   public void Camarilla_bias_above_pp_and_h2()
   {
     var cam = new CamarillaLevels { HasData = true, Pivot = 23758m, H2 = 23810m, L2 = 23637m };

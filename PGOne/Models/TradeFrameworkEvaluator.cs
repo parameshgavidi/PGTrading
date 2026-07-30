@@ -232,7 +232,15 @@ public static class TradeFrameworkEvaluator
       return "Wait — 1H SuperTrend neutral";
 
     if (marketBias == TrendDirection.Neutral)
-      return aboveVwap ? "Wait — 1H bearish vs VWAP" : "Wait — 1H bullish vs VWAP";
+    {
+      if (trend1H == TrendDirection.Buy && !aboveVwap)
+        return "Step 1 — 1H ST bullish but price below session VWAP";
+
+      if (trend1H == TrendDirection.Sell && aboveVwap)
+        return "Step 1 — 1H ST bearish but price above session VWAP";
+
+      return "Step 1 — 1H SuperTrend and VWAP not aligned";
+    }
 
     if (trend15M != marketBias)
       return "Wait — 15m SuperTrend not aligned";

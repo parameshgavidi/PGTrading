@@ -130,4 +130,42 @@ public class AiInsightHelperTests
         var footprintCheck = AiInsightHelper.BuildChecks(analysis)[^1];
         Assert.Equal("fail", footprintCheck.State);
     }
+
+    [Fact]
+    public void Step1_bullish_st_below_vwap_marks_st_pass_and_vwap_fail()
+    {
+        var analysis = new MultiTimeframeAnalysis
+        {
+            Trend1H = TrendDirection.Buy,
+            MarketBias = TrendDirection.Neutral,
+            AboveVwap = false,
+            FrameworkReady = false,
+            FrameworkStatus = "Step 1 — 1H ST bullish but price below session VWAP"
+        };
+
+        var checks = AiInsightHelper.BuildChecks(analysis);
+        Assert.Equal("pass", checks[0].State);
+        Assert.Equal("fail", checks[1].State);
+
+        var recommendation = AiInsightHelper.BuildRecommendation(new Signal(), analysis);
+        Assert.Equal("WAIT", recommendation.ActionHeadline);
+        Assert.Contains("below session VWAP", recommendation.ActionDetail, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Step1_bearish_st_above_vwap_marks_vwap_fail()
+    {
+        var analysis = new MultiTimeframeAnalysis
+        {
+            Trend1H = TrendDirection.Sell,
+            MarketBias = TrendDirection.Neutral,
+            AboveVwap = true,
+            FrameworkReady = false,
+            FrameworkStatus = "Step 1 — 1H ST bearish but price above session VWAP"
+        };
+
+        var checks = AiInsightHelper.BuildChecks(analysis);
+        Assert.Equal("pass", checks[0].State);
+        Assert.Equal("fail", checks[1].State);
+    }
 }

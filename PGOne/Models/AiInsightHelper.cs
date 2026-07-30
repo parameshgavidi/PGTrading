@@ -85,7 +85,6 @@ public static class AiInsightHelper
 
     public static IReadOnlyList<AiCheck> BuildChecks(MultiTimeframeAnalysis analysis)
     {
-        var marketBiasPass = analysis.MarketBias != TrendDirection.Neutral;
         var tpoPass = analysis.TpoConfirmed;
         var entryPass = analysis.EntryTriggered;
         var footprintPass = analysis.FootprintConfirmed;
@@ -102,10 +101,8 @@ public static class AiInsightHelper
             : analysis.RsiTrend < 30 || analysis.RsiTrend > 70 ? "fail"
             : "warn";
 
-        var st1HState = marketBiasPass ? "pass"
-            : analysis.Trend1H == TrendDirection.Neutral ? "fail"
-            : "warn";
-
+        var st1HState = analysis.Trend1H == TrendDirection.Neutral ? "fail" : "pass";
+        var vwapState = GetVwapCheckState(analysis);
         var st15MState = Get15MStCheckState(analysis);
 
         var footprintState = footprintPass ? "pass"
@@ -115,7 +112,7 @@ public static class AiInsightHelper
         return
         [
             new($"{TrendUi.GetIcon(analysis.Trend1H)} 1H ST {TrendUi.GetSuperTrendLabel(analysis.Trend1H)}", st1HState),
-            new(analysis.AboveVwap ? "Above VWAP" : "Below VWAP", analysis.MarketBias != TrendDirection.Neutral ? "pass" : "warn"),
+            new(analysis.AboveVwap ? "Above VWAP" : "Below VWAP", vwapState),
             new($"{TrendUi.GetIcon(analysis.Trend15M)} 15M ST {TrendUi.GetSuperTrendLabel(analysis.Trend15M)}", st15MState),
             new(analysis.Adx >= 25 ? "ADX Strong" : analysis.Adx >= 18 ? $"ADX Moderate {analysis.Adx:N0}" : $"ADX Choppy {analysis.Adx:N0}", adxState),
             new($"RSI(28) {analysis.RsiTrend:N0}", rsiState),
@@ -123,6 +120,20 @@ public static class AiInsightHelper
             new($"{TrendUi.GetIcon(analysis.Trend5MEntry)} Entry ST {TrendUi.GetSuperTrendLabel(analysis.Trend5MEntry)}", entryPass ? "pass" : "warn"),
             new(FootprintDisplayHelper.GetDisplayLabel(analysis.Footprint, footprintPass), footprintState)
         ];
+    }
+
+    private static string GetVwapCheckState(MultiTimeframeAnalysis analysis)
+    {
+        if (analysis.MarketBias != TrendDirection.Neutral)
+            return "pass";
+
+        if (analysis.Trend1H == TrendDirection.Buy && !analysis.AboveVwap)
+            return "fail";
+
+        if (analysis.Trend1H == TrendDirection.Sell && analysis.AboveVwap)
+            return "fail";
+
+        return "warn";
     }
 
   public static string Get15MStCheckState(MultiTimeframeAnalysis analysis)
@@ -196,6 +207,15 @@ public static class AiInsightHelper
 
     private static string FormatBlockingDetail(MultiTimeframeAnalysis analysis)
     {
+        if (analysis.MarketBias == TrendDirection.Neutral && analysis.Trend1H != TrendDirection.Neutral)
+        {
+            if (analysis.Trend1H == TrendDirection.Buy && !analysis.AboveVwap)
+                return "Step 1 incomplete — 1H SuperTrend is bullish but price is below session VWAP. Wait for reclaim above VWAP.";
+
+            if (analysis.Trend1H == TrendDirection.Sell && analysis.AboveVwap)
+                return "Step 1 incomplete — 1H SuperTrend is bearish but price is above session VWAP. Wait for rejection below VWAP.";
+        }
+
         if (!analysis.TpoConfirmed && analysis.MarketBias != TrendDirection.Neutral)
             return $"POC not confirmed — {analysis.Tpo.Summary}. {NextStepHint(analysis)}";
 
