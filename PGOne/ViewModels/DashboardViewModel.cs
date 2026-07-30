@@ -407,8 +407,8 @@ public class DashboardViewModel : INotifyPropertyChanged
             ChartDataMessage = result.IsFromZerodha
                 ? SelectedTimeframe switch
                 {
-                    "1m" => $"Zerodha 1m candles ({ChartCandles.Count} bars) · 1m CPR bands (15m pivot)",
-                    "15m" => $"Zerodha 15m candles ({ChartCandles.Count} bars) · 1m CPR bands",
+                    "1m" => $"Zerodha 1m candles ({ChartCandles.Count} bars)",
+                    "15m" => $"Zerodha 15m candles ({ChartCandles.Count} bars)",
                     _ => $"Zerodha {SelectedTimeframe} candles ({ChartCandles.Count} bars)"
                 }
                 : result.Error ?? "Demo candle data";

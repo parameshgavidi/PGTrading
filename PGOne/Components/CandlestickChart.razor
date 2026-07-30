@@ -67,6 +67,9 @@
             && segmentKey == _lastCprSegmentKey)
             return;
 
+        if (!await RenderAsync(firstRender))
+            return;
+
         _lastRenderedVersion = ChartVersion;
         _lastOverlayVersion = OverlayVersion;
         _lastTimeframe = Timeframe;
@@ -80,7 +83,6 @@
         _lastShowVwapOverlay = ShowVwapOverlay;
         _lastCprSegmentCount = CprSegments.Count;
         _lastCprSegmentKey = segmentKey;
-        await RenderAsync();
     }
 
     private string BuildCprSegmentKey() =>
@@ -96,7 +98,7 @@
         catch { /* WebView not ready */ }
     }
 
-    private async Task RenderAsync()
+    private async Task<bool> RenderAsync(bool firstRender)
     {
         var segmentPayload = CprSegments.Select(s => new
         {
@@ -137,7 +139,7 @@
             showPoc = ShowPocLevels,
             showPivot = ShowPivotLevels,
             showCamarilla = ShowCamarillaLevels,
-            showIntradaCpr = showIntradayCpr,
+            showIntradaCpr = showIntradayCpr ? 1 : 0,
             intradayCpr = segmentPayload,
             showKeltner = ShowKeltnerLevels,
             showVwap = Timeframe == "5m" && ShowVwapOverlay,
@@ -145,7 +147,27 @@
             showEma20 = Timeframe == "5m" && ShowEma20Overlay
         };
 
-        await InvokeSafe("pgOneChart.drawCandlestickChart", CanvasId, payload, Timeframe, levels, pocToday, overlayOptions);
+        for (var attempt = 0; attempt < (firstRender ? 5 : 1); attempt++)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync(
+                    "pgOneChart.drawCandlestickChart",
+                    CanvasId,
+                    payload,
+                    Timeframe,
+                    levels,
+                    pocToday,
+                    overlayOptions);
+                return true;
+            }
+            catch when (attempt < 4 && firstRender)
+            {
+                await Task.Delay(120);
+            }
+        }
+
+        return false;
     }
 
     private List<object> BuildLevelPayload()
