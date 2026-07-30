@@ -147,6 +147,27 @@ public static class TradeFrameworkEvaluator
 
     if (frameworkReady) score += 10;
 
+    var primaryBias = tradeDirection != TrendDirection.Neutral ? tradeDirection : marketBias;
+    if (primaryBias != TrendDirection.Neutral
+        && FootprintDisplayHelper.FootprintOpposesBias(footprint, primaryBias))
+      score -= 22;
+
+    if (tradeDirection != TrendDirection.Neutral && !footprint.Confirms(tradeDirection))
+      score = Math.Min(score, 82);
+
+    if (tradeDirection != TrendDirection.Neutral && !EntryTriggered(tradeDirection, trend5MEntry))
+      score = Math.Min(score, 78);
+
+    if (primaryBias != TrendDirection.Neutral
+        && FootprintDisplayHelper.FootprintOpposesBias(footprint, primaryBias))
+      score = Math.Min(score, 68);
+
+    if (!frameworkReady)
+      score = Math.Min(score, 85);
+
+    if (frameworkReady)
+      score = Math.Max(score, 75);
+
     if (isRotationRegime)
       score = Math.Min(score, 48);
     else if (isRangebound)
@@ -159,10 +180,14 @@ public static class TradeFrameworkEvaluator
     int score,
     bool isRangebound,
     bool isRotationRegime,
-    bool frameworkReady)
+    bool frameworkReady,
+    bool footprintConflict = false)
   {
     if (frameworkReady)
       return "Ready";
+
+    if (footprintConflict)
+      return "Flow Conflict";
 
     if (isRotationRegime)
       return "Rotation";
@@ -172,9 +197,9 @@ public static class TradeFrameworkEvaluator
 
     return score switch
     {
-      >= 75 => "Strong",
-      >= 55 => "Moderate",
-      _ => "Weak"
+      >= 75 => "Strong Setup",
+      >= 55 => "Moderate Setup",
+      _ => "Weak Setup"
     };
   }
 

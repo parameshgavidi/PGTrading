@@ -20,6 +20,16 @@ public static class FootprintDisplayHelper
             ? TrendDirection.Sell
             : TrendDirection.Neutral;
 
+    /// <summary>Futures/equity flow opposes the active trade or market bias.</summary>
+    public static bool FootprintOpposesBias(FootprintAnalysis fp, TrendDirection bias)
+    {
+        if (bias == TrendDirection.Neutral)
+            return false;
+
+        var flow = GetFlowBias(fp);
+        return flow != TrendDirection.Neutral && flow != bias;
+    }
+
     public static string GetFlowBiasLabel(FootprintAnalysis fp) =>
         TrendUi.GetBiasLabel(GetFlowBias(fp));
 

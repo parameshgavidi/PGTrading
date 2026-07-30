@@ -364,6 +364,13 @@ html, body {
 .ai-suggested-action.wait { color: #FFB74D; }
 .ai-suggested-action.neutral { color: var(--gold); }
 
+.ai-suggested-detail {
+    margin-top: 8px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text-secondary);
+}
+
 .news-panel { flex: 1; min-width: 0; }
 
 .news-link {
