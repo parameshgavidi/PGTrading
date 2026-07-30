@@ -45,12 +45,7 @@
     protected override async Task OnInitializedAsync()
     {
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
-
-        if (!ViewModel.IsDashboardReady)
-            await ViewModel.InitializeAsync();
-
-        if (ViewModel.SelectedTimeframe != "1m")
-            await ViewModel.ChangeTimeframeAsync("1m");
+        await ViewModel.Ensure1mCprPageAsync();
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>

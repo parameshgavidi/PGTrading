@@ -54,7 +54,8 @@ public class DashboardViewModel : INotifyPropertyChanged
     public string CprPositionLabel => AboveCpr ? "Above CPR" : "Below CPR";
     public string CprPositionClass => AboveCpr ? "above-cpr" : "below-cpr";
     public bool Is1mCprChart => SelectedTimeframe == "1m";
-    public bool SupportsIntradayCprOverlay => SelectedTimeframe is "1m" or "15m";
+    /// <summary>15m-pivot intraday CPR bands on 1m chart only.</summary>
+    public bool SupportsIntradayCprOverlay => SelectedTimeframe == "1m";
     public bool IsChartFromZerodha { get; private set; }
     public string? ChartDataMessage { get; private set; }
     public string? LastCandleSummary { get; private set; }
@@ -172,6 +173,18 @@ public class DashboardViewModel : INotifyPropertyChanged
         Notify(nameof(Supports5mStudyToggles));
         Notify(nameof(OverlayVersion));
         Notify();
+    }
+
+    /// <summary>1m CPR page: load 1m chart and enable 1m CPR overlay.</summary>
+    public async Task Ensure1mCprPageAsync()
+    {
+        if (!IsDashboardReady)
+            await InitializeAsync();
+
+        if (SelectedTimeframe != "1m")
+            await ChangeTimeframeAsync("1m");
+
+        SetShowIntradayCprOverlay(true);
     }
 
     public async Task RefreshAsync()
@@ -324,6 +337,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         OverlayVersion++;
         Notify(nameof(ShowIntradayCprOverlay));
         Notify(nameof(OverlayVersion));
+        Notify(nameof(CprSegments));
         Notify(nameof(AboveCpr));
         Notify(nameof(CprPositionLabel));
         Notify(nameof(CprPositionClass));
@@ -379,12 +393,6 @@ public class DashboardViewModel : INotifyPropertyChanged
                     .Where(c => c.Timestamp.Date == sessionDate)
                     .ToList();
                 ChartCandles = sessionCandles.Count > 0 ? sessionCandles : result.Candles;
-            }
-            else if (SelectedTimeframe == "15m")
-            {
-                var sessionDate = GetChartSessionDate();
-                CprSegments = _intradayCpr.BuildSegments(result.Candles, sessionDate);
-                ChartCandles = result.Candles;
             }
             else
             {
