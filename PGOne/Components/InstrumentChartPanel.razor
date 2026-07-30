@@ -11,7 +11,7 @@
                   ShowPivotLevels="ViewModel.ShowPivotOverlay"
                   ShowCamarillaLevels="ViewModel.ShowCamarillaOverlay"
                   ShowKeltnerLevels="ViewModel.ShowKeltnerOverlay"
-                  ShowIntradayCprLevels="ViewModel.ShowIntradayCprOverlay"
+                  ShowIntradayCprLevels="@ShowIntradayCprOnChart"
                   ShowSuperTrendOverlay="ViewModel.ShowSuperTrendOverlay"
                   ShowEma20Overlay="ViewModel.ShowEma20Overlay"
                   ShowVwapOverlay="ViewModel.ShowVwapOverlay"
@@ -106,6 +106,12 @@
     [Parameter] public string CssClass { get; set; } = string.Empty;
     [Parameter] public bool ShowLastCandleSummary { get; set; } = true;
     [Parameter] public string[] Timeframes { get; set; } = DefaultTimeframes;
+    /// <summary>1m CPR page: always draw 15m CPR bands on 1m chart (like legacy chart-cpr).</summary>
+    [Parameter] public bool AlwaysShowIntradayCprBands { get; set; }
+
+    private bool ShowIntradayCprOnChart =>
+        ViewModel.SupportsIntradayCprOverlay
+        && (AlwaysShowIntradayCprBands || ViewModel.ShowIntradayCprOverlay);
 
     private Task ChangeTimeframeAsync(string timeframe) => ViewModel.ChangeTimeframeAsync(timeframe);
 }

@@ -174,6 +174,20 @@ public class DashboardViewModel : INotifyPropertyChanged
         Notify();
     }
 
+    /// <summary>
+    /// Opens the dedicated 1m CPR page: 1m chart with 15m CPR bands enabled.
+    /// </summary>
+    public async Task Ensure1mCprPageAsync()
+    {
+        if (!IsDashboardReady)
+            await InitializeAsync();
+
+        if (SelectedTimeframe != "1m")
+            await ChangeTimeframeAsync("1m");
+
+        SetShowIntradayCprOverlay(true);
+    }
+
     public async Task RefreshAsync()
     {
         await LoadChartAsync();
