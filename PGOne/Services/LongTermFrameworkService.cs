@@ -4,12 +4,18 @@ namespace PGOne.Services;
 
 public interface ILongTermFrameworkService
 {
+    /// <summary>Phase-1 screen: daily ST, weekly ST, EMA trend, yearly-high band.</summary>
+    Task<LongTermPrefetch?> TryScreenLongTermPhase1Async(string symbol, string exchange = "NSE");
     Task<LongTermEvaluation> EvaluateAsync(string symbol, decimal lastPrice, string exchange = "NSE");
+    Task<LongTermEvaluation> EvaluateAsync(string symbol, decimal lastPrice, LongTermPrefetch prefetch);
     IReadOnlyList<string> FrameworkConditions { get; }
 }
 
 public class LongTermFrameworkService : ILongTermFrameworkService
 {
+    private const int Phase1DailyBars = 120;
+    private const int FullDailyBars = 300;
+
     private readonly IMarketDataService _marketData;
     private readonly ISuperTrendService _superTrend;
     private readonly IIndicatorService _indicators;
@@ -48,11 +54,70 @@ public class LongTermFrameworkService : ILongTermFrameworkService
         _fundamentals = fundamentals;
     }
 
-    public async Task<LongTermEvaluation> EvaluateAsync(string symbol, decimal lastPrice, string exchange = "NSE")
+    public async Task<LongTermPrefetch?> TryScreenLongTermPhase1Async(string symbol, string exchange = "NSE")
     {
         var cfg = Framework;
         var instrument = InstrumentMapper.ToZerodhaKey(symbol, exchange);
-        var daily = await _marketData.GetCandlesAsync(instrument, "1D", 300);
+        var daily = await _marketData.GetCandlesAsync(instrument, "1D", Phase1DailyBars);
+        if (daily.Count < cfg.EmaSlowPeriod + 10)
+            return null;
+
+        var weekly = CandleAggregator.ToWeekly(daily);
+        if (weekly.Count < cfg.SuperTrendPeriod + 2)
+            return null;
+
+        var close = daily[^1].Close;
+        var yearlyHigh = daily.Max(c => c.High);
+        var lowerBand = yearlyHigh * cfg.YearlyHighLowerBand;
+        var upperBand = yearlyHigh * cfg.YearlyHighUpperBand;
+        if (close < lowerBand || close > upperBand)
+            return null;
+
+        var ema20 = _indicators.CalculateEma(daily, cfg.EmaFastPeriod);
+        var ema50 = _indicators.CalculateEma(daily, cfg.EmaSlowPeriod);
+        if (ema20 <= ema50)
+            return null;
+
+        var (_, dailyStValues) = _superTrend.Calculate(daily, cfg.SuperTrendPeriod, cfg.SuperTrendMultiplier);
+        var dailySuperTrend = dailyStValues.Count > 0 ? dailyStValues[^1] : 0m;
+        if (close <= dailySuperTrend)
+            return null;
+
+        var weeklyClose = weekly[^1].Close;
+        var (_, weeklyStValues) = _superTrend.Calculate(weekly, cfg.SuperTrendPeriod, cfg.SuperTrendMultiplier);
+        var weeklySuperTrend = weeklyStValues.Count > 0 ? weeklyStValues[^1] : 0m;
+        if (weeklyClose <= weeklySuperTrend)
+            return null;
+
+        return new LongTermPrefetch
+        {
+            Symbol = symbol.ToUpperInvariant(),
+            DailyCandles = daily
+        };
+    }
+
+    public async Task<LongTermEvaluation> EvaluateAsync(string symbol, decimal lastPrice, string exchange = "NSE")
+    {
+        var instrument = InstrumentMapper.ToZerodhaKey(symbol, exchange);
+        var daily = await _marketData.GetCandlesAsync(instrument, "1D", FullDailyBars);
+        return BuildEvaluation(symbol, daily);
+    }
+
+    public async Task<LongTermEvaluation> EvaluateAsync(string symbol, decimal lastPrice, LongTermPrefetch prefetch)
+    {
+        var daily = prefetch.DailyCandles;
+        if (daily.Count < FullDailyBars)
+        {
+            var instrument = InstrumentMapper.ToZerodhaKey(symbol, "NSE");
+            daily = await _marketData.GetCandlesAsync(instrument, "1D", FullDailyBars);
+        }
+
+        return BuildEvaluation(symbol, daily);
+    }
+
+    private LongTermEvaluation BuildEvaluation(string symbol, List<Candle> daily)
+    {
+        var cfg = Framework;
         var weekly = CandleAggregator.ToWeekly(daily);
         var fundamentals = _fundamentals.GetFundamentals(symbol);
         var conditions = new List<FrameworkConditionResult>();
