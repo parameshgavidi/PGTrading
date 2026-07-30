@@ -33,11 +33,19 @@
             <div class="chart-meta">Loading market data…</div>
         }
 
+        <div class="cpr-levels-strip chart-toolbar">
+            <span class="cpr-level-label">Pivot TF: 15m</span>
+            <span>TC <strong>@ViewModel.CurrentIntradayTc.ToString("N2")</strong></span>
+            <span>Pivot <strong>@ViewModel.CurrentIntradayPivot.ToString("N2")</strong></span>
+            <span>BC <strong>@ViewModel.CurrentIntradayBc.ToString("N2")</strong></span>
+        </div>
+
         <InstrumentChartPanel ViewModel="ViewModel"
                               CanvasId="cpr1mChart"
                               CssClass="large"
                               Width="1200"
-                              Height="520" />
+                              Height="520"
+                              AlwaysShowIntradayCprBands="true" />
     </div>
 </div>
 
@@ -45,12 +53,7 @@
     protected override async Task OnInitializedAsync()
     {
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
-
-        if (!ViewModel.IsDashboardReady)
-            await ViewModel.InitializeAsync();
-
-        if (ViewModel.SelectedTimeframe != "1m")
-            await ViewModel.ChangeTimeframeAsync("1m");
+        await ViewModel.Ensure1mCprPageAsync();
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
