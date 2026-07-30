@@ -93,9 +93,20 @@
       });
     }
 
-    _results = _results.OrderByDescending(r => r.Score).ToList();
+    _results = _results
+        .OrderBy(r => SignalSortOrder(r))
+        .ThenByDescending(r => r.Score)
+        .ThenBy(r => r.Symbol)
+        .ToList();
     _scanning = false;
   }
+
+  private static int SignalSortOrder(ScanResult r) => r switch
+  {
+    { Aligned: true, Signal: TrendDirection.Buy } => 0,
+    { Aligned: true, Signal: TrendDirection.Sell } => 1,
+    _ => 2
+  };
 
   private static string GetTrendClass(TrendDirection trend) => TrendUi.GetClass(trend);
 
