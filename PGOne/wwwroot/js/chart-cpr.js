@@ -84,6 +84,28 @@ window.pgOneCprChart = (function () {
         });
     }
 
+    function drawLevelLabel(ctx, x, y, text, color) {
+        if (!text) return;
+        ctx.font = 'bold 10px "Segoe UI", sans-serif';
+        var metrics = ctx.measureText(text);
+        var padX = 4;
+        var w = metrics.width + padX * 2;
+        var h = 14;
+        var top = y - h + 1;
+
+        ctx.fillStyle = 'rgba(18, 18, 18, 0.82)';
+        ctx.fillRect(x, top, w, h);
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, top, w, h);
+
+        ctx.fillStyle = color;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(text, x + padX, y);
+    }
+
     function drawSegmentLevels(ctx, view, segments, padding, chartH, slot, toY, toX) {
         if (!segments || segments.length === 0) return;
 
@@ -110,6 +132,10 @@ window.pgOneCprChart = (function () {
             drawHLine(ctx, x0, x1, toY(Number(seg.tc)), 'rgba(100, 181, 246, 0.9)', [4, 4]);
             drawHLine(ctx, x0, x1, toY(Number(seg.pivot)), 'rgba(255, 193, 7, 0.95)', [6, 4]);
             drawHLine(ctx, x0, x1, toY(Number(seg.bc)), 'rgba(100, 181, 246, 0.9)', [4, 4]);
+
+            drawLevelLabel(ctx, x0 + 2, toY(Number(seg.tc)), 'TC', 'rgba(100, 181, 246, 0.95)');
+            drawLevelLabel(ctx, x0 + 2, toY(Number(seg.pivot)), 'CPR', 'rgba(255, 193, 7, 0.95)');
+            drawLevelLabel(ctx, x0 + 2, toY(Number(seg.bc)), 'BC', 'rgba(100, 181, 246, 0.95)');
 
             ctx.strokeStyle = 'rgba(0, 200, 83, 0.25)';
             ctx.lineWidth = 1;
