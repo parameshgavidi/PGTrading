@@ -174,6 +174,10 @@ window.pgOneChart = (function () {
             drawHLineSegment(ctx, x0, x1, toY(Number(seg.pivot)), 'rgba(255, 193, 7, 0.95)', [6, 4]);
             drawHLineSegment(ctx, x0, x1, toY(Number(seg.bc)), 'rgba(100, 181, 246, 0.9)', [4, 4]);
 
+            drawLevelLabel(ctx, x0 + 2, toY(Number(seg.tc)), 'TC', 'rgba(100, 181, 246, 0.95)');
+            drawLevelLabel(ctx, x0 + 2, toY(Number(seg.pivot)), 'CPR', 'rgba(255, 193, 7, 0.95)');
+            drawLevelLabel(ctx, x0 + 2, toY(Number(seg.bc)), 'BC', 'rgba(100, 181, 246, 0.95)');
+
             ctx.strokeStyle = 'rgba(0, 200, 83, 0.25)';
             ctx.lineWidth = 1;
             ctx.beginPath();
@@ -181,6 +185,28 @@ window.pgOneChart = (function () {
             ctx.lineTo(x0, padding.top + chartH);
             ctx.stroke();
         });
+    }
+
+    function drawLevelLabel(ctx, x, y, text, color) {
+        if (!text) return;
+        ctx.font = 'bold 10px "Segoe UI", sans-serif';
+        var metrics = ctx.measureText(text);
+        var padX = 4;
+        var w = metrics.width + padX * 2;
+        var h = 14;
+        var top = y - h + 1;
+
+        ctx.fillStyle = 'rgba(18, 18, 18, 0.82)';
+        ctx.fillRect(x, top, w, h);
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, top, w, h);
+
+        ctx.fillStyle = color;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(text, x + padX, y);
     }
 
     function drawLevels(ctx, levels, padding, width, toY) {
@@ -203,6 +229,8 @@ window.pgOneChart = (function () {
             ctx.lineTo(width - padding.right, y);
             ctx.stroke();
             ctx.setLineDash([]);
+
+            drawLevelLabel(ctx, padding.left + 2, y, lv.label || '', color);
         });
     }
 

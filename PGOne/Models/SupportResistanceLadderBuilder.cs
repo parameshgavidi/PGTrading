@@ -27,18 +27,19 @@ public static class SupportResistanceLadderBuilder
     if (analysis.CprPivot > 0)
     {
       rows.Add(new("TC", analysis.CprTc, "sell", "cpr"));
-      rows.Add(new("Pivot", analysis.CprPivot, "neutral", "cpr"));
+      rows.Add(new("CPR", analysis.CprPivot, "neutral", "cpr"));
       rows.Add(new("BC", analysis.CprBc, "buy", "cpr"));
     }
 
     if (cam.HasData)
     {
-      rows.Add(new("H4", cam.H4, "sell", "cam"));
-      rows.Add(new("H3", cam.H3, "sell", "cam"));
-      rows.Add(new("H2", cam.H2, "sell", "cam"));
-      rows.Add(new("L2", cam.L2, "buy", "cam"));
-      rows.Add(new("L3", cam.L3, "buy", "cam"));
-      rows.Add(new("L4", cam.L4, "buy", "cam"));
+      rows.Add(new("R4", cam.H4, "sell", "cam"));
+      rows.Add(new("R3", cam.H3, "sell", "cam"));
+      rows.Add(new("R2", cam.H2, "sell", "cam"));
+      rows.Add(new("PP", cam.Pivot, "neutral", "cam"));
+      rows.Add(new("S2", cam.L2, "buy", "cam"));
+      rows.Add(new("S3", cam.L3, "buy", "cam"));
+      rows.Add(new("S4", cam.L4, "buy", "cam"));
     }
 
     return rows
