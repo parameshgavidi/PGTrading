@@ -338,6 +338,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         OverlayVersion++;
         Notify(nameof(ShowIntradayCprOverlay));
         Notify(nameof(OverlayVersion));
+        Notify(nameof(CprSegments));
         Notify(nameof(AboveCpr));
         Notify(nameof(CprPositionLabel));
         Notify(nameof(CprPositionClass));

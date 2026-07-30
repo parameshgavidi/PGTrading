@@ -70,7 +70,8 @@ window.pgOneChart = (function () {
     }
 
     function parseTime(value) {
-        if (!value) return null;
+        if (value == null) return null;
+        if (typeof value === 'number' && !Number.isNaN(value)) return new Date(value);
         var t = new Date(value);
         return Number.isNaN(t.getTime()) ? null : t;
     }
@@ -85,6 +86,31 @@ window.pgOneChart = (function () {
             if (time >= start && time < end) return s;
         }
         return segments.length ? segments[segments.length - 1] : null;
+    }
+
+    function segmentHasPivot(seg) {
+        if (!seg) return false;
+        var pivot = Number(seg.pivot);
+        return !Number.isNaN(pivot) && pivot > 0;
+    }
+
+    function drawIntradaCprSegmentBand(ctx, seg, x0, x1, padding, chartH, toY) {
+        drawHLineSegment(ctx, x0, x1, toY(Number(seg.tc)), 'rgba(100, 181, 246, 0.9)', [4, 4]);
+        drawHLineSegment(ctx, x0, x1, toY(Number(seg.pivot)), 'rgba(255, 193, 7, 0.95)', [6, 4]);
+        drawHLineSegment(ctx, x0, x1, toY(Number(seg.bc)), 'rgba(100, 181, 246, 0.9)', [4, 4]);
+
+        ctx.strokeStyle = 'rgba(0, 200, 83, 0.25)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x0, padding.top);
+        ctx.lineTo(x0, padding.top + chartH);
+        ctx.stroke();
+    }
+
+    function drawIntradaCprSegmentLabels(ctx, seg, x0, toY) {
+        drawLevelLabel(ctx, x0 + 2, toY(Number(seg.tc)), 'TC', 'rgba(100, 181, 246, 0.95)');
+        drawLevelLabel(ctx, x0 + 2, toY(Number(seg.pivot)), 'CPR', 'rgba(255, 193, 7, 0.95)');
+        drawLevelLabel(ctx, x0 + 2, toY(Number(seg.bc)), 'BC', 'rgba(100, 181, 246, 0.95)');
     }
 
     function fillChartBackground(ctx, padding, width, chartH) {
@@ -122,7 +148,7 @@ window.pgOneChart = (function () {
         view.forEach(function (candle, i) {
             var t = parseTime(candle.time);
             var seg = findCprSegment(segments, t);
-            if (!seg || !seg.pivot) return;
+            if (!segmentHasPivot(seg)) return;
 
             var pivotY = clamp(toY(Number(seg.pivot)), top, bottom);
             var x0 = toX(i) - slot / 2;
@@ -147,52 +173,37 @@ window.pgOneChart = (function () {
         ctx.setLineDash([]);
     }
 
-    function intradayCprSegmentKey(seg) {
-        if (!seg) return '';
-        return String(seg.start) + '|' + String(seg.end);
-    }
-
-    function drawIntradaCprLevels(ctx, view, segments, padding, chartH, slot, toY, toX) {
+    function drawIntradaCprLevels(ctx, view, segments, padding, chartH, slot, toY, toX, labelsOnly) {
         if (!segments || segments.length === 0 || !view.length) return;
 
-        var i = 0;
-        while (i < view.length) {
-            var t = parseTime(view[i].time);
-            var seg = findCprSegment(segments, t);
-            if (!seg || !seg.pivot) {
-                i++;
-                continue;
-            }
+        segments.forEach(function (seg) {
+            if (!segmentHasPivot(seg)) return;
 
-            var key = intradayCprSegmentKey(seg);
-            var iStart = i;
-            i++;
-            while (i < view.length) {
-                var t2 = parseTime(view[i].time);
-                var seg2 = findCprSegment(segments, t2);
-                if (intradayCprSegmentKey(seg2) !== key) break;
-                i++;
-            }
-            var iEnd = i - 1;
+            var start = parseTime(seg.start);
+            var end = parseTime(seg.end);
+            if (!start || !end) return;
+
+            var iStart = -1, iEnd = -1;
+            view.forEach(function (candle, i) {
+                var t = parseTime(candle.time);
+                if (!t) return;
+                if (t >= start && t < end) {
+                    if (iStart < 0) iStart = i;
+                    iEnd = i;
+                }
+            });
+
+            if (iStart < 0 || iEnd < 0) return;
 
             var x0 = toX(iStart) - slot / 2;
             var x1 = toX(iEnd) + slot / 2;
 
-            drawHLineSegment(ctx, x0, x1, toY(Number(seg.tc)), 'rgba(100, 181, 246, 0.9)', [4, 4]);
-            drawHLineSegment(ctx, x0, x1, toY(Number(seg.pivot)), 'rgba(255, 193, 7, 0.95)', [6, 4]);
-            drawHLineSegment(ctx, x0, x1, toY(Number(seg.bc)), 'rgba(100, 181, 246, 0.9)', [4, 4]);
-
-            drawLevelLabel(ctx, x0 + 2, toY(Number(seg.tc)), 'TC', 'rgba(100, 181, 246, 0.95)');
-            drawLevelLabel(ctx, x0 + 2, toY(Number(seg.pivot)), 'CPR', 'rgba(255, 193, 7, 0.95)');
-            drawLevelLabel(ctx, x0 + 2, toY(Number(seg.bc)), 'BC', 'rgba(100, 181, 246, 0.95)');
-
-            ctx.strokeStyle = 'rgba(0, 200, 83, 0.25)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(x0, padding.top);
-            ctx.lineTo(x0, padding.top + chartH);
-            ctx.stroke();
-        }
+            if (labelsOnly) {
+                drawIntradaCprSegmentLabels(ctx, seg, x0, toY);
+            } else {
+                drawIntradaCprSegmentBand(ctx, seg, x0, x1, padding, chartH, toY);
+            }
+        });
     }
 
     function drawLevelLabel(ctx, x, y, text, color) {
@@ -458,6 +469,10 @@ window.pgOneChart = (function () {
             drawLine('ema20', 'rgba(255, 152, 0, 0.9)', [6, 3]);
         }
 
+        if (st.showIntradaCpr && st.intradayCprSegments && st.intradayCprSegments.length > 0) {
+            drawIntradaCprLevels(ctx, view, st.intradayCprSegments, padding, chartH, slot, toY, toX, false);
+        }
+
         // POC / VA / Camarilla horizontal levels
         drawLevels(ctx, filterLevels(st), padding, width, toY);
 
@@ -484,7 +499,7 @@ window.pgOneChart = (function () {
         });
 
         if (st.showIntradaCpr && st.intradayCprSegments && st.intradayCprSegments.length > 0) {
-            drawIntradaCprLevels(ctx, view, st.intradayCprSegments, padding, chartH, slot, toY, toX);
+            drawIntradaCprLevels(ctx, view, st.intradayCprSegments, padding, chartH, slot, toY, toX, true);
         }
 
         // SuperTrend overlay (10,3) — green above, red below
