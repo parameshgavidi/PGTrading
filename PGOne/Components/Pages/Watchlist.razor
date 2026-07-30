@@ -202,7 +202,7 @@
 
             case WatchlistTab.LongTermScan:
                 <p class="text-secondary">
-                    Scans all NSE equities for long-term framework match. Quantity is sized to ~₹10,000 per stock.
+                    Fast scan on <strong>Nifty 50</strong> only (~50 stocks). Two phases: Step 1 screen all, then full framework on candidates. CNC ~₹10,000 per stock.
                 </p>
 
                 <div class="framework-panel">
@@ -220,7 +220,7 @@
 
                 <div class="button-row">
                     <button class="btn btn-primary" @onclick="ScanLongTermAsync" disabled="@ViewModel.IsLongTermScanning">
-                        @(ViewModel.IsLongTermScanning ? "Scanning..." : "Scan all NSE stocks")
+                        @(ViewModel.IsLongTermScanning ? "Scanning..." : "Scan Nifty 50")
                     </button>
                 </div>
 
