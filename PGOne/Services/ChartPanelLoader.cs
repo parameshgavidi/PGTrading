@@ -27,12 +27,6 @@ public static class ChartPanelLoader
                     .ToList();
                 panel.ChartCandles = sessionCandles.Count > 0 ? sessionCandles : result.Candles;
             }
-            else if (panel.SelectedTimeframe == "15m")
-            {
-                var sessionDate = GetChartSessionDate();
-                panel.CprSegments = intradayCpr.BuildSegments(result.Candles, sessionDate);
-                panel.ChartCandles = result.Candles;
-            }
             else
             {
                 panel.CprSegments = Array.Empty<IntradayCprSegment>();
@@ -44,8 +38,7 @@ public static class ChartPanelLoader
             panel.ChartDataMessage = result.IsFromZerodha
                 ? panel.SelectedTimeframe switch
                 {
-                    "1m" => $"Zerodha 1m candles ({panel.ChartCandles.Count} bars) · 1m CPR bands (15m pivot)",
-                    "15m" => $"Zerodha 15m candles ({panel.ChartCandles.Count} bars) · 1m CPR bands",
+                    "1m" => $"Zerodha 1m candles ({panel.ChartCandles.Count} bars) · optional 1m CPR bands (15m pivot)",
                     _ => $"Zerodha {panel.SelectedTimeframe} candles ({panel.ChartCandles.Count} bars)"
                 }
                 : result.Error ?? "Demo candle data";

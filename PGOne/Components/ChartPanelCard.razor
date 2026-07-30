@@ -80,11 +80,12 @@
         }
         @if (Panel.ShowPivotOverlay)
         {
-            <span class="legend-item"><span class="legend-color pivot"></span> Day CPR</span>
+            <span class="legend-item"><span class="legend-color pivot"></span> Day CPR (prev day)</span>
         }
         @if (Panel.ShowIntradayCprOverlay && Panel.SupportsIntradayCprOverlay)
         {
-            <span class="legend-item"><span class="legend-color cpr-tc"></span> 1m CPR bands</span>
+            <span class="legend-item"><span class="legend-color cpr-tc"></span> 1m CPR bands (15m pivot)</span>
+            <span class="legend-item"><span class="legend-color cpr-tc"></span> TC / CPR / BC per 15m</span>
         }
         @if (Panel.ShowCamarillaOverlay)
         {

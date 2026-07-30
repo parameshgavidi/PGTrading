@@ -26,9 +26,9 @@ public static class SupportResistanceLadderBuilder
 
     if (analysis.CprPivot > 0)
     {
-      rows.Add(new("TC", analysis.CprTc, "sell", "cpr"));
-      rows.Add(new("CPR", analysis.CprPivot, "neutral", "cpr"));
-      rows.Add(new("BC", analysis.CprBc, "buy", "cpr"));
+      rows.Add(new("Day TC", analysis.CprTc, "sell", "cpr"));
+      rows.Add(new("Day CPR", analysis.CprPivot, "neutral", "cpr"));
+      rows.Add(new("Day BC", analysis.CprBc, "buy", "cpr"));
     }
 
     if (cam.HasData)

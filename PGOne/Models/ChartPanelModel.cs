@@ -24,7 +24,7 @@ public class ChartPanelModel
     public bool IsChartFromZerodha { get; set; }
     public TrendDirection ChartTrend { get; set; } = TrendDirection.Neutral;
 
-    public bool SupportsIntradayCprOverlay => SelectedTimeframe is "1m" or "15m";
+    public bool SupportsIntradayCprOverlay => SelectedTimeframe == "1m";
     public bool Supports5mStudyToggles => SelectedTimeframe == "5m";
     public string CprPositionLabel => AboveCpr ? "Above CPR" : "Below CPR";
     public string CprPositionClass => AboveCpr ? "above-cpr" : "below-cpr";
