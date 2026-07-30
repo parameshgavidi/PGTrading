@@ -24,6 +24,9 @@
                       ShowCamarillaLevels="Panel.ShowCamarillaOverlay"
                       ShowKeltnerLevels="Panel.ShowKeltnerOverlay"
                       ShowIntradayCprLevels="Panel.ShowIntradayCprOverlay"
+                      ShowSuperTrendOverlay="Panel.ShowSuperTrendOverlay"
+                      ShowEma20Overlay="Panel.ShowEma20Overlay"
+                      ShowVwapOverlay="Panel.ShowVwapOverlay"
                       Timeframe="Panel.SelectedTimeframe"
                       CssClass="multi"
                       Width="700"
@@ -39,20 +42,38 @@
         </div>
         <ChartOverlayToggles ShowIntradayCprToggle="Panel.SupportsIntradayCprOverlay"
                              ShowKeltnerToggle="@(Panel.SelectedTimeframe == "1m" || Panel.SelectedTimeframe == "5m")"
+                             Show5mStudyToggles="Panel.Supports5mStudyToggles"
                              ShowPoc="Panel.ShowPocOverlay"
                              ShowDayCpr="Panel.ShowPivotOverlay"
                              ShowCamarilla="Panel.ShowCamarillaOverlay"
                              ShowIntradayCpr="Panel.ShowIntradayCprOverlay"
                              ShowKeltner="Panel.ShowKeltnerOverlay"
+                             ShowSuperTrend="Panel.ShowSuperTrendOverlay"
+                             ShowEma20="Panel.ShowEma20Overlay"
+                             ShowVwap="Panel.ShowVwapOverlay"
                              ShowPocChanged="v => OnShowPoc(v)"
                              ShowDayCprChanged="v => OnShowPivot(v)"
                              ShowCamarillaChanged="v => OnShowCamarilla(v)"
                              ShowIntradayCprChanged="v => OnShowIntradayCpr(v)"
-                             ShowKeltnerChanged="v => OnShowKeltner(v)" />
+                             ShowKeltnerChanged="v => OnShowKeltner(v)"
+                             ShowSuperTrendChanged="v => OnShowSuperTrend(v)"
+                             ShowEma20Changed="v => OnShowEma20(v)"
+                             ShowVwapChanged="v => OnShowVwap(v)" />
     </div>
     <div class="chart-legend compact">
-        <span class="legend-item"><span class="legend-color buy"></span> ST BUY</span>
-        <span class="legend-item"><span class="legend-color sell"></span> ST SELL</span>
+        @if (Panel.ShowSuperTrendOverlay && Panel.Supports5mStudyToggles)
+        {
+            <span class="legend-item"><span class="legend-color buy"></span> ST BUY</span>
+            <span class="legend-item"><span class="legend-color sell"></span> ST SELL</span>
+        }
+        @if (Panel.ShowEma20Overlay && Panel.Supports5mStudyToggles)
+        {
+            <span class="legend-item"><span class="legend-color ema20"></span> EMA 20</span>
+        }
+        @if (Panel.ShowVwapOverlay && Panel.Supports5mStudyToggles)
+        {
+            <span class="legend-item"><span class="legend-color vwap"></span> VWAP</span>
+        }
         @if (Panel.ShowPocOverlay)
         {
             <span class="legend-item"><span class="legend-color poc"></span> POC / VA</span>
@@ -97,4 +118,7 @@
     private void OnShowCamarilla(bool v) => ViewModel.SetPanelShowCamarilla(Panel, v);
     private void OnShowKeltner(bool v) => ViewModel.SetPanelShowKeltner(Panel, v);
     private void OnShowIntradayCpr(bool v) => ViewModel.SetPanelShowIntradayCpr(Panel, v);
+    private void OnShowSuperTrend(bool v) => ViewModel.SetPanelShowSuperTrend(Panel, v);
+    private void OnShowEma20(bool v) => ViewModel.SetPanelShowEma20(Panel, v);
+    private void OnShowVwap(bool v) => ViewModel.SetPanelShowVwap(Panel, v);
 }

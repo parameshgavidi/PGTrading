@@ -81,7 +81,8 @@ public static class CandleVolumeMerger
         KeltnerLowerInner = c.KeltnerLowerInner,
         KeltnerUpperOuter = c.KeltnerUpperOuter,
         KeltnerLowerOuter = c.KeltnerLowerOuter,
-        Vwap = c.Vwap
+        Vwap = c.Vwap,
+        Ema20 = c.Ema20
     };
 
     private static List<Candle> CloneCandles(IReadOnlyList<Candle> candles) =>

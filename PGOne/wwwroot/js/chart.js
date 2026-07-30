@@ -256,6 +256,8 @@ window.pgOneChart = (function () {
         const intradayCprSegments = opts.intradayCpr || [];
         const showKeltner = opts.showKeltner === true;
         const showVwap = opts.showVwap === true;
+        const showSuperTrend = opts.showSuperTrend === true;
+        const showEma20 = opts.showEma20 === true;
         let count, offset;
         if (prev && prev.timeframe === timeframe) {
             count = clamp(prev.count, 12, candles.length);
@@ -275,7 +277,9 @@ window.pgOneChart = (function () {
             showIntradaCpr: showIntradaCpr,
             intradayCprSegments: intradayCprSegments,
             showKeltner: showKeltner,
-            showVwap: showVwap
+            showVwap: showVwap,
+            showSuperTrend: showSuperTrend,
+            showEma20: showEma20
         };
         ensureInteractions(canvas, canvasId);
         render(canvasId);
@@ -336,13 +340,19 @@ window.pgOneChart = (function () {
                 intradayPrices.push(Number(s.tc), Number(s.pivot), Number(s.bc));
             });
         }
-        const extra = [].concat(collect('superTrend'));
+        const extra = [];
+        if (st.showSuperTrend) {
+            extra.push.apply(extra, collect('superTrend'));
+        }
         if (st.showKeltner) {
             extra.push.apply(extra, collect('keltnerUpperOuter'));
             extra.push.apply(extra, collect('keltnerLowerOuter'));
         }
         if (st.showVwap) {
             extra.push.apply(extra, collect('vwap'));
+        }
+        if (st.showEma20) {
+            extra.push.apply(extra, collect('ema20'));
         }
         const maxPrice = Math.max(...highs, ...(extra.length ? extra : [Number.MIN_VALUE]), ...(levelPrices.length ? levelPrices : [Number.MIN_VALUE]), ...(intradayPrices.length ? intradayPrices : [Number.MIN_VALUE]));
         const minPrice = Math.min(...lows, ...(extra.length ? extra : [Number.MAX_VALUE]), ...(levelPrices.length ? levelPrices : [Number.MAX_VALUE]), ...(intradayPrices.length ? intradayPrices : [Number.MAX_VALUE]));
@@ -430,9 +440,14 @@ window.pgOneChart = (function () {
             drawLine('keltnerLowerOuter', 'rgba(120,144,255,0.55)');
         }
 
-        // VWAP (5m only)
+        // VWAP (5m toggle)
         if (st.showVwap) {
             drawLine('vwap', '#D4AF37', [2, 2]);
+        }
+
+        // EMA 20 (5m toggle)
+        if (st.showEma20) {
+            drawLine('ema20', 'rgba(255, 152, 0, 0.9)', [6, 3]);
         }
 
         if (st.showIntradaCpr && st.intradayCprSegments && st.intradayCprSegments.length > 0) {
@@ -464,27 +479,29 @@ window.pgOneChart = (function () {
             ctx.fillRect(toX(i) - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
         });
 
-        // SuperTrend overlay — green above, red below
-        ctx.lineWidth = 1.75;
-        let segment = null;
-        const flush = () => {
-            if (!segment || segment.points.length < 2) { segment = null; return; }
-            ctx.strokeStyle = segment.color;
-            ctx.beginPath();
-            segment.points.forEach((p, idx) => idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-            ctx.stroke();
-            segment = null;
-        };
-        view.forEach((candle, i) => {
-            const stv = candle.superTrend != null ? Number(candle.superTrend) : null;
-            if (stv == null || Number.isNaN(stv)) { flush(); return; }
-            const close = Number(candle.close);
-            const color = close >= stv ? '#00C853' : '#FF5252';
-            const point = { x: toX(i), y: toY(stv) };
-            if (!segment || segment.color !== color) { flush(); segment = { color: color, points: [point] }; }
-            else segment.points.push(point);
-        });
-        flush();
+        // SuperTrend overlay (10,3) — green above, red below
+        if (st.showSuperTrend) {
+            ctx.lineWidth = 1.75;
+            let segment = null;
+            const flush = () => {
+                if (!segment || segment.points.length < 2) { segment = null; return; }
+                ctx.strokeStyle = segment.color;
+                ctx.beginPath();
+                segment.points.forEach((p, idx) => idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+                ctx.stroke();
+                segment = null;
+            };
+            view.forEach((candle, i) => {
+                const stv = candle.superTrend != null ? Number(candle.superTrend) : null;
+                if (stv == null || Number.isNaN(stv)) { flush(); return; }
+                const close = Number(candle.close);
+                const color = close >= stv ? '#00C853' : '#FF5252';
+                const point = { x: toX(i), y: toY(stv) };
+                if (!segment || segment.color !== color) { flush(); segment = { color: color, points: [point] }; }
+                else segment.points.push(point);
+            });
+            flush();
+        }
     }
 
     return {

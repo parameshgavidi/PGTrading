@@ -23,6 +23,9 @@
     [Parameter] public bool ShowCamarillaLevels { get; set; } = true;
     [Parameter] public bool ShowKeltnerLevels { get; set; } = true;
     [Parameter] public bool ShowIntradayCprLevels { get; set; } = true;
+    [Parameter] public bool ShowSuperTrendOverlay { get; set; }
+    [Parameter] public bool ShowEma20Overlay { get; set; }
+    [Parameter] public bool ShowVwapOverlay { get; set; }
     [Parameter] public string Timeframe { get; set; } = "5m";
     [Parameter] public string CssClass { get; set; } = string.Empty;
     [Parameter] public int Width { get; set; } = 800;
@@ -36,6 +39,9 @@
     private bool _lastShowCamarilla;
     private bool _lastShowKeltner;
     private bool _lastShowIntradayCpr;
+    private bool _lastShowSuperTrend;
+    private bool _lastShowEma20;
+    private bool _lastShowVwapOverlay;
     private int _lastCprSegmentCount;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -51,6 +57,9 @@
             && ShowCamarillaLevels == _lastShowCamarilla
             && ShowKeltnerLevels == _lastShowKeltner
             && ShowIntradayCprLevels == _lastShowIntradayCpr
+            && ShowSuperTrendOverlay == _lastShowSuperTrend
+            && ShowEma20Overlay == _lastShowEma20
+            && ShowVwapOverlay == _lastShowVwapOverlay
             && CprSegments.Count == _lastCprSegmentCount)
             return;
 
@@ -62,6 +71,9 @@
         _lastShowCamarilla = ShowCamarillaLevels;
         _lastShowKeltner = ShowKeltnerLevels;
         _lastShowIntradayCpr = ShowIntradayCprLevels;
+        _lastShowSuperTrend = ShowSuperTrendOverlay;
+        _lastShowEma20 = ShowEma20Overlay;
+        _lastShowVwapOverlay = ShowVwapOverlay;
         _lastCprSegmentCount = CprSegments.Count;
         await RenderAsync();
     }
@@ -103,7 +115,8 @@
             keltnerUpperOuter = c.KeltnerUpperOuter,
             keltnerLowerOuter = c.KeltnerLowerOuter,
             keltnerMid = c.KeltnerMid,
-            vwap = c.Vwap
+            vwap = c.Vwap,
+            ema20 = c.Ema20
         }).ToList();
 
         var levels = BuildLevelPayload();
@@ -119,7 +132,9 @@
             showIntradaCpr = showIntradayCpr,
             intradayCpr = segmentPayload,
             showKeltner = ShowKeltnerLevels,
-            showVwap = Timeframe == "5m"
+            showVwap = Timeframe == "5m" && ShowVwapOverlay,
+            showSuperTrend = Timeframe == "5m" && ShowSuperTrendOverlay,
+            showEma20 = Timeframe == "5m" && ShowEma20Overlay
         };
 
         await InvokeSafe("pgOneChart.drawCandlestickChart", CanvasId, payload, Timeframe, levels, pocToday, overlayOptions);

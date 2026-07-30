@@ -162,6 +162,36 @@ public class MultiChartViewModel : INotifyPropertyChanged
         NotifyPanels();
     }
 
+    public void SetPanelShowSuperTrend(ChartPanelModel panel, bool show)
+    {
+        if (panel.ShowSuperTrendOverlay == show)
+            return;
+
+        panel.ShowSuperTrendOverlay = show;
+        panel.OverlayVersion++;
+        NotifyPanels();
+    }
+
+    public void SetPanelShowEma20(ChartPanelModel panel, bool show)
+    {
+        if (panel.ShowEma20Overlay == show)
+            return;
+
+        panel.ShowEma20Overlay = show;
+        panel.OverlayVersion++;
+        NotifyPanels();
+    }
+
+    public void SetPanelShowVwap(ChartPanelModel panel, bool show)
+    {
+        if (panel.ShowVwapOverlay == show)
+            return;
+
+        panel.ShowVwapOverlay = show;
+        panel.OverlayVersion++;
+        NotifyPanels();
+    }
+
     public async Task RefreshAsync()
     {
         await UpdatePriceAsync();

@@ -98,6 +98,9 @@
                                       ShowCamarillaLevels="ViewModel.ShowCamarillaOverlay"
                                       ShowKeltnerLevels="ViewModel.ShowKeltnerOverlay"
                                       ShowIntradayCprLevels="ViewModel.ShowIntradayCprOverlay"
+                                      ShowSuperTrendOverlay="ViewModel.ShowSuperTrendOverlay"
+                                      ShowEma20Overlay="ViewModel.ShowEma20Overlay"
+                                      ShowVwapOverlay="ViewModel.ShowVwapOverlay"
                                       Timeframe="ViewModel.SelectedTimeframe"
                                       Width="900"
                                       Height="420" />
@@ -111,20 +114,38 @@
                         </div>
                         <ChartOverlayToggles ShowIntradayCprToggle="ViewModel.SupportsIntradayCprOverlay"
                                              ShowKeltnerToggle="@(ViewModel.SelectedTimeframe == "1m" || ViewModel.SelectedTimeframe == "5m")"
+                                             Show5mStudyToggles="ViewModel.Supports5mStudyToggles"
                                              ShowPoc="ViewModel.ShowPocOverlay"
                                              ShowDayCpr="ViewModel.ShowPivotOverlay"
                                              ShowCamarilla="ViewModel.ShowCamarillaOverlay"
                                              ShowIntradayCpr="ViewModel.ShowIntradayCprOverlay"
                                              ShowKeltner="ViewModel.ShowKeltnerOverlay"
+                                             ShowSuperTrend="ViewModel.ShowSuperTrendOverlay"
+                                             ShowEma20="ViewModel.ShowEma20Overlay"
+                                             ShowVwap="ViewModel.ShowVwapOverlay"
                                              ShowPocChanged="v => ViewModel.SetShowPocOverlay(v)"
                                              ShowDayCprChanged="v => ViewModel.SetShowPivotOverlay(v)"
                                              ShowCamarillaChanged="v => ViewModel.SetShowCamarillaOverlay(v)"
                                              ShowIntradayCprChanged="v => ViewModel.SetShowIntradayCprOverlay(v)"
-                                             ShowKeltnerChanged="v => ViewModel.SetShowKeltnerOverlay(v)" />
+                                             ShowKeltnerChanged="v => ViewModel.SetShowKeltnerOverlay(v)"
+                                             ShowSuperTrendChanged="v => ViewModel.SetShowSuperTrendOverlay(v)"
+                                             ShowEma20Changed="v => ViewModel.SetShowEma20Overlay(v)"
+                                             ShowVwapChanged="v => ViewModel.SetShowVwapOverlay(v)" />
                     </div>
                     <div class="chart-legend">
-                        <span class="legend-item"><span class="legend-color buy"></span> SuperTrend BUY</span>
-                        <span class="legend-item"><span class="legend-color sell"></span> SuperTrend SELL</span>
+                        @if (ViewModel.ShowSuperTrendOverlay && ViewModel.SelectedTimeframe == "5m")
+                        {
+                            <span class="legend-item"><span class="legend-color buy"></span> SuperTrend BUY</span>
+                            <span class="legend-item"><span class="legend-color sell"></span> SuperTrend SELL</span>
+                        }
+                        @if (ViewModel.ShowEma20Overlay && ViewModel.SelectedTimeframe == "5m")
+                        {
+                            <span class="legend-item"><span class="legend-color ema20"></span> EMA 20</span>
+                        }
+                        @if (ViewModel.ShowVwapOverlay && ViewModel.SelectedTimeframe == "5m")
+                        {
+                            <span class="legend-item"><span class="legend-color vwap"></span> VWAP</span>
+                        }
                         @if (ViewModel.ShowPocOverlay)
                         {
                             <span class="legend-item"><span class="legend-color poc"></span> POC / VA</span>
