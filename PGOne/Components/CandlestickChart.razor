@@ -99,7 +99,7 @@
             bc = s.Bc
         }).ToList();
 
-        var supportsIntradayCpr = Timeframe is "1m" or "15m";
+        var supportsIntradayCpr = Timeframe == "1m";
         var showIntradayCpr = supportsIntradayCpr && ShowIntradayCprLevels && segmentPayload.Count > 0;
 
         var payload = Candles.Select(c => new
