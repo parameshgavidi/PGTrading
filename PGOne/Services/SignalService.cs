@@ -7,6 +7,9 @@ public interface ISignalService
     Task<Signal> GenerateSignalAsync(string instrument = "NIFTY");
     Task<MultiTimeframeAnalysis> AnalyzeAsync(string instrument = "NIFTY");
     Task<MultiTimeframeAnalysis> AnalyzeForFrameworkAsync(string instrument);
+    /// <summary>Phase-1 intraday screen: 1H + 5m only. Returns prefetch when Step 1 passes (bullish bias).</summary>
+    Task<IntradayPrefetch?> TryScreenIntradayPhase1Async(string instrument);
+    Task<MultiTimeframeAnalysis> AnalyzeForFrameworkAsync(string instrument, IntradayPrefetch prefetch);
 }
 
 public class SignalService : ISignalService
@@ -40,13 +43,63 @@ public class SignalService : ISignalService
     public Task<MultiTimeframeAnalysis> AnalyzeForFrameworkAsync(string instrument)
         => AnalyzeWithConfigAsync(instrument, FrameworkDefaults.Intraday);
 
-    private async Task<MultiTimeframeAnalysis> AnalyzeWithConfigAsync(string instrument, StrategyConfig config)
+    public Task<MultiTimeframeAnalysis> AnalyzeForFrameworkAsync(string instrument, IntradayPrefetch prefetch)
+        => AnalyzeWithConfigAsync(instrument, FrameworkDefaults.Intraday, prefetch);
+
+    public async Task<IntradayPrefetch?> TryScreenIntradayPhase1Async(string instrument)
+    {
+        var config = FrameworkDefaults.Intraday;
+        var symbolKey = MapInstrument(instrument);
+
+        var candles1H = await _marketData.GetCandlesAsync(symbolKey, "1H", 200);
+        var candles5M = await _marketData.GetCandlesAsync(symbolKey, "5m", 200);
+        if (candles1H.Count < 30 || candles5M.Count < 30)
+            return null;
+
+        var trend1H = _superTrend.GetTrend(candles1H, config.SuperTrend1HPeriod, config.SuperTrend1HMultiplier);
+        var vwap5M = candles5M.LastOrDefault(c => c.Vwap.HasValue)?.Vwap ?? 0m;
+        var last5MClose = candles5M[^1].Close;
+        var aboveVwap = vwap5M > 0 && last5MClose >= vwap5M;
+        var marketBias = TradeFrameworkEvaluator.GetMarketBias(trend1H, aboveVwap);
+
+        if (marketBias != TrendDirection.Buy)
+            return null;
+
+        var rsi5M = _indicators.CalculateRsi(candles5M, config.RsiLength);
+        if (rsi5M < config.RsiReversalThreshold)
+            return null;
+
+        var rsiTrend = _indicators.CalculateRsi(candles1H, config.RsiTrendLength);
+        if (TradeFrameworkEvaluator.IsRangebound(rsiTrend, config))
+            return null;
+
+        var adx1H = _indicators.CalculateAdx(candles1H, config.AdxLength);
+        if (TradeFrameworkEvaluator.IsRotationRegime(
+            adx1H,
+            last5MClose,
+            _volumeProfile.BuildLevels(GetTodaySessionCandles(candles5M), GetPreviousSessionCandles(candles5M)),
+            config))
+            return null;
+
+        return new IntradayPrefetch
+        {
+            Symbol = instrument.ToUpperInvariant(),
+            InstrumentKey = symbolKey,
+            Candles1H = candles1H,
+            Candles5M = candles5M
+        };
+    }
+
+    private async Task<MultiTimeframeAnalysis> AnalyzeWithConfigAsync(
+        string instrument,
+        StrategyConfig config,
+        IntradayPrefetch? prefetch = null)
     {
         var symbol = MapInstrument(instrument);
 
-        var candles1H = await _marketData.GetCandlesAsync(symbol, "1H", 200);
+        var candles1H = prefetch?.Candles1H ?? await _marketData.GetCandlesAsync(symbol, "1H", 200);
+        var candles5M = prefetch?.Candles5M ?? await _marketData.GetCandlesAsync(symbol, "5m", 200);
         var candles15M = await _marketData.GetCandlesAsync(symbol, "15m", 200);
-        var candles5M = await _marketData.GetCandlesAsync(symbol, "5m", 200);
         var candlesDay = await _marketData.GetCandlesAsync(symbol, "1D", 10);
 
         var trend1H = _superTrend.GetTrend(candles1H, config.SuperTrend1HPeriod, config.SuperTrend1HMultiplier);
