@@ -43,11 +43,14 @@
     private bool _lastShowEma20;
     private bool _lastShowVwapOverlay;
     private int _lastCprSegmentCount;
+    private string _lastCprSegmentKey = string.Empty;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (Candles.Count == 0)
             return;
+
+        var segmentKey = BuildCprSegmentKey();
 
         if (ChartVersion == _lastRenderedVersion
             && OverlayVersion == _lastOverlayVersion
@@ -60,7 +63,8 @@
             && ShowSuperTrendOverlay == _lastShowSuperTrend
             && ShowEma20Overlay == _lastShowEma20
             && ShowVwapOverlay == _lastShowVwapOverlay
-            && CprSegments.Count == _lastCprSegmentCount)
+            && CprSegments.Count == _lastCprSegmentCount
+            && segmentKey == _lastCprSegmentKey)
             return;
 
         _lastRenderedVersion = ChartVersion;
@@ -75,8 +79,12 @@
         _lastShowEma20 = ShowEma20Overlay;
         _lastShowVwapOverlay = ShowVwapOverlay;
         _lastCprSegmentCount = CprSegments.Count;
+        _lastCprSegmentKey = segmentKey;
         await RenderAsync();
     }
+
+    private string BuildCprSegmentKey() =>
+        string.Join('|', CprSegments.Select(s => $"{s.Start:O}:{s.Pivot}:{s.Tc}:{s.Bc}"));
 
     private async Task ZoomIn() => await InvokeSafe("pgOneChart.zoom", CanvasId, 1.3);
     private async Task ZoomOut() => await InvokeSafe("pgOneChart.zoom", CanvasId, 1 / 1.3);
@@ -92,19 +100,19 @@
     {
         var segmentPayload = CprSegments.Select(s => new
         {
-            start = s.Start.ToString("o"),
-            end = s.End.ToString("o"),
+            start = ChartJsTime.ToEpochMs(s.Start),
+            end = ChartJsTime.ToEpochMs(s.End),
             pivot = s.Pivot,
             tc = s.Tc,
             bc = s.Bc
         }).ToList();
 
-        var supportsIntradayCpr = Timeframe is "1m" or "15m";
+        var supportsIntradayCpr = Timeframe == "1m";
         var showIntradayCpr = supportsIntradayCpr && ShowIntradayCprLevels && segmentPayload.Count > 0;
 
         var payload = Candles.Select(c => new
         {
-            time = c.Timestamp.ToString("o"),
+            time = ChartJsTime.ToEpochMs(c.Timestamp),
             open = c.Open,
             high = c.High,
             low = c.Low,

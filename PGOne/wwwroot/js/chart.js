@@ -8,7 +8,6 @@ window.pgOneChart = (function () {
         if (canvas.dataset.pgBound === '1') return;
         canvas.dataset.pgBound = '1';
 
-        // Mouse wheel: zoom around the cursor.
         canvas.addEventListener('wheel', function (e) {
             const st = states[id];
             if (!st) return;
@@ -17,7 +16,6 @@ window.pgOneChart = (function () {
             zoomAt(id, factor);
         }, { passive: false });
 
-        // Drag to pan.
         let dragging = false, lastX = 0;
         canvas.addEventListener('mousedown', function (e) { dragging = true; lastX = e.clientX; });
         window.addEventListener('mouseup', function () { dragging = false; });
@@ -41,7 +39,6 @@ window.pgOneChart = (function () {
         const st = states[id];
         if (!st) return;
         const newCount = clamp(Math.round(st.count / factor), 12, st.candles.length);
-        // Keep the right edge roughly anchored while zooming.
         st.count = newCount;
         st.offset = clamp(st.offset, 0, st.candles.length - st.count);
         render(id);
@@ -70,7 +67,8 @@ window.pgOneChart = (function () {
     }
 
     function parseTime(value) {
-        if (!value) return null;
+        if (value == null) return null;
+        if (typeof value === 'number' && !Number.isNaN(value)) return new Date(value);
         var t = new Date(value);
         return Number.isNaN(t.getTime()) ? null : t;
     }
@@ -85,6 +83,17 @@ window.pgOneChart = (function () {
             if (time >= start && time < end) return s;
         }
         return segments.length ? segments[segments.length - 1] : null;
+    }
+
+    function segmentHasPivot(seg) {
+        if (!seg) return false;
+        var pivot = Number(seg.pivot);
+        return !Number.isNaN(pivot) && pivot > 0;
+    }
+
+    function segmentKey(seg) {
+        if (!seg) return '';
+        return String(seg.start) + '|' + String(seg.end) + '|' + String(seg.pivot);
     }
 
     function fillChartBackground(ctx, padding, width, chartH) {
@@ -115,84 +124,67 @@ window.pgOneChart = (function () {
         ctx.fillRect(left, y, w, bottom - y);
     }
 
-    function drawIntradaCprBackground(ctx, view, segments, padding, slot, chartH, toY, toX) {
-        var top = padding.top;
-        var bottom = padding.top + chartH;
-
-        view.forEach(function (candle, i) {
-            var t = parseTime(candle.time);
-            var seg = findCprSegment(segments, t);
-            if (!seg || !seg.pivot) return;
-
-            var pivotY = clamp(toY(Number(seg.pivot)), top, bottom);
-            var x0 = toX(i) - slot / 2;
-            var w = slot;
-
-            ctx.fillStyle = 'rgba(0, 200, 83, 0.12)';
-            ctx.fillRect(x0, top, w, pivotY - top);
-
-            ctx.fillStyle = 'rgba(255, 82, 82, 0.12)';
-            ctx.fillRect(x0, pivotY, w, bottom - pivotY);
-        });
-    }
-
-    function drawHLineSegment(ctx, x0, x1, y, color, dash) {
+    function drawCprStyleLine(ctx, x0, x1, y, label, kind) {
+        var color = levelColor({ group: 'cpr', kind: kind });
         ctx.strokeStyle = color;
-        ctx.lineWidth = 1.25;
-        ctx.setLineDash(dash || []);
+        ctx.lineWidth = 1;
+        ctx.setLineDash([8, 4]);
         ctx.beginPath();
         ctx.moveTo(x0, y);
         ctx.lineTo(x1, y);
         ctx.stroke();
         ctx.setLineDash([]);
-    }
-
-    function intradayCprSegmentKey(seg) {
-        if (!seg) return '';
-        return String(seg.start) + '|' + String(seg.end);
+        drawLevelLabel(ctx, x0 + 2, y, label, color);
     }
 
     function drawIntradaCprLevels(ctx, view, segments, padding, chartH, slot, toY, toX) {
         if (!segments || segments.length === 0 || !view.length) return;
 
-        var i = 0;
-        while (i < view.length) {
-            var t = parseTime(view[i].time);
-            var seg = findCprSegment(segments, t);
-            if (!seg || !seg.pivot) {
-                i++;
-                continue;
+        segments.forEach(function (seg) {
+            if (!segmentHasPivot(seg)) return;
+
+            var start = parseTime(seg.start);
+            var end = parseTime(seg.end);
+            var iStart = -1, iEnd = -1;
+
+            view.forEach(function (candle, i) {
+                var t = parseTime(candle.time);
+                if (!t) return;
+                var matched = findCprSegment(segments, t);
+                if (matched && segmentKey(matched) === segmentKey(seg)) {
+                    if (iStart < 0) iStart = i;
+                    iEnd = i;
+                }
+            });
+
+            if (iStart < 0 && start && end) {
+                view.forEach(function (candle, i) {
+                    var t = parseTime(candle.time);
+                    if (!t) return;
+                    if (t >= start && t < end) {
+                        if (iStart < 0) iStart = i;
+                        iEnd = i;
+                    }
+                });
             }
 
-            var key = intradayCprSegmentKey(seg);
-            var iStart = i;
-            i++;
-            while (i < view.length) {
-                var t2 = parseTime(view[i].time);
-                var seg2 = findCprSegment(segments, t2);
-                if (intradayCprSegmentKey(seg2) !== key) break;
-                i++;
-            }
-            var iEnd = i - 1;
+            if (iStart < 0 || iEnd < 0) return;
 
             var x0 = toX(iStart) - slot / 2;
             var x1 = toX(iEnd) + slot / 2;
 
-            drawHLineSegment(ctx, x0, x1, toY(Number(seg.tc)), 'rgba(100, 181, 246, 0.9)', [4, 4]);
-            drawHLineSegment(ctx, x0, x1, toY(Number(seg.pivot)), 'rgba(255, 193, 7, 0.95)', [6, 4]);
-            drawHLineSegment(ctx, x0, x1, toY(Number(seg.bc)), 'rgba(100, 181, 246, 0.9)', [4, 4]);
-
-            drawLevelLabel(ctx, x0 + 2, toY(Number(seg.tc)), 'TC', 'rgba(100, 181, 246, 0.95)');
-            drawLevelLabel(ctx, x0 + 2, toY(Number(seg.pivot)), 'CPR', 'rgba(255, 193, 7, 0.95)');
-            drawLevelLabel(ctx, x0 + 2, toY(Number(seg.bc)), 'BC', 'rgba(100, 181, 246, 0.95)');
+            drawCprStyleLine(ctx, x0, x1, toY(Number(seg.tc)), 'TC', 'sell');
+            drawCprStyleLine(ctx, x0, x1, toY(Number(seg.pivot)), 'CPR', 'neutral');
+            drawCprStyleLine(ctx, x0, x1, toY(Number(seg.bc)), 'BC', 'buy');
 
             ctx.strokeStyle = 'rgba(0, 200, 83, 0.25)';
             ctx.lineWidth = 1;
+            ctx.setLineDash([]);
             ctx.beginPath();
             ctx.moveTo(x0, padding.top);
             ctx.lineTo(x0, padding.top + chartH);
             ctx.stroke();
-        }
+        });
     }
 
     function drawLevelLabel(ctx, x, y, text, color) {
@@ -260,8 +252,9 @@ window.pgOneChart = (function () {
         const showPoc = opts.showPoc !== false;
         const showPivot = opts.showPivot !== false;
         const showCamarilla = opts.showCamarilla !== false;
-        const showIntradaCpr = opts.showIntradaCpr === true;
         const intradayCprSegments = opts.intradayCpr || [];
+        const showIntradaCpr = (opts.showIntradaCpr === true || opts.showIntradaCpr === 1)
+            && intradayCprSegments.length > 0;
         const showKeltner = opts.showKeltner === true;
         const showVwap = opts.showVwap === true;
         const showSuperTrend = opts.showSuperTrend === true;
@@ -271,7 +264,7 @@ window.pgOneChart = (function () {
             count = clamp(prev.count, 12, candles.length);
             offset = clamp(prev.offset, 0, candles.length - count);
         } else {
-            count = candles.length; // show everything by default
+            count = candles.length;
             offset = 0;
         }
 
@@ -312,7 +305,6 @@ window.pgOneChart = (function () {
         const cssW = Math.max((container ? container.clientWidth : canvas.clientWidth) - 4, 320);
         const cssH = Math.max((container ? container.clientHeight : canvas.clientHeight) - 4, 240);
 
-        // High-DPI crisp rendering.
         const dpr = window.devicePixelRatio || 1;
         canvas.width = Math.round(cssW * dpr);
         canvas.height = Math.round(cssH * dpr);
@@ -332,7 +324,6 @@ window.pgOneChart = (function () {
         ctx.fillStyle = '#121212';
         ctx.fillRect(0, 0, width, height);
 
-        // Viewport slice
         const start = clamp(candles.length - st.offset - st.count, 0, Math.max(0, candles.length - 1));
         const end = clamp(candles.length - st.offset, 1, candles.length);
         const view = candles.slice(start, end);
@@ -371,15 +362,12 @@ window.pgOneChart = (function () {
         const toY = (price) => padding.top + ((maxPrice - price) / priceRange) * chartH;
         const toX = (i) => padding.left + slot * i + slot / 2;
 
-        if (st.showIntradaCpr && st.intradayCprSegments && st.intradayCprSegments.length > 0) {
-            drawIntradaCprBackground(ctx, view, st.intradayCprSegments, padding, slot, chartH, toY, toX);
-        } else if (st.showPoc && st.pocToday) {
+        if (st.showPoc && st.pocToday && !st.showIntradaCpr) {
             drawPocBackground(ctx, st.pocToday, padding, width, chartH, toY, true);
         } else {
             fillChartBackground(ctx, padding, width, chartH);
         }
 
-        // Horizontal grid + price labels
         ctx.textBaseline = 'middle';
         for (let i = 0; i <= 4; i++) {
             const y = padding.top + (chartH / 4) * i;
@@ -397,7 +385,6 @@ window.pgOneChart = (function () {
             ctx.fillText(price.toFixed(2), width - padding.right + 6, y);
         }
 
-        // X-axis time labels
         ctx.textBaseline = 'alphabetic';
         const labelCount = Math.min(7, view.length);
         const step = Math.max(1, Math.floor(view.length / labelCount));
@@ -439,7 +426,6 @@ window.pgOneChart = (function () {
             ctx.setLineDash([]);
         };
 
-        // Keltner Channels (1m / 5m)
         if (st.showKeltner) {
             drawLine('keltnerUpperOuter', 'rgba(120,144,255,0.55)');
             drawLine('keltnerUpperInner', 'rgba(120,144,255,0.35)');
@@ -448,20 +434,17 @@ window.pgOneChart = (function () {
             drawLine('keltnerLowerOuter', 'rgba(120,144,255,0.55)');
         }
 
-        // VWAP (5m toggle)
         if (st.showVwap) {
             drawLine('vwap', '#D4AF37', [2, 2]);
         }
 
-        // EMA 20 (5m toggle)
         if (st.showEma20) {
             drawLine('ema20', 'rgba(255, 152, 0, 0.9)', [6, 3]);
         }
 
-        // POC / VA / Camarilla horizontal levels
+        // Day CPR / POC / Camarilla — full-width dashed lines + labels on chart
         drawLevels(ctx, filterLevels(st), padding, width, toY);
 
-        // Candles
         view.forEach((candle, i) => {
             const open = Number(candle.open);
             const close = Number(candle.close);
@@ -483,11 +466,11 @@ window.pgOneChart = (function () {
             ctx.fillRect(toX(i) - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
         });
 
+        // 1m CPR — same dashed line + label style as Day CPR, per 15m window on chart
         if (st.showIntradaCpr && st.intradayCprSegments && st.intradayCprSegments.length > 0) {
             drawIntradaCprLevels(ctx, view, st.intradayCprSegments, padding, chartH, slot, toY, toX);
         }
 
-        // SuperTrend overlay (10,3) — green above, red below
         if (st.showSuperTrend) {
             ctx.lineWidth = 1.75;
             let segment = null;
