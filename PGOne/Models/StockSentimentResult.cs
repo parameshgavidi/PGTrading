@@ -14,6 +14,9 @@ public class NewsSentimentItem
     public string Label { get; set; } = string.Empty;
     public string Reason { get; set; } = string.Empty;
     public double Score { get; set; }
+    public double PositiveScore { get; set; }
+    public double NegativeScore { get; set; }
+    public double NeutralScore { get; set; }
     public string? Link { get; set; }
 }
 
