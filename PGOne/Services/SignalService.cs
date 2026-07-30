@@ -204,6 +204,9 @@ public class SignalService : ISignalService
             isRangebound,
             config);
 
+        if (frameworkStatus == "Wait — footprint not confirmed" && tradeDirection != TrendDirection.Neutral)
+            frameworkStatus = FootprintDisplayHelper.GetStep4BlockingDetail(footprint, tradeDirection);
+
         var score = TradeFrameworkEvaluator.CalculateScore(
             marketBias,
             tradeDirection,

@@ -174,6 +174,19 @@
                         <div class="signal-check">POC : @ViewModel.Analysis.Tpo.Summary @(ViewModel.Analysis.Tpo.StrongTrendDay ? "★ strong trend day" : "")</div>
                         <div class="signal-check">Entry ST (7,2.5) : @ViewModel.Analysis.Trend5MEntry @(ViewModel.Analysis.EntryTriggered ? "✓" : "—")</div>
                         <div class="signal-check">Footprint : @ViewModel.Analysis.Footprint.Summary</div>
+                        @{
+                            var footprintBias = ViewModel.Analysis.TradeDirection != TrendDirection.Neutral
+                                ? ViewModel.Analysis.TradeDirection
+                                : ViewModel.Analysis.MarketBias;
+                            var footprintBreakdown = FootprintDisplayHelper.GetStep4BreakdownLine(
+                                ViewModel.Analysis.Footprint,
+                                footprintBias,
+                                ViewModel.Analysis.FootprintConfirmed);
+                        }
+                        @if (!string.IsNullOrEmpty(footprintBreakdown))
+                        {
+                            <div class="signal-check footprint-detail">Step 4: @footprintBreakdown</div>
+                        }
                         <div class="signal-check">Framework : @ViewModel.Analysis.FrameworkStatus</div>
                         <div class="signal-check">Entry : @ViewModel.CurrentSignal.Entry</div>
                         <div class="signal-check">Plan : @ViewModel.CurrentSignal.Strategy</div>
@@ -258,7 +271,22 @@
                     </tr>
                     <tr>
                         <td>Footprint</td>
-                        <td class="@FootprintDisplayHelper.GetDisplayClass(ViewModel.Analysis.Footprint)">@ViewModel.Analysis.Footprint.Summary</td>
+                        <td class="@FootprintDisplayHelper.GetDisplayClass(ViewModel.Analysis.Footprint)">
+                            @ViewModel.Analysis.Footprint.Summary
+                            @{
+                                var mtfFootprintBias = ViewModel.Analysis.TradeDirection != TrendDirection.Neutral
+                                    ? ViewModel.Analysis.TradeDirection
+                                    : ViewModel.Analysis.MarketBias;
+                                var mtfFootprintBreakdown = FootprintDisplayHelper.GetStep4BreakdownLine(
+                                    ViewModel.Analysis.Footprint,
+                                    mtfFootprintBias,
+                                    ViewModel.Analysis.FootprintConfirmed);
+                            }
+                            @if (!string.IsNullOrEmpty(mtfFootprintBreakdown))
+                            {
+                                <div class="trailing-detail">@mtfFootprintBreakdown</div>
+                            }
+                        </td>
                     </tr>
                     @if (ViewModel.Analysis.VolumeProfile.HasData)
                     {

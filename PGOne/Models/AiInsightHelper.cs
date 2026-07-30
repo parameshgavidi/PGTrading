@@ -109,17 +109,34 @@ public static class AiInsightHelper
             : FootprintDisplayHelper.FootprintOpposesBias(analysis.Footprint, primaryBias) ? "fail"
             : "warn";
 
-        return
-        [
+        var checks = new List<AiCheck>
+        {
             new($"{TrendUi.GetIcon(analysis.Trend1H)} 1H ST {TrendUi.GetSuperTrendLabel(analysis.Trend1H)}", st1HState),
             new(analysis.AboveVwap ? "Above VWAP" : "Below VWAP", vwapState),
             new($"{TrendUi.GetIcon(analysis.Trend15M)} 15M ST {TrendUi.GetSuperTrendLabel(analysis.Trend15M)}", st15MState),
             new(analysis.Adx >= 25 ? "ADX Strong" : analysis.Adx >= 18 ? $"ADX Moderate {analysis.Adx:N0}" : $"ADX Choppy {analysis.Adx:N0}", adxState),
             new($"RSI(28) {analysis.RsiTrend:N0}", rsiState),
             new(tpoPass ? "POC Confirmed" : analysis.Tpo.Summary, tpoPass ? "pass" : analysis.IsRotationRegime ? "fail" : "warn"),
-            new($"{TrendUi.GetIcon(analysis.Trend5MEntry)} Entry ST {TrendUi.GetSuperTrendLabel(analysis.Trend5MEntry)}", entryPass ? "pass" : "warn"),
-            new(FootprintDisplayHelper.GetDisplayLabel(analysis.Footprint, footprintPass), footprintState)
-        ];
+            new($"{TrendUi.GetIcon(analysis.Trend5MEntry)} Entry ST {TrendUi.GetSuperTrendLabel(analysis.Trend5MEntry)}", entryPass ? "pass" : "warn")
+        };
+
+        if (footprintPass)
+        {
+            checks.Add(new(FootprintDisplayHelper.GetDisplayLabel(analysis.Footprint, true), "pass"));
+        }
+        else if (primaryBias != TrendDirection.Neutral)
+        {
+            foreach (var (label, state) in FootprintDisplayHelper.GetStep4Checks(analysis.Footprint, primaryBias))
+                checks.Add(new(label, state));
+        }
+        else
+        {
+            checks.Add(new(
+                FootprintDisplayHelper.GetDisplayLabel(analysis.Footprint, false),
+                footprintState));
+        }
+
+        return checks;
     }
 
     private static string GetVwapCheckState(MultiTimeframeAnalysis analysis)
@@ -225,6 +242,9 @@ public static class AiInsightHelper
         if (analysis.TradeDirection == TrendDirection.Neutral && analysis.MarketBias != TrendDirection.Neutral)
             return $"Step 2 incomplete — ADX {analysis.Adx:N0}, RSI(28) {analysis.RsiTrend:N0}, or POC blocking {TrendUi.GetBiasLabel(analysis.MarketBias)} direction.";
 
+        if (!analysis.FootprintConfirmed && analysis.TradeDirection != TrendDirection.Neutral)
+            return FootprintDisplayHelper.GetStep4BlockingDetail(analysis.Footprint, analysis.TradeDirection);
+
         return FormatDetail(analysis.FrameworkStatus);
     }
 
@@ -234,7 +254,11 @@ public static class AiInsightHelper
             return "Watch 5m entry SuperTrend (7,2.5).";
 
         if (!analysis.FootprintConfirmed)
-            return "Need confirming footprint delta + imbalances.";
+            return FootprintDisplayHelper.GetStep4BlockingDetail(
+                analysis.Footprint,
+                analysis.TradeDirection != TrendDirection.Neutral
+                    ? analysis.TradeDirection
+                    : analysis.MarketBias);
 
         return "Review checklist above.";
     }

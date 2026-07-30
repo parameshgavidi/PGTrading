@@ -127,8 +127,45 @@ public class AiInsightHelperTests
             FootprintConfirmed = false
         };
 
-        var footprintCheck = AiInsightHelper.BuildChecks(analysis)[^1];
+        var footprintCheck = AiInsightHelper.BuildChecks(analysis)
+            .First(c => c.Label.StartsWith("5m delta", StringComparison.Ordinal));
         Assert.Equal("fail", footprintCheck.State);
+    }
+
+    [Fact]
+    public void Footprint_missing_stacked_shows_step4_detail_in_wait()
+    {
+        var footprint = new FootprintAnalysis
+        {
+            Delta = 67_800m,
+            PositiveDelta = true,
+            VolumeSource = "futures",
+            FuturesSymbol = "NIFTY26AUGFUT"
+        };
+        var analysis = new MultiTimeframeAnalysis
+        {
+            MarketBias = TrendDirection.Buy,
+            TradeDirection = TrendDirection.Buy,
+            Trend1H = TrendDirection.Buy,
+            Trend15M = TrendDirection.Buy,
+            Trend5MEntry = TrendDirection.Buy,
+            TpoConfirmed = true,
+            EntryTriggered = true,
+            FootprintConfirmed = false,
+            FrameworkReady = false,
+            Footprint = footprint,
+            OverallScore = 82,
+            Strength = "Strong Setup"
+        };
+
+        var recommendation = AiInsightHelper.BuildRecommendation(new Signal(), analysis);
+        Assert.Equal("WAIT", recommendation.ActionHeadline);
+        Assert.Contains("stacked", recommendation.ActionDetail, StringComparison.OrdinalIgnoreCase);
+
+        var checks = AiInsightHelper.BuildChecks(analysis);
+        Assert.Equal(10, checks.Count);
+        Assert.Equal("pass", checks[8].State);
+        Assert.Equal("warn", checks[9].State);
     }
 
     [Fact]

@@ -70,4 +70,34 @@ public class FootprintDisplayHelperTests
 
     Assert.Equal("buy", FootprintDisplayHelper.GetDisplayClass(fp));
   }
+
+  [Fact]
+  public void Step4_breakdown_shows_missing_stacked_when_delta_positive()
+  {
+    var fp = new FootprintAnalysis
+    {
+      Delta = 67_800m,
+      PositiveDelta = true,
+      VolumeSource = "futures",
+      FuturesSymbol = "NIFTY26AUGFUT"
+    };
+
+    var line = FootprintDisplayHelper.GetStep4BreakdownLine(fp, TrendDirection.Buy, footprintConfirmed: false);
+
+    Assert.Equal("Δ ✓ · stacked ✗ · no absorption ✓", line);
+    Assert.Contains("stacked", FootprintDisplayHelper.GetStep4BlockingDetail(fp, TrendDirection.Buy));
+  }
+
+  [Fact]
+  public void Step4_checks_expand_to_three_lines_when_not_confirmed()
+  {
+    var fp = new FootprintAnalysis { PositiveDelta = true, Delta = 50_000m };
+
+    var checks = FootprintDisplayHelper.GetStep4Checks(fp, TrendDirection.Buy);
+
+    Assert.Equal(3, checks.Count);
+    Assert.Equal("pass", checks[0].State);
+    Assert.Equal("warn", checks[1].State);
+    Assert.Equal("pass", checks[2].State);
+  }
 }
