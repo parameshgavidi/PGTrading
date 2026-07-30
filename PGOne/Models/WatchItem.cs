@@ -10,4 +10,6 @@ public class WatchItem
     public decimal ChangePercent { get; set; }
     public TrendDirection Trend { get; set; }
     public bool IsFavorite { get; set; }
+    public decimal Weight { get; set; }
+    public string Sparkline { get; set; } = string.Empty;
 }

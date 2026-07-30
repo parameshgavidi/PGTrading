@@ -1,0 +1,60 @@
+@page "/cpr-1m"
+@inject DashboardViewModel ViewModel
+@implements IDisposable
+
+<div class="page-container">
+    <div class="card chart-full cpr-1m-panel">
+        <div class="chart-header">
+            <div class="instrument-title-row">
+                <h2 class="page-heading">@ViewModel.SelectedDisplayName · 1m CPR</h2>
+                <span class="market-status @(ViewModel.IsMarketOpen ? "open" : "closed")">
+                    @ViewModel.MarketStatus
+                </span>
+            </div>
+            <div class="price-row">
+                <span class="price">@ViewModel.NiftyPrice.ToString("N2")</span>
+                <span class="change @(ViewModel.NiftyChange >= 0 ? "positive" : "negative")">
+                    @(ViewModel.NiftyChange >= 0 ? "▲" : "▼") @Math.Abs(ViewModel.NiftyChange).ToString("N2") (@ViewModel.NiftyChangePercent%)
+                </span>
+                <TrendBadge Trend="ViewModel.NiftyTrend" />
+                @if (ViewModel.SupportsIntradayCprOverlay && ViewModel.ShowIntradayCprOverlay)
+                {
+                    <span class="cpr-position-badge @ViewModel.CprPositionClass">@ViewModel.CprPositionLabel</span>
+                }
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(ViewModel.StartupError))
+        {
+            <div class="chart-meta warning">Startup: @ViewModel.StartupError</div>
+        }
+        @if (!ViewModel.IsDashboardReady)
+        {
+            <div class="chart-meta">Loading market data…</div>
+        }
+
+        <InstrumentChartPanel ViewModel="ViewModel"
+                              CanvasId="cpr1mChart"
+                              CssClass="large"
+                              Width="1200"
+                              Height="520" />
+    </div>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+
+        if (!ViewModel.IsDashboardReady)
+            await ViewModel.InitializeAsync();
+
+        if (ViewModel.SelectedTimeframe != "1m")
+            await ViewModel.ChangeTimeframeAsync("1m");
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+        InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+}

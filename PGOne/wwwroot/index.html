@@ -32,7 +32,7 @@
                 d.style.display = 'block';
                 d.textContent += msg + "\n";
             }
-            // Capture=true also catches failed resource loads (e.g. blazor.webview.js 404).
+
             window.addEventListener('error', function (e) {
                 if (e && e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK' || e.target.tagName === 'IMG')) {
                     diag('Failed to load: ' + (e.target.src || e.target.href));
@@ -41,24 +41,27 @@
                         (e.filename ? ('  @ ' + e.filename + ':' + e.lineno) : ''));
                 }
             }, true);
+
             window.addEventListener('unhandledrejection', function (e) {
                 diag('Promise error: ' + (e.reason && (e.reason.message || e.reason)));
             });
-            // Watchdog: report if the Blazor layout never renders.
+
             setTimeout(function () {
                 if (!document.querySelector('.app-shell')) {
-                    diag('Blazor did not render within 7s.\n' +
+                    diag('Blazor did not render within 15s.\n' +
                         'The host page loaded, but no Razor component mounted.\n\n' +
                         'Try:\n' +
-                        '  1. .\\sync-maui-version.ps1  (align MAUI packages with workload)\n' +
-                        '  2. .\\clean.ps1 then rebuild (F5)\n' +
-                        '  3. .\\install-webview2.ps1  (install WebView2 Runtime)\n' +
-                        '  4. .\\verify-build.ps1  (confirm _framework/blazor.webview.js exists)');
+                        '  1. .\\verify-build.ps1  (confirm _framework/blazor.webview.js exists)\n' +
+                        '  2. .\\sync-maui-version.ps1  (align MAUI packages with workload)\n' +
+                        '  3. .\\clean.ps1 then rebuild (F5)\n' +
+                        '  4. .\\install-webview2.ps1  (install WebView2 Runtime)');
                 }
-            }, 7000);
+            }, 15000);
         })();
     </script>
-    <script src="js/chart.js"></script>
+    <!-- Blazor must load before chart scripts so a chart error cannot block the UI. -->
     <script src="_framework/blazor.webview.js" autostart="false"></script>
+    <script src="js/chart.js" defer></script>
+    <script src="js/chart-cpr.js" defer></script>
 </body>
 </html>

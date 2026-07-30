@@ -2,12 +2,14 @@
 @using PGOne.Services
 @inherits LayoutComponentBase
 @inject IZerodhaService ZerodhaService
+@inject NavigationManager Navigation
 @implements IDisposable
 
 <div class="app-shell">
     <aside class="sidebar">
         <div class="sidebar-header">
-            <img src="images/pgone_logo.png" alt="PG one — Trade Smart. Stay Ahead." class="sidebar-logo" />
+            <div class="sidebar-brand"><span class="brand-pg">PG</span> <span class="brand-one">one</span></div>
+            <div class="sidebar-tagline">Trade Smart. Stay Ahead.</div>
         </div>
         <NavMenu />
         <div class="sidebar-footer">
@@ -36,28 +38,31 @@
 
 @code {
     private bool _isConnected;
-    private string _currentTime = DateTime.Now.ToString("hh:mm tt");
+    private string _currentTime = DateTime.Now.ToString("hh:mm:ss tt");
     private string _pageTitle = "Dashboard";
     private System.Timers.Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        AppUiEvents.RaiseShellRendered();
+        _isConnected = ZerodhaService.IsConnected;
+        ZerodhaService.ConnectionChanged += OnConnectionChanged;
+        Navigation.LocationChanged += OnNavigationChanged;
+        UpdatePageTitle();
+
+        _timer = new System.Timers.Timer(1000);
+        _timer.Elapsed += (_, _) =>
+        {
+            _currentTime = DateTime.Now.ToString("hh:mm:ss tt");
+            InvokeAsync(StateHasChanged);
+        };
+        _timer.Start();
+    }
 
     protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender)
             AppUiEvents.RaiseShellRendered();
-    }
-
-    protected override void OnInitialized()
-    {
-        _isConnected = ZerodhaService.IsConnected;
-        ZerodhaService.ConnectionChanged += OnConnectionChanged;
-
-        _timer = new System.Timers.Timer(1000);
-        _timer.Elapsed += (_, _) =>
-        {
-            _currentTime = DateTime.Now.ToString("hh:mm tt");
-            InvokeAsync(StateHasChanged);
-        };
-        _timer.Start();
     }
 
     private void OnConnectionChanged(bool connected)
@@ -66,9 +71,39 @@
         InvokeAsync(StateHasChanged);
     }
 
+    private void OnNavigationChanged(object? sender, LocationChangedEventArgs e) =>
+        InvokeAsync(() =>
+        {
+            UpdatePageTitle();
+            StateHasChanged();
+        });
+
+    private void UpdatePageTitle()
+    {
+        var path = Navigation.ToBaseRelativePath(Navigation.Uri).Trim('/').ToLowerInvariant();
+        _pageTitle = path switch
+        {
+            "" or "dashboard" => "Dashboard",
+            "framework" => "Framework",
+            "chart" => "Live Market",
+            "cpr-1m" => "1min CPR",
+            "scanner" => "Scanner",
+            "sentiment" => "Sentiment",
+            "signals" => "Signals",
+            "positions" => "Positions",
+            "orders" => "Orders",
+            "watchlist" => "Watchlist",
+            "settings" => "Settings",
+            "holdings" => "Holdings",
+            "strategy" => "Strategy",
+            _ => "PG One"
+        };
+    }
+
     public void Dispose()
     {
         ZerodhaService.ConnectionChanged -= OnConnectionChanged;
+        Navigation.LocationChanged -= OnNavigationChanged;
         _timer?.Dispose();
     }
 }

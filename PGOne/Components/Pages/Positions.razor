@@ -60,6 +60,7 @@
   {
     _connected = ZerodhaService.IsConnected;
     _positions = await ZerodhaService.GetPositionsAsync();
+    await InvokeAsync(StateHasChanged);
   }
 
   private static string GetTrendClass(TrendDirection trend) => trend switch

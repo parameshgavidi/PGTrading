@@ -9,12 +9,15 @@ public interface ITrailingStopLossService
     bool IsLoading { get; }
     bool IsMonitoring { get; }
     string? StatusMessage { get; }
+    DateTime? LastUpdatedAt { get; }
     Task RefreshAsync();
     Task SetMonitoringAsync(bool enabled);
 }
 
 public class TrailingStopLossService : ITrailingStopLossService, IDisposable
 {
+    private const int MonitorIntervalSeconds = 15;
+
     private readonly IZerodhaService _zerodha;
     private readonly IMarketDataService _marketData;
     private readonly ISuperTrendService _superTrend;
@@ -28,6 +31,7 @@ public class TrailingStopLossService : ITrailingStopLossService, IDisposable
     public bool IsLoading { get; private set; }
     public bool IsMonitoring { get; private set; }
     public string? StatusMessage { get; private set; }
+    public DateTime? LastUpdatedAt { get; private set; }
 
     public TrailingStopLossService(
         IZerodhaService zerodha,
@@ -78,14 +82,15 @@ public class TrailingStopLossService : ITrailingStopLossService, IDisposable
         finally
         {
             IsLoading = false;
+            LastUpdatedAt = DateTime.Now;
             Notify();
         }
     }
 
-    public Task SetMonitoringAsync(bool enabled)
+    public async Task SetMonitoringAsync(bool enabled)
     {
         if (enabled == IsMonitoring)
-            return Task.CompletedTask;
+            return;
 
         IsMonitoring = enabled;
         _monitorCts?.Cancel();
@@ -96,16 +101,16 @@ public class TrailingStopLossService : ITrailingStopLossService, IDisposable
         {
             _exitedKeys.Clear();
             _monitorCts = new CancellationTokenSource();
-            _ = MonitorLoopAsync(_monitorCts.Token);
             StatusMessage = "Auto-exit monitoring active — exits on 5m candle close vs ST(7,2.5).";
+            Notify();
+            await RefreshAsync();
+            _ = MonitorLoopAsync(_monitorCts.Token);
         }
         else
         {
             StatusMessage = "Auto-exit monitoring stopped.";
+            Notify();
         }
-
-        Notify();
-        return Task.CompletedTask;
     }
 
     private async Task MonitorLoopAsync(CancellationToken cancellationToken)
@@ -115,7 +120,7 @@ public class TrailingStopLossService : ITrailingStopLossService, IDisposable
             while (!cancellationToken.IsCancellationRequested)
             {
                 await RefreshAsync();
-                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(MonitorIntervalSeconds), cancellationToken);
             }
         }
         catch (OperationCanceledException)
@@ -126,7 +131,7 @@ public class TrailingStopLossService : ITrailingStopLossService, IDisposable
 
     private async Task<TrailingStopRow> BuildRowAsync(Position position)
     {
-        var instrument = InstrumentMapper.ToZerodhaKey(position.Symbol, position.Exchange);
+        var instrument = InstrumentMapper.ResolveStInstrument(position.Symbol, position.Exchange);
         var candles = await _marketData.GetCandlesAsync(
             instrument,
             TrailingStopDefaults.Interval,
@@ -215,28 +220,22 @@ public class TrailingStopLossService : ITrailingStopLossService, IDisposable
         if (_exitedKeys.Contains(key))
             return;
 
-        var transactionType = position.Quantity > 0 ? "SELL" : "BUY";
-        var quantity = Math.Abs(position.Quantity);
+        var result = await _zerodha.ExitPositionAsync(position);
 
-        var orderId = await _zerodha.PlaceOrderAsync(
-            position.Exchange,
-            position.Symbol,
-            transactionType,
-            quantity,
-            "MARKET");
-
-        if (orderId is not null)
+        if (result.IsSuccess)
         {
             _exitedKeys.Add(key);
             row.ExitPlaced = true;
             row.Status = "Exit placed";
-            row.Detail = $"Order {orderId} — {transactionType} {quantity} @ MARKET";
-            StatusMessage = $"Exit placed for {position.Symbol}: {transactionType} {quantity}";
+            var side = position.Quantity > 0 ? "SELL" : "BUY";
+            var qty = Math.Abs(position.Quantity);
+            row.Detail = $"Order {result.OrderId} — {side} {qty}";
+            StatusMessage = $"Exit placed for {position.Symbol}: {side} {qty}";
         }
         else
         {
-            row.Detail = "Exit signal — order placement failed";
-            StatusMessage = $"Failed to place exit for {position.Symbol}";
+            row.Detail = result.ErrorMessage ?? "Exit signal — order placement failed";
+            StatusMessage = $"Failed to place exit for {position.Symbol}: {result.ErrorMessage}";
         }
     }
 

@@ -44,6 +44,8 @@ public static class MauiProgram
         builder.Services.AddSingleton<IMarketDataService, MarketDataService>();
         builder.Services.AddSingleton<ISuperTrendService, SuperTrendService>();
         builder.Services.AddSingleton<IIndicatorService, IndicatorService>();
+        builder.Services.AddSingleton<IFootprintService, FootprintService>();
+        builder.Services.AddSingleton<IVolumeProfileService, VolumeProfileService>();
         builder.Services.AddSingleton<ISignalService, SignalService>();
         builder.Services.AddSingleton<IWatchlistService, WatchlistService>();
         builder.Services.AddSingleton<IIntradayScannerService, IntradayScannerService>();
@@ -52,8 +54,13 @@ public static class MauiProgram
         builder.Services.AddSingleton<ILongTermFrameworkService, LongTermFrameworkService>();
         builder.Services.AddSingleton<IHoldingsService, HoldingsService>();
         builder.Services.AddSingleton<ITrailingStopLossService, TrailingStopLossService>();
+        builder.Services.AddSingleton<ITargetPnLMonitorService, TargetPnLMonitorService>();
         builder.Services.AddSingleton<ILongTermExitMonitorService, LongTermExitMonitorService>();
         builder.Services.AddSingleton<IStrategyService, StrategyService>();
+        builder.Services.AddSingleton<ISentimentService, SentimentService>();
+        builder.Services.AddSingleton<INseSymbolResolver, NseSymbolResolver>();
+        builder.Services.AddSingleton<INiftyIndexService, NiftyIndexService>();
+        builder.Services.AddSingleton<IIntradayCprService, IntradayCprService>();
 
         builder.Services.AddSingleton<DashboardViewModel>();
         builder.Services.AddSingleton<StrategyViewModel>();
@@ -61,6 +68,8 @@ public static class MauiProgram
         builder.Services.AddSingleton<WatchlistViewModel>();
         builder.Services.AddSingleton<HoldingsViewModel>();
         builder.Services.AddSingleton<SettingsViewModel>();
+        builder.Services.AddSingleton<SentimentViewModel>();
+        builder.Services.AddSingleton<MultiChartViewModel>();
 
         return builder.Build();
     }
@@ -82,7 +91,6 @@ public static class MauiProgram
                     try
                     {
                         webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
-                        webView.CoreWebView2.OpenDevToolsWindow();
                     }
                     catch
                     {

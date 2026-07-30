@@ -16,12 +16,26 @@ public static class NiftyConstituents
         "SHRIRAMFIN", "BEL", "JIOFIN", "ETERNAL"
     ];
 
-    /// <summary>Dashboard watchlist: Nifty, Bank Nifty, Sensex, then top-weight stocks.</summary>
+    /// <summary>Top 10 Nifty 50 stocks by approximate index weight.</summary>
+    public static IReadOnlyList<string> Top10Weightage { get; } =
+    [
+        "HDFCBANK", "RELIANCE", "ICICIBANK", "INFY", "ITC", "LT", "TCS",
+        "AXISBANK", "KOTAKBANK", "SBIN"
+    ];
+
+    /// <summary>Key indices shown on the dashboard watchlist.</summary>
+    public static IReadOnlyList<string> DashboardIndices { get; } =
+        ["NIFTY", "BANKNIFTY", "SENSEX"];
+
+    /// <summary>Dashboard watchlist: indices plus top 10 weighted stocks.</summary>
     public static IReadOnlyList<string> DashboardWatchlist { get; } =
-        new[] { "NIFTY", "BANKNIFTY", "SENSEX" }
-            .Concat(TopWeightage)
+        DashboardIndices
+            .Concat(Top10Weightage)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+    /// <summary>Full top-weight stock list for the Watchlist page.</summary>
+    public static IReadOnlyList<string> FullTopWeightageWatchlist { get; } = TopWeightage;
 
     /// <summary>Liquid NSE equities used for intraday framework scan (Nifty-heavy universe).</summary>
     public static IReadOnlyList<string> ScanUniverse { get; } =

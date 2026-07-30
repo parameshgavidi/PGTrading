@@ -7,6 +7,12 @@ public interface IMarketDataService
     bool IsMarketOpen { get; }
     Task<List<Candle>> GetCandlesAsync(string instrument, string interval, int count = 100);
     Task<CandleSeriesResult> GetCandlesResultAsync(string instrument, string interval, int count = 100);
+    /// <summary>
+    /// 5m candles with real volume for footprint — uses nearest index future when index volume is zero.
+    /// </summary>
+    Task<(List<Candle> Candles, string VolumeSource, string? FuturesSymbol)> GetFootprintCandlesAsync(
+        string instrument,
+        IReadOnlyList<Candle> candles5M);
     Task<decimal> GetCurrentPriceAsync(string instrument);
     Task<InstrumentQuote?> GetQuoteAsync(string instrument);
     event Action<string, decimal>? PriceUpdated;
@@ -50,6 +56,37 @@ public class MarketDataService : IMarketDataService
     // state as TradingView (which computes over full history) before we trim
     // to the visible window. SuperTrend is path-dependent, so warmup matters.
     private const int WarmupBars = 300;
+
+    public async Task<(List<Candle> Candles, string VolumeSource, string? FuturesSymbol)> GetFootprintCandlesAsync(
+        string instrument,
+        IReadOnlyList<Candle> candles5M)
+    {
+        if (candles5M.Count == 0)
+            return ([], "none", null);
+
+        if (CandleVolumeMerger.HasTradeableVolume(candles5M))
+            return (CandleVolumeMerger.CopyWithVolumeFrom(candles5M, candles5M), "equity", null);
+
+        if (!InstrumentMapper.IsIndexSymbol(instrument))
+            return (CandleVolumeMerger.CopyWithVolumeFrom(candles5M, candles5M), "range_proxy", null);
+
+        var underlying = InstrumentMapper.FromZerodhaKey(instrument);
+        var futureKey = await _zerodha.ResolveNearestFutureKeyAsync(underlying);
+        if (futureKey is null)
+            return (CandleVolumeMerger.CopyWithVolumeFrom(candles5M, candles5M), "range_proxy", null);
+
+        var futuresSymbol = futureKey.Contains(':') ? futureKey.Split(':', 2)[1] : futureKey;
+        var futureCandles = await _zerodha.GetHistoricalCandlesAsync(futureKey, "5m", candles5M.Count + 30);
+        if (!CandleVolumeMerger.HasTradeableVolume(futureCandles))
+            return (CandleVolumeMerger.CopyWithVolumeFrom(candles5M, candles5M), "range_proxy", null);
+
+        // Footprint uses nearest index future OHLCV (price + volume), not index with merged volume.
+        var futuresBars = CandleVolumeMerger.SelectFuturesBarsMatchingIndex(candles5M, futureCandles);
+        if (futuresBars.Count < 10 || !CandleVolumeMerger.HasTradeableVolume(futuresBars))
+            return (CandleVolumeMerger.CopyWithVolumeFrom(candles5M, candles5M), "range_proxy", null);
+
+        return (futuresBars, "futures", futuresSymbol);
+    }
 
     public async Task<CandleSeriesResult> GetCandlesResultAsync(string instrument, string interval, int count = 100)
     {
@@ -135,13 +172,17 @@ public class MarketDataService : IMarketDataService
     {
         AttachSuperTrend(candles);
 
-        // Keltner Channels + VWAP are used for the 5m range-bound playbook.
-        if (interval == "5m")
+        // Keltner on 1m and 5m; VWAP only on 5m range-bound playbook.
+        if (interval is "1m" or "5m")
         {
             var cfg = _settings.Strategy;
             _indicators.ApplyKeltner(candles, cfg.KeltnerEmaLength, cfg.KeltnerAtrLength,
                 cfg.KeltnerMultiplierInner, cfg.KeltnerMultiplierOuter);
-            _indicators.ApplyVwap(candles);
+            if (interval == "5m")
+            {
+                _indicators.ApplyVwap(candles);
+                _indicators.ApplyEma20(candles, 20);
+            }
         }
 
         return candles;
@@ -193,6 +234,7 @@ public class MarketDataService : IMarketDataService
 
     private static int GetIntervalMinutes(string interval) => interval switch
     {
+        "1m" => 1,
         "5m" => 5,
         "15m" => 15,
         "1H" => 60,

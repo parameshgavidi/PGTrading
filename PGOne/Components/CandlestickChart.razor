@@ -15,19 +15,66 @@
     [Parameter] public string CanvasId { get; set; } = "priceChart";
     [Parameter] public List<Candle> Candles { get; set; } = new();
     [Parameter] public int ChartVersion { get; set; }
+    [Parameter] public int OverlayVersion { get; set; }
+    [Parameter] public MultiTimeframeAnalysis? Analysis { get; set; }
+    [Parameter] public IReadOnlyList<IntradayCprSegment> CprSegments { get; set; } = Array.Empty<IntradayCprSegment>();
+    [Parameter] public bool ShowPocLevels { get; set; } = true;
+    [Parameter] public bool ShowPivotLevels { get; set; } = true;
+    [Parameter] public bool ShowCamarillaLevels { get; set; } = true;
+    [Parameter] public bool ShowKeltnerLevels { get; set; } = true;
+    [Parameter] public bool ShowIntradayCprLevels { get; set; } = true;
+    [Parameter] public bool ShowSuperTrendOverlay { get; set; }
+    [Parameter] public bool ShowEma20Overlay { get; set; }
+    [Parameter] public bool ShowVwapOverlay { get; set; }
     [Parameter] public string Timeframe { get; set; } = "5m";
     [Parameter] public string CssClass { get; set; } = string.Empty;
     [Parameter] public int Width { get; set; } = 800;
     [Parameter] public int Height { get; set; } = 350;
 
     private int _lastRenderedVersion = -1;
+    private int _lastOverlayVersion = -1;
+    private string _lastTimeframe = "5m";
+    private bool _lastShowPoc;
+    private bool _lastShowPivot;
+    private bool _lastShowCamarilla;
+    private bool _lastShowKeltner;
+    private bool _lastShowIntradayCpr;
+    private bool _lastShowSuperTrend;
+    private bool _lastShowEma20;
+    private bool _lastShowVwapOverlay;
+    private int _lastCprSegmentCount;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (Candles.Count == 0 || ChartVersion == _lastRenderedVersion)
+        if (Candles.Count == 0)
+            return;
+
+        if (ChartVersion == _lastRenderedVersion
+            && OverlayVersion == _lastOverlayVersion
+            && Timeframe == _lastTimeframe
+            && ShowPocLevels == _lastShowPoc
+            && ShowPivotLevels == _lastShowPivot
+            && ShowCamarillaLevels == _lastShowCamarilla
+            && ShowKeltnerLevels == _lastShowKeltner
+            && ShowIntradayCprLevels == _lastShowIntradayCpr
+            && ShowSuperTrendOverlay == _lastShowSuperTrend
+            && ShowEma20Overlay == _lastShowEma20
+            && ShowVwapOverlay == _lastShowVwapOverlay
+            && CprSegments.Count == _lastCprSegmentCount)
             return;
 
         _lastRenderedVersion = ChartVersion;
+        _lastOverlayVersion = OverlayVersion;
+        _lastTimeframe = Timeframe;
+        _lastShowPoc = ShowPocLevels;
+        _lastShowPivot = ShowPivotLevels;
+        _lastShowCamarilla = ShowCamarillaLevels;
+        _lastShowKeltner = ShowKeltnerLevels;
+        _lastShowIntradayCpr = ShowIntradayCprLevels;
+        _lastShowSuperTrend = ShowSuperTrendOverlay;
+        _lastShowEma20 = ShowEma20Overlay;
+        _lastShowVwapOverlay = ShowVwapOverlay;
+        _lastCprSegmentCount = CprSegments.Count;
         await RenderAsync();
     }
 
@@ -43,6 +90,18 @@
 
     private async Task RenderAsync()
     {
+        var segmentPayload = CprSegments.Select(s => new
+        {
+            start = s.Start.ToString("o"),
+            end = s.End.ToString("o"),
+            pivot = s.Pivot,
+            tc = s.Tc,
+            bc = s.Bc
+        }).ToList();
+
+        var supportsIntradayCpr = Timeframe is "1m" or "15m";
+        var showIntradayCpr = supportsIntradayCpr && ShowIntradayCprLevels && segmentPayload.Count > 0;
+
         var payload = Candles.Select(c => new
         {
             time = c.Timestamp.ToString("o"),
@@ -56,9 +115,52 @@
             keltnerUpperOuter = c.KeltnerUpperOuter,
             keltnerLowerOuter = c.KeltnerLowerOuter,
             keltnerMid = c.KeltnerMid,
-            vwap = c.Vwap
+            vwap = c.Vwap,
+            ema20 = c.Ema20
         }).ToList();
 
-        await InvokeSafe("pgOneChart.drawCandlestickChart", CanvasId, payload, Timeframe);
+        var levels = BuildLevelPayload();
+        var pocToday = !supportsIntradayCpr && ShowPocLevels && Analysis?.VolumeProfile.HasData == true
+            ? Analysis.VolumeProfile.Poc
+            : 0m;
+
+        var overlayOptions = new
+        {
+            showPoc = ShowPocLevels,
+            showPivot = ShowPivotLevels,
+            showCamarilla = ShowCamarillaLevels,
+            showIntradaCpr = showIntradayCpr,
+            intradayCpr = segmentPayload,
+            showKeltner = ShowKeltnerLevels,
+            showVwap = Timeframe == "5m" && ShowVwapOverlay,
+            showSuperTrend = Timeframe == "5m" && ShowSuperTrendOverlay,
+            showEma20 = Timeframe == "5m" && ShowEma20Overlay
+        };
+
+        await InvokeSafe("pgOneChart.drawCandlestickChart", CanvasId, payload, Timeframe, levels, pocToday, overlayOptions);
+    }
+
+    private List<object> BuildLevelPayload()
+    {
+        if (Analysis is null)
+            return new List<object>();
+
+        return SupportResistanceLadderBuilder.Build(Analysis)
+            .Where(row => row.Group switch
+            {
+                "cam" => ShowCamarillaLevels,
+                "cpr" => ShowPivotLevels,
+                "today" or "prev" => ShowPocLevels,
+                _ => true
+            })
+            .Select(row => new
+            {
+                label = row.Label,
+                price = row.Price,
+                group = row.Group,
+                kind = row.CssClass
+            })
+            .Cast<object>()
+            .ToList();
     }
 }

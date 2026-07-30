@@ -77,6 +77,20 @@
         </div>
 
         <div class="settings-section">
+            <h3>Sentiment Analysis (FinBERT)</h3>
+            <p class="text-secondary">
+                A free token from <a href="https://huggingface.co/settings/tokens" target="_blank">huggingface.co</a>
+                is required for FinBERT. Create a fine-grained token with
+                <strong>Make calls to Inference Providers</strong> permission, then paste it below and save.
+                Without a token, sentiment scans use a basic keyword fallback.
+            </p>
+            <div class="form-row">
+                <label>Hugging Face API Token</label>
+                <input type="password" @bind="ViewModel.Settings.HuggingFaceApiToken" @bind:event="oninput" class="form-input" placeholder="hf_..." />
+            </div>
+        </div>
+
+        <div class="settings-section">
             <h3>Notifications</h3>
             <div class="form-row checkbox-row">
                 <label>Desktop</label>

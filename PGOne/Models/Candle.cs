@@ -19,4 +19,7 @@ public class Candle
 
     // Session-anchored VWAP (populated on the 5m series only).
     public decimal? Vwap { get; set; }
+
+    // EMA(20) on close (populated on 5m intraday charts).
+    public decimal? Ema20 { get; set; }
 }
