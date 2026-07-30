@@ -382,9 +382,7 @@ window.pgOneChart = (function () {
         const toY = (price) => padding.top + ((maxPrice - price) / priceRange) * chartH;
         const toX = (i) => padding.left + slot * i + slot / 2;
 
-        if (st.showIntradaCpr && st.intradayCprSegments && st.intradayCprSegments.length > 0) {
-            drawIntradaCprBackground(ctx, view, st.intradayCprSegments, padding, slot, chartH, toY, toX);
-        } else if (st.showPoc && st.pocToday) {
+        if (st.showPoc && st.pocToday && !st.showIntradaCpr) {
             drawPocBackground(ctx, st.pocToday, padding, width, chartH, toY, true);
         } else {
             fillChartBackground(ctx, padding, width, chartH);
