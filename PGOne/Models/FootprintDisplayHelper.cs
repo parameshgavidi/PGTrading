@@ -135,10 +135,15 @@ public static class FootprintDisplayHelper
             return $"{delta} · {stacked} · {absorption}";
         }
 
-        var delta = fp.NegativeDelta ? "Δ ✓" : "Δ ✗";
-        var stacked = fp.StackedSellImbalance ? "stacked ✓" : "stacked ✗";
-        var absorption = fp.AbsorptionAgainstShort ? "absorption ✗" : "no absorption ✓";
-        return $"{delta} · {stacked} · {absorption}";
+        if (bias == TrendDirection.Sell)
+        {
+            var delta = fp.NegativeDelta ? "Δ ✓" : "Δ ✗";
+            var stacked = fp.StackedSellImbalance ? "stacked ✓" : "stacked ✗";
+            var absorption = fp.AbsorptionAgainstShort ? "absorption ✗" : "no absorption ✓";
+            return $"{delta} · {stacked} · {absorption}";
+        }
+
+        return string.Empty;
     }
 
     /// <summary>Explicit WAIT detail when Step 4 is the blocker.</summary>
