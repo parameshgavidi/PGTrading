@@ -33,19 +33,58 @@
             <div class="chart-meta">Loading market data…</div>
         }
 
-        <div class="cpr-levels-strip chart-toolbar">
-            <span class="cpr-level-label">Pivot TF: 15m</span>
-            <span>TC <strong>@ViewModel.CurrentIntradayTc.ToString("N2")</strong></span>
-            <span>Pivot <strong>@ViewModel.CurrentIntradayPivot.ToString("N2")</strong></span>
-            <span>BC <strong>@ViewModel.CurrentIntradayBc.ToString("N2")</strong></span>
+        <Cpr1mChart CanvasId="cpr1mChart"
+                      Candles="ViewModel.ChartCandles"
+                      Segments="ViewModel.CprSegments"
+                      ChartVersion="ViewModel.ChartVersion"
+                      OverlayVersion="ViewModel.OverlayVersion"
+                      ShowKeltnerLevels="ViewModel.ShowKeltnerOverlay"
+                      CssClass="large"
+                      Width="1200"
+                      Height="520" />
+
+        @if (ViewModel.ShowIntradayCprOverlay && ViewModel.SupportsIntradayCprOverlay)
+        {
+            <CprSegmentsStrip Segments="ViewModel.CprSegments"
+                              ActiveSegment="ViewModel.ActiveCprSegment" />
+        }
+
+        <div class="chart-toolbar">
+            <div class="timeframe-buttons">
+                @foreach (var tf in new[] { "1m", "5m", "15m", "1H" })
+                {
+                    <button type="button"
+                            class="btn tf-btn @(ViewModel.SelectedTimeframe == tf ? "active" : "")"
+                            @onclick="() => ViewModel.ChangeTimeframeAsync(tf)">@tf</button>
+                }
+            </div>
+            <ChartOverlayToggles ShowIntradayCprToggle="ViewModel.SupportsIntradayCprOverlay"
+                                 ShowKeltnerToggle="@(ViewModel.SelectedTimeframe == "1m" || ViewModel.SelectedTimeframe == "5m")"
+                                 Show5mStudyToggles="ViewModel.Supports5mStudyToggles"
+                                 ShowPoc="ViewModel.ShowPocOverlay"
+                                 ShowDayCpr="ViewModel.ShowPivotOverlay"
+                                 ShowCamarilla="ViewModel.ShowCamarillaOverlay"
+                                 ShowIntradayCpr="ViewModel.ShowIntradayCprOverlay"
+                                 ShowKeltner="ViewModel.ShowKeltnerOverlay"
+                                 ShowSuperTrend="ViewModel.ShowSuperTrendOverlay"
+                                 ShowEma20="ViewModel.ShowEma20Overlay"
+                                 ShowVwap="ViewModel.ShowVwapOverlay"
+                                 ShowPocChanged="v => ViewModel.SetShowPocOverlay(v)"
+                                 ShowDayCprChanged="v => ViewModel.SetShowPivotOverlay(v)"
+                                 ShowCamarillaChanged="v => ViewModel.SetShowCamarillaOverlay(v)"
+                                 ShowIntradayCprChanged="v => ViewModel.SetShowIntradayCprOverlay(v)"
+                                 ShowKeltnerChanged="v => ViewModel.SetShowKeltnerOverlay(v)"
+                                 ShowSuperTrendChanged="v => ViewModel.SetShowSuperTrendOverlay(v)"
+                                 ShowEma20Changed="v => ViewModel.SetShowEma20Overlay(v)"
+                                 ShowVwapChanged="v => ViewModel.SetShowVwapOverlay(v)" />
         </div>
 
-        <InstrumentChartPanel ViewModel="ViewModel"
-                              CanvasId="cpr1mChart"
-                              CssClass="large"
-                              Width="1200"
-                              Height="520"
-                              AlwaysShowIntradayCprBands="true" />
+        @if (!string.IsNullOrEmpty(ViewModel.ChartDataMessage))
+        {
+            <div class="chart-meta @(ViewModel.IsChartFromZerodha ? "zerodha" : "warning")">
+                @ViewModel.ChartDataMessage
+            </div>
+        }
     </div>
 </div>
 

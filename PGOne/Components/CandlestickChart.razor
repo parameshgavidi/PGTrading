@@ -92,8 +92,8 @@
     {
         var segmentPayload = CprSegments.Select(s => new
         {
-            start = ToChartEpochMs(s.Start),
-            end = ToChartEpochMs(s.End),
+            start = ChartJsTime.ToEpochMs(s.Start),
+            end = ChartJsTime.ToEpochMs(s.End),
             pivot = s.Pivot,
             tc = s.Tc,
             bc = s.Bc
@@ -104,7 +104,7 @@
 
         var payload = Candles.Select(c => new
         {
-            time = ToChartEpochMs(c.Timestamp),
+            time = ChartJsTime.ToEpochMs(c.Timestamp),
             open = c.Open,
             high = c.High,
             low = c.Low,
@@ -164,10 +164,4 @@
             .ToList();
     }
 
-  private static long ToChartEpochMs(DateTime timestamp)
-  {
-      var istOffset = TimeSpan.FromHours(5.5);
-      var dto = new DateTimeOffset(DateTime.SpecifyKind(timestamp, DateTimeKind.Unspecified), istOffset);
-      return dto.ToUnixTimeMilliseconds();
-  }
 }

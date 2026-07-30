@@ -19,6 +19,11 @@
                   CssClass="@CssClass"
                   Width="@Width"
                   Height="@Height" />
+@if (ViewModel.ShowIntradayCprOverlay && ViewModel.SupportsIntradayCprOverlay)
+{
+    <CprSegmentsStrip Segments="ViewModel.CprSegments"
+                      ActiveSegment="ViewModel.ActiveCprSegment" />
+}
 <div class="chart-toolbar">
     <div class="timeframe-buttons">
         @foreach (var tf in Timeframes)

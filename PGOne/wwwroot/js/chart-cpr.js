@@ -107,24 +107,30 @@ window.pgOneCprChart = (function () {
     }
 
     function drawSegmentLevels(ctx, view, segments, padding, chartH, slot, toY, toX) {
-        if (!segments || segments.length === 0) return;
+        if (!segments || segments.length === 0 || !view.length) return;
 
-        segments.forEach(function (seg) {
-            var start = parseTime(seg.start);
-            var end = parseTime(seg.end);
-            if (!start || !end) return;
+        function segmentKey(seg) {
+            if (!seg) return '';
+            return String(seg.start) + '|' + String(seg.end) + '|' + String(seg.pivot);
+        }
 
-            var iStart = -1, iEnd = -1;
-            view.forEach(function (candle, i) {
-                var t = parseTime(candle.time);
-                if (!t) return;
-                if (t >= start && t < end) {
-                    if (iStart < 0) iStart = i;
-                    iEnd = i;
-                }
-            });
+        var i = 0;
+        while (i < view.length) {
+            var seg = findSegment(segments, parseTime(view[i].time));
+            if (!seg || !seg.pivot || Number.isNaN(Number(seg.pivot))) {
+                i++;
+                continue;
+            }
 
-            if (iStart < 0 || iEnd < 0) return;
+            var key = segmentKey(seg);
+            var iStart = i;
+            i++;
+            while (i < view.length) {
+                var seg2 = findSegment(segments, parseTime(view[i].time));
+                if (segmentKey(seg2) !== key) break;
+                i++;
+            }
+            var iEnd = i - 1;
 
             var x0 = toX(iStart) - slot / 2;
             var x1 = toX(iEnd) + slot / 2;
@@ -144,7 +150,7 @@ window.pgOneCprChart = (function () {
             ctx.moveTo(x0, padding.top);
             ctx.lineTo(x0, padding.top + chartH);
             ctx.stroke();
-        });
+        }
     }
 
     function drawHLine(ctx, x0, x1, y, color, dash) {
@@ -291,7 +297,9 @@ window.pgOneCprChart = (function () {
         var toY = function (price) { return padding.top + ((maxPrice - price) / priceRange) * chartH; };
         var toX = function (i) { return padding.left + slot * i + slot / 2; };
 
-        drawCprBackground(ctx, view, segments, padding, slot, chartH, toY, toX);
+        // Plain chart background (no green/red CPR shadow)
+        ctx.fillStyle = '#121212';
+        ctx.fillRect(padding.left, padding.top, chartW, chartH);
 
         if (st.showKeltner) {
             drawKeltnerLines(ctx, view, toX, toY);

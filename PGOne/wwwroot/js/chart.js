@@ -176,24 +176,28 @@ window.pgOneChart = (function () {
     function drawIntradaCprLevels(ctx, view, segments, padding, chartH, slot, toY, toX, labelsOnly) {
         if (!segments || segments.length === 0 || !view.length) return;
 
-        segments.forEach(function (seg) {
-            if (!segmentHasPivot(seg)) return;
+        function segmentKey(seg) {
+            if (!seg) return '';
+            return String(seg.start) + '|' + String(seg.end) + '|' + String(seg.pivot);
+        }
 
-            var start = parseTime(seg.start);
-            var end = parseTime(seg.end);
-            if (!start || !end) return;
+        var i = 0;
+        while (i < view.length) {
+            var seg = findCprSegment(segments, parseTime(view[i].time));
+            if (!segmentHasPivot(seg)) {
+                i++;
+                continue;
+            }
 
-            var iStart = -1, iEnd = -1;
-            view.forEach(function (candle, i) {
-                var t = parseTime(candle.time);
-                if (!t) return;
-                if (t >= start && t < end) {
-                    if (iStart < 0) iStart = i;
-                    iEnd = i;
-                }
-            });
-
-            if (iStart < 0 || iEnd < 0) return;
+            var key = segmentKey(seg);
+            var iStart = i;
+            i++;
+            while (i < view.length) {
+                var seg2 = findCprSegment(segments, parseTime(view[i].time));
+                if (segmentKey(seg2) !== key) break;
+                i++;
+            }
+            var iEnd = i - 1;
 
             var x0 = toX(iStart) - slot / 2;
             var x1 = toX(iEnd) + slot / 2;
@@ -203,7 +207,7 @@ window.pgOneChart = (function () {
             } else {
                 drawIntradaCprSegmentBand(ctx, seg, x0, x1, padding, chartH, toY);
             }
-        });
+        }
     }
 
     function drawLevelLabel(ctx, x, y, text, color) {
@@ -271,8 +275,9 @@ window.pgOneChart = (function () {
         const showPoc = opts.showPoc !== false;
         const showPivot = opts.showPivot !== false;
         const showCamarilla = opts.showCamarilla !== false;
-        const showIntradaCpr = opts.showIntradaCpr === true;
         const intradayCprSegments = opts.intradayCpr || [];
+        const showIntradaCpr = (opts.showIntradaCpr === true || opts.showIntradaCpr === 1)
+            && intradayCprSegments.length > 0;
         const showKeltner = opts.showKeltner === true;
         const showVwap = opts.showVwap === true;
         const showSuperTrend = opts.showSuperTrend === true;
