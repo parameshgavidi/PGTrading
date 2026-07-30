@@ -33,13 +33,6 @@
             <div class="chart-meta">Loading market data…</div>
         }
 
-        <div class="cpr-levels-strip chart-toolbar">
-            <span class="cpr-level-label">Pivot TF: 15m</span>
-            <span>TC <strong>@ViewModel.CurrentIntradayTc.ToString("N2")</strong></span>
-            <span>Pivot <strong>@ViewModel.CurrentIntradayPivot.ToString("N2")</strong></span>
-            <span>BC <strong>@ViewModel.CurrentIntradayBc.ToString("N2")</strong></span>
-        </div>
-
         <Cpr1mChart CanvasId="cpr1mChart"
                       Candles="ViewModel.ChartCandles"
                       Segments="ViewModel.CprSegments"
@@ -49,6 +42,12 @@
                       CssClass="large"
                       Width="1200"
                       Height="520" />
+
+        @if (ViewModel.ShowIntradayCprOverlay && ViewModel.SupportsIntradayCprOverlay)
+        {
+            <CprSegmentsStrip Segments="ViewModel.CprSegments"
+                              ActiveSegment="ViewModel.ActiveCprSegment" />
+        }
 
         <div class="chart-toolbar">
             <div class="timeframe-buttons">

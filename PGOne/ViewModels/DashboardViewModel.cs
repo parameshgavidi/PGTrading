@@ -47,6 +47,7 @@ public class DashboardViewModel : INotifyPropertyChanged
     public bool ShowVwapOverlay { get; private set; } = false;
     public bool Supports5mStudyToggles => SelectedTimeframe == "5m";
     public IReadOnlyList<IntradayCprSegment> CprSegments { get; private set; } = Array.Empty<IntradayCprSegment>();
+    public IntradayCprSegment? ActiveCprSegment { get; private set; }
     public decimal CurrentIntradayTc { get; private set; }
     public decimal CurrentIntradayPivot { get; private set; }
     public decimal CurrentIntradayBc { get; private set; }
@@ -339,6 +340,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         Notify(nameof(ShowIntradayCprOverlay));
         Notify(nameof(OverlayVersion));
         Notify(nameof(CprSegments));
+        Notify(nameof(ActiveCprSegment));
         Notify(nameof(AboveCpr));
         Notify(nameof(CprPositionLabel));
         Notify(nameof(CprPositionClass));
@@ -410,6 +412,7 @@ public class DashboardViewModel : INotifyPropertyChanged
             ChartVersion++;
             Notify(nameof(ChartVersion));
             Notify(nameof(CprSegments));
+            Notify(nameof(ActiveCprSegment));
             IsChartFromZerodha = result.IsFromZerodha;
             ChartDataMessage = result.IsFromZerodha
                 ? SelectedTimeframe switch
@@ -448,6 +451,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         {
             if (!SupportsIntradayCprOverlay || CprSegments.Count == 0)
             {
+                ActiveCprSegment = null;
                 CurrentIntradayTc = 0;
                 CurrentIntradayPivot = 0;
                 CurrentIntradayBc = 0;
@@ -461,7 +465,12 @@ public class DashboardViewModel : INotifyPropertyChanged
 
             var active = _intradayCpr.GetActiveSegment(CprSegments, activeTime);
             if (active is null)
+            {
+                ActiveCprSegment = null;
                 return;
+            }
+
+            ActiveCprSegment = active;
 
             CurrentIntradayTc = active.Tc;
             CurrentIntradayPivot = active.Pivot;
@@ -473,6 +482,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         }
         catch
         {
+            ActiveCprSegment = null;
             CurrentIntradayTc = 0;
             CurrentIntradayPivot = 0;
             CurrentIntradayBc = 0;
@@ -517,6 +527,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         if (SelectedTimeframe == "1m")
         {
             UpdateIntradayCprState();
+            Notify(nameof(ActiveCprSegment));
             Notify(nameof(AboveCpr));
             Notify(nameof(CprPositionLabel));
             Notify(nameof(CprPositionClass));
@@ -629,6 +640,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowVwapOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Supports5mStudyToggles)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CprSegments)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ActiveCprSegment)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentIntradayTc)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentIntradayPivot)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentIntradayBc)));
