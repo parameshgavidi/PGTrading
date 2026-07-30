@@ -9,6 +9,7 @@ public class Cpr1mViewModel : INotifyPropertyChanged
 {
     private readonly IMarketDataService _marketData;
     private readonly IIntradayCprService _intradayCpr;
+    private readonly ISignalService _signal;
     private System.Timers.Timer? _refreshTimer;
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -17,9 +18,21 @@ public class Cpr1mViewModel : INotifyPropertyChanged
     public string DisplayName { get; private set; } = "NIFTY";
     public List<Candle> ChartCandles { get; private set; } = new();
     public IReadOnlyList<IntradayCprSegment> CprSegments { get; private set; } = Array.Empty<IntradayCprSegment>();
+    public MultiTimeframeAnalysis Analysis { get; private set; } = new();
     public int ChartVersion { get; private set; }
     public int OverlayVersion { get; private set; }
-    public bool ShowKeltnerOverlay { get; private set; } = true;
+
+    public bool ShowPocOverlay { get; private set; } = true;
+    public bool ShowPivotOverlay { get; private set; } = false;
+    public bool ShowCamarillaOverlay { get; private set; } = false;
+    public bool ShowKeltnerOverlay { get; private set; } = false;
+    public bool ShowIntradayCprOverlay { get; private set; } = true;
+    public bool ShowSuperTrendOverlay { get; private set; } = false;
+    public bool ShowEma20Overlay { get; private set; } = false;
+    public bool ShowVwapOverlay { get; private set; } = false;
+
+    public bool SupportsIntradayCprOverlay => true;
+    public bool Supports5mStudyToggles => false;
 
     public decimal LastPrice { get; private set; }
     public decimal DayChangePercent { get; private set; }
@@ -35,10 +48,14 @@ public class Cpr1mViewModel : INotifyPropertyChanged
     public bool IsMarketOpen => _marketData.IsMarketOpen;
     public string MarketStatus => IsMarketOpen ? "Market Open" : "Market Closed";
 
-    public Cpr1mViewModel(IMarketDataService marketData, IIntradayCprService intradayCpr)
+    public Cpr1mViewModel(
+        IMarketDataService marketData,
+        IIntradayCprService intradayCpr,
+        ISignalService signal)
     {
         _marketData = marketData;
         _intradayCpr = intradayCpr;
+        _signal = signal;
     }
 
     public async Task InitializeAsync()
@@ -51,10 +68,7 @@ public class Cpr1mViewModel : INotifyPropertyChanged
     {
         try
         {
-            var sessionDate = MarketHours.GetIstNow().Date;
-            if (!MarketHours.IsOpen() && MarketHours.GetIstNow().TimeOfDay < MarketHours.OpenTime)
-                sessionDate = sessionDate.AddDays(sessionDate.DayOfWeek == DayOfWeek.Monday ? -3 : -1);
-
+            var sessionDate = GetChartSessionDate();
             var candles1m = await _marketData.GetCandlesResultAsync(Instrument, "1m", 450);
             var candles15m = await _marketData.GetCandlesResultAsync(Instrument, "15m", 80);
 
@@ -71,22 +85,13 @@ public class Cpr1mViewModel : INotifyPropertyChanged
             CprSegments = _intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
             ChartVersion++;
 
+            Analysis = await _signal.AnalyzeAsync(DisplayName);
+
             var quote = await _marketData.GetQuoteAsync(Instrument);
             LastPrice = quote?.LastPrice ?? ChartCandles.LastOrDefault()?.Close ?? 0m;
             DayChangePercent = quote?.ChangePercent ?? 0m;
 
-            var activeTime = ChartCandles.Count > 0
-                ? ChartCandles[^1].Timestamp
-                : MarketHours.GetIstNow();
-
-            var active = _intradayCpr.GetActiveSegment(CprSegments, activeTime);
-            if (active is not null)
-            {
-                CurrentPivot = active.Pivot;
-                CurrentTc = active.Tc;
-                CurrentBc = active.Bc;
-                AboveCpr = LastPrice > 0 && LastPrice >= active.Pivot;
-            }
+            UpdateIntradayCprState();
         }
         catch (Exception ex)
         {
@@ -94,6 +99,39 @@ public class Cpr1mViewModel : INotifyPropertyChanged
         }
 
         Notify();
+    }
+
+    public void SetShowPocOverlay(bool show)
+    {
+        if (ShowPocOverlay == show)
+            return;
+
+        ShowPocOverlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowPocOverlay));
+        Notify(nameof(OverlayVersion));
+    }
+
+    public void SetShowPivotOverlay(bool show)
+    {
+        if (ShowPivotOverlay == show)
+            return;
+
+        ShowPivotOverlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowPivotOverlay));
+        Notify(nameof(OverlayVersion));
+    }
+
+    public void SetShowCamarillaOverlay(bool show)
+    {
+        if (ShowCamarillaOverlay == show)
+            return;
+
+        ShowCamarillaOverlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowCamarillaOverlay));
+        Notify(nameof(OverlayVersion));
     }
 
     public void SetShowKeltnerOverlay(bool show)
@@ -105,6 +143,87 @@ public class Cpr1mViewModel : INotifyPropertyChanged
         OverlayVersion++;
         Notify(nameof(ShowKeltnerOverlay));
         Notify(nameof(OverlayVersion));
+    }
+
+    public void SetShowIntradayCprOverlay(bool show)
+    {
+        if (ShowIntradayCprOverlay == show)
+            return;
+
+        ShowIntradayCprOverlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowIntradayCprOverlay));
+        Notify(nameof(OverlayVersion));
+        Notify(nameof(AboveCpr));
+        Notify(nameof(CprPositionLabel));
+        Notify(nameof(CprPositionClass));
+    }
+
+    public void SetShowSuperTrendOverlay(bool show)
+    {
+        if (ShowSuperTrendOverlay == show)
+            return;
+
+        ShowSuperTrendOverlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowSuperTrendOverlay));
+        Notify(nameof(OverlayVersion));
+    }
+
+    public void SetShowEma20Overlay(bool show)
+    {
+        if (ShowEma20Overlay == show)
+            return;
+
+        ShowEma20Overlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowEma20Overlay));
+        Notify(nameof(OverlayVersion));
+    }
+
+    public void SetShowVwapOverlay(bool show)
+    {
+        if (ShowVwapOverlay == show)
+            return;
+
+        ShowVwapOverlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowVwapOverlay));
+        Notify(nameof(OverlayVersion));
+    }
+
+    private static DateTime GetChartSessionDate()
+    {
+        var now = MarketHours.GetIstNow();
+        if (!MarketHours.IsOpen(now) && now.TimeOfDay < MarketHours.OpenTime)
+            return now.Date.AddDays(now.DayOfWeek == DayOfWeek.Monday ? -3 : -1);
+
+        return now.Date;
+    }
+
+    private void UpdateIntradayCprState()
+    {
+        if (CprSegments.Count == 0)
+        {
+            CurrentTc = 0;
+            CurrentPivot = 0;
+            CurrentBc = 0;
+            AboveCpr = false;
+            return;
+        }
+
+        var activeTime = ChartCandles.Count > 0
+            ? ChartCandles[^1].Timestamp
+            : MarketHours.GetIstNow();
+
+        var active = _intradayCpr.GetActiveSegment(CprSegments, activeTime);
+        if (active is null)
+            return;
+
+        CurrentPivot = active.Pivot;
+        CurrentTc = active.Tc;
+        CurrentBc = active.Bc;
+        AboveCpr = LastPrice > 0 && LastPrice >= active.Pivot;
     }
 
     private void StartAutoRefresh()
@@ -131,9 +250,19 @@ public class Cpr1mViewModel : INotifyPropertyChanged
 
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ChartCandles)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CprSegments)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Analysis)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ChartVersion)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(OverlayVersion)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowPocOverlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowPivotOverlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowCamarillaOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowKeltnerOverlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowIntradayCprOverlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowSuperTrendOverlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowEma20Overlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowVwapOverlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SupportsIntradayCprOverlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Supports5mStudyToggles)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LastPrice)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DayChangePercent)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentPivot)));

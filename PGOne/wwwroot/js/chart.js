@@ -147,25 +147,33 @@ window.pgOneChart = (function () {
         ctx.setLineDash([]);
     }
 
+    function intradayCprSegmentKey(seg) {
+        if (!seg) return '';
+        return String(seg.start) + '|' + String(seg.end);
+    }
+
     function drawIntradaCprLevels(ctx, view, segments, padding, chartH, slot, toY, toX) {
-        if (!segments || segments.length === 0) return;
+        if (!segments || segments.length === 0 || !view.length) return;
 
-        segments.forEach(function (seg) {
-            var start = parseTime(seg.start);
-            var end = parseTime(seg.end);
-            if (!start || !end) return;
+        var i = 0;
+        while (i < view.length) {
+            var t = parseTime(view[i].time);
+            var seg = findCprSegment(segments, t);
+            if (!seg || !seg.pivot) {
+                i++;
+                continue;
+            }
 
-            var iStart = -1, iEnd = -1;
-            view.forEach(function (candle, i) {
-                var t = parseTime(candle.time);
-                if (!t) return;
-                if (t >= start && t < end) {
-                    if (iStart < 0) iStart = i;
-                    iEnd = i;
-                }
-            });
-
-            if (iStart < 0 || iEnd < 0) return;
+            var key = intradayCprSegmentKey(seg);
+            var iStart = i;
+            i++;
+            while (i < view.length) {
+                var t2 = parseTime(view[i].time);
+                var seg2 = findCprSegment(segments, t2);
+                if (intradayCprSegmentKey(seg2) !== key) break;
+                i++;
+            }
+            var iEnd = i - 1;
 
             var x0 = toX(iStart) - slot / 2;
             var x1 = toX(iEnd) + slot / 2;
@@ -184,7 +192,7 @@ window.pgOneChart = (function () {
             ctx.moveTo(x0, padding.top);
             ctx.lineTo(x0, padding.top + chartH);
             ctx.stroke();
-        });
+        }
     }
 
     function drawLevelLabel(ctx, x, y, text, color) {
@@ -450,10 +458,6 @@ window.pgOneChart = (function () {
             drawLine('ema20', 'rgba(255, 152, 0, 0.9)', [6, 3]);
         }
 
-        if (st.showIntradaCpr && st.intradayCprSegments && st.intradayCprSegments.length > 0) {
-            drawIntradaCprLevels(ctx, view, st.intradayCprSegments, padding, chartH, slot, toY, toX);
-        }
-
         // POC / VA / Camarilla horizontal levels
         drawLevels(ctx, filterLevels(st), padding, width, toY);
 
@@ -478,6 +482,10 @@ window.pgOneChart = (function () {
             const bodyHeight = Math.max(1, Math.abs(toY(close) - toY(open)));
             ctx.fillRect(toX(i) - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
         });
+
+        if (st.showIntradaCpr && st.intradayCprSegments && st.intradayCprSegments.length > 0) {
+            drawIntradaCprLevels(ctx, view, st.intradayCprSegments, padding, chartH, slot, toY, toX);
+        }
 
         // SuperTrend overlay (10,3) — green above, red below
         if (st.showSuperTrend) {

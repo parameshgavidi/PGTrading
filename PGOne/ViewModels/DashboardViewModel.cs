@@ -390,6 +390,8 @@ public class DashboardViewModel : INotifyPropertyChanged
             }
 
             ChartVersion++;
+            Notify(nameof(ChartVersion));
+            Notify(nameof(CprSegments));
             IsChartFromZerodha = result.IsFromZerodha;
             ChartDataMessage = result.IsFromZerodha
                 ? SelectedTimeframe switch
