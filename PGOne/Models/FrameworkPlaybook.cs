@@ -47,8 +47,9 @@ public static class FrameworkPlaybook
       "1H SuperTrend (10,3) = Sell AND price < current-day VWAP",
       "Market bias = Bearish", null),
     Rule("S1-F", "Fails when",
-      "1H ST bullish but price below VWAP (or bearish ST but above VWAP)",
-      "WAIT — bias not aligned", null)
+      "1H ST bullish but price below session VWAP (or bearish ST but above session VWAP)",
+      "WAIT — Step 1 incomplete; FrameworkStatus names the conflict",
+      "AI checklist: 1H ST can pass while VWAP fails. Both must align for market bias.")
   ];
 
   private static readonly IReadOnlyList<FrameworkRule> Step2Rules =
@@ -185,7 +186,11 @@ public static class FrameworkPlaybook
       "ConfirmsLong", null),
     Rule("FP-N10", "Short confirmed",
       "Delta − AND stacked sell imbalances AND NOT absorption vs short",
-      "ConfirmsShort", null)
+      "ConfirmsShort", null),
+    Rule("FP-N11", "Flow opposes bias",
+      "Footprint delta/flow opposes trade direction (or market bias when direction neutral)",
+      "WAIT — AI Analysis \"Flow Conflict\"; setup score capped at 68%",
+      "Checklist shows fail when flow opposes; does not confirm Step 4")
   ];
 
   private static readonly IReadOnlyList<FrameworkRule> DashboardRules =
@@ -198,7 +203,19 @@ public static class FrameworkPlaybook
     Rule("DB-6", "RSI(28) bias", "> 55 Bullish | < 45 Bearish | 45–55 range", "1H only", null),
     Rule("DB-7", "Footprint row", "Step 4 summary (delta, imbalances, absorption)", "Not confirmed until all pass", null),
     Rule("DB-8", "Framework row", "FrameworkReady + FrameworkStatus", "Master gate", null),
-    Rule("DB-9", "CPR row", "Narrow CPR + open outside VA → strong trend day bonus", "Separate from Camarilla", null)
+    Rule("DB-9", "CPR row", "Narrow CPR + open outside VA → strong trend day bonus", "Separate from Camarilla", null),
+    Rule("DB-10", "AI Analysis — checklist",
+      "1H ST pass when directional (independent of VWAP); VWAP pass only when Step 1 aligned; footprint fail when flow opposes bias",
+      "8 checks mirror framework steps", null),
+    Rule("DB-11", "AI Analysis — probability label",
+      "Setup Score when not ready; Entry Probability when FrameworkReady",
+      "Footprint conflict caps score ≤ 68%", null),
+    Rule("DB-12", "AI Analysis — Suggested",
+      "WAIT until FrameworkReady (or RANGE ONLY for rotation/range-bound); structured BUY/SELL only when all 5 steps align",
+      "Step 1 conflict example: bullish ST below VWAP → wait for reclaim", null),
+    Rule("DB-13", "Step 1 status text",
+      "Bullish ST below VWAP → \"Step 1 — 1H ST bullish but price below session VWAP\"",
+      "Bearish mirror for above VWAP", "Shown in Framework row and AI Suggested detail")
   ];
 
   private static readonly IReadOnlyList<FrameworkRule> CprRules =
@@ -269,9 +286,11 @@ public static class FrameworkPlaybook
 
   private static readonly IReadOnlyList<FrameworkRule> ScanRules =
   [
-    Rule("SC-1", "Same as Framework READY", "All master checklist items above", "Stock appears in intraday scan", null),
-    Rule("SC-2", "Direction filter", "LONG MIS buy orders only (no auto short stock orders)", "BUY MIS ~₹5,000 notional", null),
-    Rule("SC-3", "Scanner page", "Nifty top-weight watchlist — shows framework + footprint columns", "Alignment = FrameworkReady", null)
+    Rule("SC-1", "Universe", "Nifty 50 only (~50 stocks from bundled list)", "Fast scan vs full NSE", null),
+    Rule("SC-2", "Phase 1 screen", "Parallel quick screen: 1H ST + session VWAP + 5m RSI/ADX/rotation gates", "Candidates only pass Step 1 bias", null),
+    Rule("SC-3", "Phase 2 framework", "Full 5-step framework on phase-1 candidates (15m/5m/footprint)", "FrameworkReady required for match", null),
+    Rule("SC-4", "Direction filter", "LONG MIS buy orders only (no auto short stock orders)", "BUY MIS ~₹5,000 notional", null),
+    Rule("SC-5", "Scanner page", "Nifty top-weight watchlist — shows framework + footprint columns", "Alignment = FrameworkReady", null)
   ];
 
   private static readonly IReadOnlyList<FrameworkRule> DoNotRules =
@@ -315,7 +334,7 @@ public static class FrameworkPlaybook
     ("L4", "C − range × 1.1 / 2", "Extension down")
   ];
 
-  public const string LastValidated = "27 Jul 2026";
+  public const string LastValidated = "30 Jul 2026";
 
   public static readonly string UnitTestCommand =
     "dotnet test PGOne.Framework.Tests/PGOne.Framework.Tests.csproj";
@@ -328,7 +347,10 @@ public static class FrameworkPlaybook
     "G2 — 1H RSI(28) 45–55 inclusive → IsRangebound; GetTradeDirection returns Neutral; FrameworkReady false",
     "RSI long requires strictly > 55 (RsiConfirmsLong); RSI 55 is range, not long",
     "RSI short requires strictly < 45 (RsiConfirmsShort); RSI 45 is range, not short",
-    "Step 1 — 1H ST (10,3) + current-day VWAP must align for market bias",
+    "Step 1 — 1H ST (10,3) + session VWAP on 5m must align; conflict → WAIT with explicit Step 1 status",
+    "AI Analysis — 1H ST checklist pass independent of VWAP; VWAP fail when ST/VWAP conflict",
+    "AI Analysis — footprint opposes bias → WAIT, Flow Conflict, score capped at 68%",
+    "AI Analysis — Setup Score vs Entry Probability label based on FrameworkReady",
     "Step 2 — 15M ST (10,3) must match market bias; ADX(1H) ≥ 18 (not choppy) and ≥ 20 (minimum trade)",
     "Step 2 — POC: price above POC = bull, below = bear; prev-day POC fallback when no session profile",
     "Step 2 — ADX(1H) > 25: long needs price above VAH, short needs price below VAL",
@@ -339,8 +361,8 @@ public static class FrameworkPlaybook
     "Camarilla: PP + H2–H4 / L2–L4 context (H1/L1 hidden); pairs with POC/VA and CPR",
     "Step 5 — Targets: prev-day POC / VAH / VAL; stop on 5M ST (7, 2.5) reversal",
     "Framework READY — IsFrameworkReady blocks reversal, rotation, range-bound, and missing entry/footprint",
-    "Intraday scan — IntradayFrameworkEvaluator.IsSatisfied uses FrameworkReady; long MIS only",
-    "Long-term scan — unchanged (LongTermFrameworkService); not this playbook"
+    "Intraday scan — Nifty 50 two-phase (1H+VWAP screen → full framework on candidates); FrameworkReady; long MIS only",
+    "Long-term scan — separate daily/weekly ST + fundamentals playbook (Watchlist tab)"
   ];
 
   public static readonly IReadOnlyList<(string Issue, string Fix)> BugsFixed =
@@ -354,7 +376,13 @@ public static class FrameworkPlaybook
     ("POC missing on thin session data",
       "TpoConfirmationEvaluator falls back to prev-day POC when session profile has no data"),
     ("ADX choppy not explicit in trade-direction gate",
-      "GetTradeDirection returns Neutral when ADX < 18 before minimum-ADX check")
+      "GetTradeDirection returns Neutral when ADX < 18 before minimum-ADX check"),
+    ("Step 1 AI checklist marked 1H ST warn when only VWAP conflicted",
+      "1H ST pass when directional; VWAP fail when opposing ST; clearer Step 1 FrameworkStatus text"),
+    ("Intraday scan evaluated all NSE equities (slow)",
+      "Nifty 50 two-phase scan: parallel Step 1 screen then full framework on candidates only"),
+    ("AI Suggested action unstructured",
+      "Structured WAIT/BUY/SELL with ActionDetail; footprint conflict and Step 1 blocking reasons")
   ];
 
   public static readonly IReadOnlyList<string> KnownLimitations =
@@ -385,7 +413,7 @@ public static class FrameworkPlaybook
     new("step4s", "Step 4 — Footprint confirmation (5m)", null, Step4ShortRules, "Short — all required"),
     new("step5", "Step 5 — Exit & targets", "How to manage the trade after entry.", Step5Rules),
     new("ready", "Framework READY — master checklist", "Every item must be true for a live directional signal.", ReadyRules),
-    new("scan", "Intraday stock scan", "Full NSE scan tab rules.", ScanRules),
+    new("scan", "Intraday stock scan", "Watchlist → Intraday scan tab. Nifty 50 two-phase for speed.", ScanRules),
     new("not", "Do NOT", "Avoid these mistakes.", DoNotRules)
   ];
 

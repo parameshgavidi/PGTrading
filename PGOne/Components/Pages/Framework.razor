@@ -138,12 +138,13 @@
                 <li><span class="tag wait">G0</span> 5m RSI(14) &lt; 30 → <strong>WAIT</strong></li>
                 <li><span class="tag range">G1</span> ADX &lt; 18 inside VA → <strong>ROTATION</strong> (Keltner, no breakouts)</li>
                 <li><span class="tag range">G2</span> RSI(28) 45–55 → <strong>RANGE-BOUND</strong> (Keltner)</li>
-                <li><span class="tag step">1</span> 1H ST (10,3) + VWAP → market bias</li>
+                <li><span class="tag step">1</span> 1H ST (10,3) + session VWAP → market bias (both must align)</li>
                 <li><span class="tag step">ctx</span> POC/VA labels + Camarilla PP/H2–L2 + CPR narrow</li>
                 <li><span class="tag step">2</span> 15M ST + ADX(1H) + RSI(28) + POC → trade direction</li>
                 <li><span class="tag step">3</span> 5M ST (7,2.5) → entry trigger</li>
-                <li><span class="tag step">4</span> Footprint on 5m → delta + imbalances + no absorption</li>
+                <li><span class="tag step">4</span> Footprint on 5m → delta + imbalances + no absorption (fail if flow opposes)</li>
                 <li><span class="tag step">5</span> Exit: prev POC/VAH/VAL, Camarilla ladder, or 5M ST reversal</li>
+                <li><span class="tag wait">AI</span> Dashboard AI Analysis — checklist + WAIT until FrameworkReady (Setup Score → Entry Probability when ready)</li>
             </ol>
         </div>
 
@@ -229,7 +230,7 @@
         ("SuperTrend", "1 Hour", "(10, 3)", "Market trend"),
         ("SuperTrend", "15 Minutes", "(10, 3)", "Trade direction"),
         ("SuperTrend", "5 Minutes", "(7, 2.5)", "Entry trigger & stop"),
-        ("VWAP", "Intraday (5m session)", "Session-anchored", "Bullish if above, bearish if below"),
+        ("VWAP", "Intraday (5m session)", "Session-anchored on latest 5m bar", "Bullish if price ≥ VWAP with bullish 1H ST"),
         ("ADX", "1 Hour", "Length 14", "Choppy / moderate / strong"),
         ("RSI", "1 Hour", "Length 28", "Momentum; 45–55 = range"),
         ("RSI", "5 Minutes", "Length 14", "Reversal guard only (< 30)"),
@@ -250,7 +251,8 @@
         "RSI (28) on 1H",
         "POC / VAH / VAL labels (above POC+VAH / below POC+VAL)",
         "Camarilla PP + H2–L4 / L2–L4 (context)",
-        "Footprint — delta, stacked imbalances, no opposing absorption",
+        "Footprint — delta, stacked imbalances, no opposing absorption (WAIT if flow opposes bias)",
+        "Watchlist intraday scan — Nifty 50 two-phase (screen → full framework)",
         "Previous-day POC / VAH / VAL targets"
     ];
 }
