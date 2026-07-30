@@ -71,7 +71,7 @@
 
             case WatchlistTab.IntradayScan:
                 <p class="text-secondary">
-                    Scans all NSE equities for intraday framework match. Quantity is sized to ~₹5,000 per stock.
+                    Scans <strong>Nifty 500</strong> stocks for intraday framework match. MIS quantity is sized to ~₹5,000 per stock.
                 </p>
 
                 <div class="framework-panel">
@@ -89,7 +89,7 @@
 
                 <div class="button-row">
                     <button class="btn btn-primary" @onclick="ScanIntradayAsync" disabled="@ViewModel.IsIntradayScanning">
-                        @(ViewModel.IsIntradayScanning ? "Scanning..." : "Scan all NSE stocks")
+                        @(ViewModel.IsIntradayScanning ? "Scanning..." : "Scan Nifty 500")
                     </button>
                 </div>
 
@@ -108,7 +108,7 @@
                     ViewModel.IsIntradayScanning,
                     ScanNotional.Intraday,
                     "intraday framework",
-                    "MIS LIMIT",
+                    "Place MIS (~₹5k)",
                     PlaceMisOrderAsync);
                 break;
 

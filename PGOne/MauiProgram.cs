@@ -59,6 +59,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IStrategyService, StrategyService>();
         builder.Services.AddSingleton<ISentimentService, SentimentService>();
         builder.Services.AddSingleton<INseSymbolResolver, NseSymbolResolver>();
+        builder.Services.AddSingleton<INiftyIndexService, NiftyIndexService>();
         builder.Services.AddSingleton<IIntradayCprService, IntradayCprService>();
 
         builder.Services.AddSingleton<DashboardViewModel>();

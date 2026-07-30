@@ -19,28 +19,39 @@ public class IntradayScannerService : IIntradayScannerService
 
     private readonly IZerodhaService _zerodha;
     private readonly ISignalService _signal;
+    private readonly INiftyIndexService _niftyIndex;
 
     public event Action? Updated;
     public IReadOnlyList<StockScanRow> Items { get; private set; } = Array.Empty<StockScanRow>();
     public bool IsScanning { get; private set; }
     public string? ProgressMessage { get; private set; }
 
-    public IntradayScannerService(IZerodhaService zerodha, ISignalService signal)
+    public IntradayScannerService(IZerodhaService zerodha, ISignalService signal, INiftyIndexService niftyIndex)
     {
         _zerodha = zerodha;
         _signal = signal;
+        _niftyIndex = niftyIndex;
     }
 
     public async Task ScanAsync()
     {
         IsScanning = true;
-        ProgressMessage = "Loading NSE equity symbols...";
+        ProgressMessage = "Loading Nifty 500 symbols...";
         Items = Array.Empty<StockScanRow>();
         Notify();
 
         try
         {
-            var universe = (await _zerodha.GetNseEquitySymbolsAsync()).ToList();
+            var universe = (await _niftyIndex.GetNifty500SymbolsAsync()).ToList();
+            if (universe.Count == 0)
+            {
+                ProgressMessage = "Could not load Nifty 500 symbol list.";
+                return;
+            }
+
+            ProgressMessage = $"Fetching quotes for {universe.Count} Nifty 500 stocks...";
+            Notify();
+
             var quotes = await FetchQuotesBatchedAsync(universe);
             var satisfied = new List<StockScanRow>();
             var scanned = 0;
@@ -94,8 +105,8 @@ public class IntradayScannerService : IIntradayScannerService
                 .ToList();
 
             ProgressMessage = Items.Count > 0
-                ? $"Found {Items.Count} NSE stocks matching intraday framework."
-                : "No NSE stocks matched the intraday framework right now.";
+                ? $"Found {Items.Count} Nifty 500 stocks matching intraday framework."
+                : "No Nifty 500 stocks matched the intraday framework right now.";
         }
         catch (Exception ex)
         {
