@@ -198,7 +198,7 @@ public static class SentimentTextHelper
             return normalized;
 
         var sentenceEnd = normalized.IndexOf('.', Math.Min(60, normalized.Length / 3));
-        if (sentenceEnd is >= 40 and < maxChars)
+        if (sentenceEnd >= 40 && sentenceEnd < maxChars)
             return normalized[..(sentenceEnd + 1)].Trim();
 
         return normalized[..maxChars].Trim() + "...";
