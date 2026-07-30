@@ -15,8 +15,8 @@ public interface IIntradayScannerService
 public class IntradayScannerService : IIntradayScannerService
 {
     private const int QuoteBatchSize = 400;
-    private const int Phase1Parallel = 10;
-    private const int Phase2Parallel = 6;
+    private const int Phase1Parallel = 15;
+    private const int Phase2Parallel = 10;
 
     private readonly IZerodhaService _zerodha;
     private readonly ISignalService _signal;
@@ -37,16 +37,16 @@ public class IntradayScannerService : IIntradayScannerService
     public async Task ScanAsync()
     {
         IsScanning = true;
-        ProgressMessage = "Loading Nifty 500 symbols...";
+        ProgressMessage = "Loading Nifty 50 symbols...";
         Items = Array.Empty<StockScanRow>();
         Notify();
 
         try
         {
-            var universe = (await _niftyIndex.GetNifty500SymbolsAsync()).ToList();
+            var universe = (await _niftyIndex.GetNifty50SymbolsAsync()).ToList();
             if (universe.Count == 0)
             {
-                ProgressMessage = "Could not load Nifty 500 symbol list.";
+                ProgressMessage = "Could not load Nifty 50 symbol list.";
                 return;
             }
 
@@ -55,7 +55,7 @@ public class IntradayScannerService : IIntradayScannerService
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            ProgressMessage = $"Fetching live quotes for {tradable.Count} Nifty 500 stocks...";
+            ProgressMessage = $"Fetching live quotes for {tradable.Count} Nifty 50 stocks...";
             Notify();
 
             var quotes = await FetchQuotesBatchedAsync(tradable);
@@ -86,7 +86,7 @@ public class IntradayScannerService : IIntradayScannerService
                 .ToList();
 
             ProgressMessage = Items.Count > 0
-                ? $"Found {Items.Count} Nifty 500 stocks matching full intraday framework (screened {withPrice.Count} → {candidates.Count} → {Items.Count})."
+                ? $"Found {Items.Count} Nifty 50 stocks matching full intraday framework (screened {withPrice.Count} → {candidates.Count} → {Items.Count})."
                 : $"No matches after full framework ({candidates.Count} passed Step 1).";
         }
         catch (Exception ex)

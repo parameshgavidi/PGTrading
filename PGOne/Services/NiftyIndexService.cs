@@ -5,16 +5,20 @@ namespace PGOne.Services;
 
 public interface INiftyIndexService
 {
+    Task<IReadOnlyList<string>> GetNifty50SymbolsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<string>> GetNifty500SymbolsAsync(CancellationToken cancellationToken = default);
 }
 
 public class NiftyIndexService : INiftyIndexService
 {
+    private const string NseNifty50Url = "https://nsearchives.nseindia.com/content/indices/ind_nifty50list.csv";
     private const string NseNifty500Url = "https://nsearchives.nseindia.com/content/indices/ind_nifty500list.csv";
-    private static readonly string BundledCsvPath = Path.Combine(AppContext.BaseDirectory, "Data", "nifty500.csv");
+    private static readonly string BundledNifty50Path = Path.Combine(AppContext.BaseDirectory, "Data", "nifty50.csv");
+    private static readonly string BundledNifty500Path = Path.Combine(AppContext.BaseDirectory, "Data", "nifty500.csv");
 
     private readonly HttpClient _http;
-    private IReadOnlyList<string>? _cached;
+    private IReadOnlyList<string>? _cached50;
+    private IReadOnlyList<string>? _cached500;
 
     public NiftyIndexService()
     {
@@ -23,33 +27,56 @@ public class NiftyIndexService : INiftyIndexService
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
     }
 
-    public async Task<IReadOnlyList<string>> GetNifty500SymbolsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<string>> GetNifty50SymbolsAsync(CancellationToken cancellationToken = default)
     {
-        if (_cached is { Count: > 0 })
-            return _cached;
+        if (_cached50 is { Count: > 0 })
+            return _cached50;
 
-        var online = await TryFetchFromNseAsync(cancellationToken);
-        if (online.Count > 0)
+        var bundled = LoadFromCsvFile(BundledNifty50Path);
+        if (bundled.Count >= 45)
         {
-            _cached = online;
-            return _cached;
+            _cached50 = bundled;
+            return _cached50;
         }
 
-        var bundled = LoadFromCsvFile(BundledCsvPath);
-        _cached = bundled.Count > 0 ? bundled : NiftyConstituents.ScanUniverse.ToList();
-        return _cached;
+        var online = await TryFetchFromNseAsync(NseNifty50Url, cancellationToken);
+        if (online.Count >= 45)
+        {
+            _cached50 = online;
+            return _cached50;
+        }
+
+        _cached50 = NiftyConstituents.TopWeightage.ToList();
+        return _cached50;
     }
 
-    private async Task<List<string>> TryFetchFromNseAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<string>> GetNifty500SymbolsAsync(CancellationToken cancellationToken = default)
+    {
+        if (_cached500 is { Count: > 0 })
+            return _cached500;
+
+        var online = await TryFetchFromNseAsync(NseNifty500Url, cancellationToken);
+        if (online.Count > 0)
+        {
+            _cached500 = online;
+            return _cached500;
+        }
+
+        var bundled = LoadFromCsvFile(BundledNifty500Path);
+        _cached500 = bundled.Count > 0 ? bundled : NiftyConstituents.ScanUniverse.ToList();
+        return _cached500;
+    }
+
+    private async Task<List<string>> TryFetchFromNseAsync(string url, CancellationToken cancellationToken)
     {
         try
         {
-            using var response = await _http.GetAsync(NseNifty500Url, cancellationToken);
+            using var response = await _http.GetAsync(url, cancellationToken);
             if (!response.IsSuccessStatusCode)
                 return [];
 
             var csv = await response.Content.ReadAsStringAsync(cancellationToken);
-            return ParseNifty500Csv(csv);
+            return ParseIndexCsv(csv);
         }
         catch
         {
@@ -64,7 +91,7 @@ public class NiftyIndexService : INiftyIndexService
             if (!File.Exists(path))
                 return [];
 
-            return ParseNifty500Csv(File.ReadAllText(path));
+            return ParseIndexCsv(File.ReadAllText(path));
         }
         catch
         {
@@ -72,7 +99,7 @@ public class NiftyIndexService : INiftyIndexService
         }
     }
 
-    internal static List<string> ParseNifty500Csv(string csv)
+    public static List<string> ParseIndexCsv(string csv)
     {
         var symbols = new List<string>();
         using var reader = new StringReader(csv);
