@@ -164,7 +164,7 @@ window.pgOneChart = (function () {
 
     function drawHLineSegment(ctx, x0, x1, y, color, dash) {
         ctx.strokeStyle = color;
-        ctx.lineWidth = 1.25;
+        ctx.lineWidth = 1.5;
         ctx.setLineDash(dash || []);
         ctx.beginPath();
         ctx.moveTo(x0, y);
@@ -173,41 +173,50 @@ window.pgOneChart = (function () {
         ctx.setLineDash([]);
     }
 
-    function drawIntradaCprLevels(ctx, view, segments, padding, chartH, slot, toY, toX, labelsOnly) {
+    function segmentKey(seg) {
+        if (!seg) return '';
+        return String(seg.start) + '|' + String(seg.end) + '|' + String(seg.pivot);
+    }
+
+    function drawIntradaCprLevels(ctx, view, segments, padding, chartH, slot, toY, toX) {
         if (!segments || segments.length === 0 || !view.length) return;
 
-        function segmentKey(seg) {
-            if (!seg) return '';
-            return String(seg.start) + '|' + String(seg.end) + '|' + String(seg.pivot);
-        }
+        segments.forEach(function (seg) {
+            if (!segmentHasPivot(seg)) return;
 
-        var i = 0;
-        while (i < view.length) {
-            var seg = findCprSegment(segments, parseTime(view[i].time));
-            if (!segmentHasPivot(seg)) {
-                i++;
-                continue;
+            var start = parseTime(seg.start);
+            var end = parseTime(seg.end);
+            var iStart = -1, iEnd = -1;
+
+            view.forEach(function (candle, i) {
+                var t = parseTime(candle.time);
+                if (!t) return;
+                var matched = findCprSegment(segments, t);
+                if (matched && segmentKey(matched) === segmentKey(seg)) {
+                    if (iStart < 0) iStart = i;
+                    iEnd = i;
+                }
+            });
+
+            if (iStart < 0 && start && end) {
+                view.forEach(function (candle, i) {
+                    var t = parseTime(candle.time);
+                    if (!t) return;
+                    if (t >= start && t < end) {
+                        if (iStart < 0) iStart = i;
+                        iEnd = i;
+                    }
+                });
             }
 
-            var key = segmentKey(seg);
-            var iStart = i;
-            i++;
-            while (i < view.length) {
-                var seg2 = findCprSegment(segments, parseTime(view[i].time));
-                if (segmentKey(seg2) !== key) break;
-                i++;
-            }
-            var iEnd = i - 1;
+            if (iStart < 0 || iEnd < 0) return;
 
             var x0 = toX(iStart) - slot / 2;
             var x1 = toX(iEnd) + slot / 2;
 
-            if (labelsOnly) {
-                drawIntradaCprSegmentLabels(ctx, seg, x0, toY);
-            } else {
-                drawIntradaCprSegmentBand(ctx, seg, x0, x1, padding, chartH, toY);
-            }
-        }
+            drawIntradaCprSegmentBand(ctx, seg, x0, x1, padding, chartH, toY);
+            drawIntradaCprSegmentLabels(ctx, seg, x0, toY);
+        });
     }
 
     function drawLevelLabel(ctx, x, y, text, color) {
@@ -472,11 +481,7 @@ window.pgOneChart = (function () {
             drawLine('ema20', 'rgba(255, 152, 0, 0.9)', [6, 3]);
         }
 
-        if (st.showIntradaCpr && st.intradayCprSegments && st.intradayCprSegments.length > 0) {
-            drawIntradaCprLevels(ctx, view, st.intradayCprSegments, padding, chartH, slot, toY, toX, false);
-        }
-
-        // POC / VA / Camarilla horizontal levels
+        // POC / VA / Day CPR / Camarilla horizontal levels (labels on chart)
         drawLevels(ctx, filterLevels(st), padding, width, toY);
 
         // Candles
@@ -501,8 +506,9 @@ window.pgOneChart = (function () {
             ctx.fillRect(toX(i) - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
         });
 
+        // 1m CPR bands: TC / CPR / BC lines + labels drawn on chart per 15m window
         if (st.showIntradaCpr && st.intradayCprSegments && st.intradayCprSegments.length > 0) {
-            drawIntradaCprLevels(ctx, view, st.intradayCprSegments, padding, chartH, slot, toY, toX, true);
+            drawIntradaCprLevels(ctx, view, st.intradayCprSegments, padding, chartH, slot, toY, toX);
         }
 
         // SuperTrend overlay (10,3) — green above, red below

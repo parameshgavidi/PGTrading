@@ -19,11 +19,6 @@
                   CssClass="@CssClass"
                   Width="@Width"
                   Height="@Height" />
-@if (ViewModel.ShowIntradayCprOverlay && ViewModel.SupportsIntradayCprOverlay)
-{
-    <CprSegmentsStrip Segments="ViewModel.CprSegments"
-                      ActiveSegment="ViewModel.ActiveCprSegment" />
-}
 <div class="chart-toolbar">
     <div class="timeframe-buttons">
         @foreach (var tf in Timeframes)
@@ -77,8 +72,7 @@
     }
     @if (ViewModel.ShowIntradayCprOverlay && ViewModel.SupportsIntradayCprOverlay)
     {
-        <span class="legend-item"><span class="legend-color pivot"></span> 1m CPR bands (15m pivot)</span>
-        <span class="legend-item"><span class="legend-color cpr-tc"></span> TC / CPR / BC per 15m</span>
+        <span class="legend-item"><span class="legend-color pivot"></span> 1m CPR on chart (TC / CPR / BC per 15m)</span>
     }
     @if (ViewModel.ShowCamarillaOverlay)
     {

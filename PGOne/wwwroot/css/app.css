@@ -1357,49 +1357,6 @@ html, body {
     font-weight: 600;
 }
 
-.cpr-segments-panel {
-    margin: 8px 0 4px;
-}
-
-.cpr-segments-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 8px;
-    max-height: 120px;
-    overflow-y: auto;
-}
-
-.cpr-segment-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 10px;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    font-size: 12px;
-    color: var(--text-secondary);
-}
-
-.cpr-segment-row.active {
-    border-color: rgba(255, 193, 7, 0.45);
-    background: rgba(255, 193, 7, 0.08);
-    color: var(--text-primary);
-}
-
-.cpr-segment-time {
-    font-weight: 600;
-    color: var(--gold);
-    min-width: 72px;
-}
-
-.cpr-segment-active-label {
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
 .startup-error-panel {
     padding: 24px;
     color: #fff;

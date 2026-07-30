@@ -43,11 +43,14 @@
     private bool _lastShowEma20;
     private bool _lastShowVwapOverlay;
     private int _lastCprSegmentCount;
+    private string _lastCprSegmentKey = string.Empty;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (Candles.Count == 0)
             return;
+
+        var segmentKey = BuildCprSegmentKey();
 
         if (ChartVersion == _lastRenderedVersion
             && OverlayVersion == _lastOverlayVersion
@@ -60,7 +63,8 @@
             && ShowSuperTrendOverlay == _lastShowSuperTrend
             && ShowEma20Overlay == _lastShowEma20
             && ShowVwapOverlay == _lastShowVwapOverlay
-            && CprSegments.Count == _lastCprSegmentCount)
+            && CprSegments.Count == _lastCprSegmentCount
+            && segmentKey == _lastCprSegmentKey)
             return;
 
         _lastRenderedVersion = ChartVersion;
@@ -75,8 +79,12 @@
         _lastShowEma20 = ShowEma20Overlay;
         _lastShowVwapOverlay = ShowVwapOverlay;
         _lastCprSegmentCount = CprSegments.Count;
+        _lastCprSegmentKey = segmentKey;
         await RenderAsync();
     }
+
+    private string BuildCprSegmentKey() =>
+        string.Join('|', CprSegments.Select(s => $"{s.Start:O}:{s.Pivot}:{s.Tc}:{s.Bc}"));
 
     private async Task ZoomIn() => await InvokeSafe("pgOneChart.zoom", CanvasId, 1.3);
     private async Task ZoomOut() => await InvokeSafe("pgOneChart.zoom", CanvasId, 1 / 1.3);
