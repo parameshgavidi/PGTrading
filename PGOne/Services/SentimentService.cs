@@ -31,22 +31,13 @@ public class SentimentService : ISentimentService
     private const string HuggingFaceApiUrl = $"https://router.huggingface.co/hf-inference/models/{FinBertModel}";
     private const int EntriesPerFeed = 10;
     private const int HeadlinesPerStock = 5;
-    private const int MaxArticleChars = 900;
     private const int MaxRetries = 3;
 
-    private static readonly string[] PositiveTerms =
-    [
-        "surge", "rally", "gain", "gains", "profit", "growth", "upgrade", "beat", "strong", "bullish",
-        "rise", "rises", "rose", "rising", "jump", "outperform", "record high", "boost", "positive", "expand",
-        "momentum", "recovery", "upside", "buy", "accumulate"
-    ];
+    /// <summary>Minimum average positive/negative score to call a stock directional.</summary>
+    private const double MinDirectionalScore = 0.40;
 
-    private static readonly string[] NegativeTerms =
-    [
-        "crash", "fall", "falls", "fell", "drop", "drops", "loss", "decline", "downgrade", "miss", "weak",
-        "bearish", "plunge", "cut", "warning", "slump", "tumble", "negative", "fraud", "concern", "selloff",
-        "underperform", "downside", "sell", "reduce"
-    ];
+    /// <summary>Directional score must beat the opposite side by this margin.</summary>
+    private const double MinDirectionalMargin = 0.06;
 
     private readonly ISettingsService _settings;
     private readonly INseSymbolResolver _nseSymbols;
@@ -190,8 +181,8 @@ public class SentimentService : ISentimentService
             var entries = await FetchFeedEntriesAsync(feedUrl, cancellationToken);
             foreach (var entry in entries.Take(EntriesPerFeed))
             {
-                var articleText = await DownloadArticleTextAsync(entry.Link, cancellationToken);
-                var combinedText = $"{entry.Title}\n{articleText}";
+                var articleSnippet = await DownloadArticleSnippetAsync(entry.Link, cancellationToken);
+                var combinedText = $"{entry.Title}\n{articleSnippet}";
                 var symbols = _nseSymbols.ResolveSymbolsInText(combinedText).ToList();
                 if (symbols.Count == 0)
                     continue;
@@ -202,7 +193,7 @@ public class SentimentService : ISentimentService
                     {
                         Symbol = symbol,
                         Title = entry.Title,
-                        Text = string.IsNullOrWhiteSpace(articleText) ? entry.Title : articleText,
+                        BodySnippet = articleSnippet,
                         Source = sourceName,
                         Link = entry.Link,
                         FeedUrl = feedUrl
@@ -223,12 +214,12 @@ public class SentimentService : ISentimentService
 
         foreach (var entry in entries.Take(HeadlinesPerStock))
         {
-            var articleText = await DownloadArticleTextAsync(entry.Link, cancellationToken);
+            var articleSnippet = await DownloadArticleSnippetAsync(entry.Link, cancellationToken);
             mentions.Add(new StockNewsMention
             {
                 Symbol = symbol,
                 Title = entry.Title,
-                Text = string.IsNullOrWhiteSpace(articleText) ? entry.Title : articleText,
+                BodySnippet = articleSnippet,
                 Source = "Google News",
                 Link = entry.Link,
                 FeedUrl = googleFeed
@@ -255,7 +246,7 @@ public class SentimentService : ISentimentService
         {
             Symbol = symbol,
             Title = h,
-            Text = h,
+            BodySnippet = string.Empty,
             Source = "Google News"
         }).ToList();
 
@@ -274,20 +265,33 @@ public class SentimentService : ISentimentService
             Sources = mentions.Select(m => m.Source).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
         };
 
-        var uniqueTexts = mentions
-            .Select(m => TruncateForAnalysis(m.Text))
-            .Where(text => !string.IsNullOrWhiteSpace(text))
-            .Distinct()
-            .ToList();
+        var analysisTexts = new List<string>();
+        var textToMentions = new Dictionary<string, List<StockNewsMention>>(StringComparer.Ordinal);
 
-        if (uniqueTexts.Count == 0)
+        foreach (var mention in mentions)
+        {
+            var text = SentimentTextHelper.PrepareAnalysisText(mention.Title, mention.BodySnippet);
+            if (string.IsNullOrWhiteSpace(text))
+                continue;
+
+            if (!textToMentions.TryGetValue(text, out var list))
+            {
+                list = new List<StockNewsMention>();
+                textToMentions[text] = list;
+                analysisTexts.Add(text);
+            }
+
+            list.Add(mention);
+        }
+
+        if (analysisTexts.Count == 0)
         {
             result.Prediction = SentimentPrediction.Neutral;
             result.Error = "No readable article text found.";
             return result;
         }
 
-        var analysis = await AnalyzeTextsAsync(uniqueTexts, cancellationToken);
+        var analysis = await AnalyzeTextsAsync(analysisTexts, cancellationToken);
         if (analysis.UsedKeywordFallback)
         {
             result.Warning = string.IsNullOrWhiteSpace(_settings.Settings.HuggingFaceApiToken)
@@ -295,40 +299,45 @@ public class SentimentService : ISentimentService
                 : "Keyword fallback (check Hugging Face token permissions in Settings).";
         }
 
-        foreach (var mention in mentions)
+        for (var i = 0; i < analysisTexts.Count; i++)
         {
-            var text = TruncateForAnalysis(mention.Text);
-            if (string.IsNullOrWhiteSpace(text))
+            var text = analysisTexts[i];
+            var scores = analysis.Scores[i];
+            if (scores is null)
                 continue;
 
-            var predictionIndex = uniqueTexts.IndexOf(text);
-            if (predictionIndex < 0 || predictionIndex >= analysis.Predictions.Count || analysis.Predictions[predictionIndex] is null)
-                continue;
+            var (label, score) = scores.Value.TopLabel();
+            var relatedMentions = textToMentions[text];
 
-            var prediction = analysis.Predictions[predictionIndex]!.Value;
-            var reason = BuildReason(prediction.Label, mention.Title, mention.Source, text, analysis.UsedKeywordFallback);
-
-            result.Headlines.Add(new NewsSentimentItem
+            foreach (var mention in relatedMentions)
             {
-                Headline = mention.Title,
-                Source = mention.Source,
-                Label = prediction.Label,
-                Score = prediction.Score,
-                Reason = reason,
-                Link = mention.Link
-            });
+                var reason = BuildReason(label, mention.Title, mention.Source, mention.BodySnippet, analysis.UsedKeywordFallback);
 
-            switch (prediction.Label.ToLowerInvariant())
-            {
-                case "positive":
-                    result.PositiveCount++;
-                    break;
-                case "negative":
-                    result.NegativeCount++;
-                    break;
-                default:
-                    result.NeutralCount++;
-                    break;
+                result.Headlines.Add(new NewsSentimentItem
+                {
+                    Headline = SentimentTextHelper.CleanBoilerplate(mention.Title),
+                    Source = mention.Source,
+                    Label = label,
+                    Score = score,
+                    PositiveScore = scores.Value.Positive,
+                    NegativeScore = scores.Value.Negative,
+                    NeutralScore = scores.Value.Neutral,
+                    Reason = reason,
+                    Link = mention.Link
+                });
+
+                switch (label.ToLowerInvariant())
+                {
+                    case "positive":
+                        result.PositiveCount++;
+                        break;
+                    case "negative":
+                        result.NegativeCount++;
+                        break;
+                    default:
+                        result.NeutralCount++;
+                        break;
+                }
             }
         }
 
@@ -345,20 +354,8 @@ public class SentimentService : ISentimentService
 
     private static void ApplyAggregatePrediction(StockSentimentResult result)
     {
-        var positiveScore = result.Headlines
-            .Where(h => h.Label.Equals("positive", StringComparison.OrdinalIgnoreCase))
-            .Sum(h => h.Score);
-
-        var negativeScore = result.Headlines
-            .Where(h => h.Label.Equals("negative", StringComparison.OrdinalIgnoreCase))
-            .Sum(h => h.Score);
-
-        var neutralScore = result.Headlines
-            .Where(h => h.Label.Equals("neutral", StringComparison.OrdinalIgnoreCase))
-            .Sum(h => h.Score);
-
-        var total = positiveScore + negativeScore + neutralScore;
-        if (total <= 0)
+        var count = result.Headlines.Count;
+        if (count == 0)
         {
             result.Prediction = SentimentPrediction.Neutral;
             result.Confidence = 0;
@@ -366,42 +363,72 @@ public class SentimentService : ISentimentService
             return;
         }
 
-        NewsSentimentItem? bestItem;
-        if (positiveScore >= negativeScore && positiveScore >= neutralScore)
+        var avgPositive = result.Headlines.Average(h => h.PositiveScore);
+        var avgNegative = result.Headlines.Average(h => h.NegativeScore);
+        var avgNeutral = result.Headlines.Average(h => h.NeutralScore);
+
+        // Headline-count tie-breaker when scores are close.
+        var positiveVotes = result.PositiveCount;
+        var negativeVotes = result.NegativeCount;
+
+        SentimentPrediction prediction;
+        double confidence;
+        string labelFilter;
+
+        if (avgPositive >= MinDirectionalScore
+            && avgPositive >= avgNegative + MinDirectionalMargin
+            && positiveVotes >= negativeVotes)
         {
-            result.Prediction = SentimentPrediction.Bullish;
-            result.Confidence = positiveScore / total;
-            bestItem = result.Headlines
-                .Where(h => h.Label.Equals("positive", StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(h => h.Score)
-                .FirstOrDefault();
+            prediction = SentimentPrediction.Bullish;
+            confidence = avgPositive;
+            labelFilter = "positive";
         }
-        else if (negativeScore >= positiveScore && negativeScore >= neutralScore)
+        else if (avgNegative >= MinDirectionalScore
+                 && avgNegative >= avgPositive + MinDirectionalMargin
+                 && negativeVotes >= positiveVotes)
         {
-            result.Prediction = SentimentPrediction.Bearish;
-            result.Confidence = negativeScore / total;
-            bestItem = result.Headlines
-                .Where(h => h.Label.Equals("negative", StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(h => h.Score)
-                .FirstOrDefault();
+            prediction = SentimentPrediction.Bearish;
+            confidence = avgNegative;
+            labelFilter = "negative";
+        }
+        else if (positiveVotes >= 2
+                 && negativeVotes == 0
+                 && avgPositive > avgNegative)
+        {
+            prediction = SentimentPrediction.Bullish;
+            confidence = Math.Max(avgPositive, 0.42);
+            labelFilter = "positive";
+        }
+        else if (negativeVotes >= 2
+                 && positiveVotes == 0
+                 && avgNegative > avgPositive)
+        {
+            prediction = SentimentPrediction.Bearish;
+            confidence = Math.Max(avgNegative, 0.42);
+            labelFilter = "negative";
         }
         else
         {
-            result.Prediction = SentimentPrediction.Neutral;
-            result.Confidence = neutralScore / total;
-            bestItem = result.Headlines
-                .Where(h => h.Label.Equals("neutral", StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(h => h.Score)
-                .FirstOrDefault();
+            prediction = SentimentPrediction.Neutral;
+            confidence = avgNeutral;
+            labelFilter = "neutral";
         }
 
-        result.Reason = bestItem?.Reason
-            ?? $"News from {string.Join(", ", result.Sources)} indicates {result.Prediction.ToString().ToLowerInvariant()} tone.";
+        result.Prediction = prediction;
+        result.Confidence = Math.Clamp(confidence, 0, 1);
+
+        var bestItem = result.Headlines
+            .Where(h => h.Label.Equals(labelFilter, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(h => h.Score)
+            .FirstOrDefault()
+            ?? result.Headlines.OrderByDescending(h => h.Score).First();
+
+        result.Reason = bestItem.Reason;
     }
 
-    private static string BuildReason(string label, string title, string source, string articleText, bool keywordFallback)
+    private static string BuildReason(string label, string title, string source, string? bodySnippet, bool keywordFallback)
     {
-        var snippet = ExtractReasonSnippet(articleText, title);
+        var snippet = SentimentTextHelper.ExtractReasonSnippet(bodySnippet, title);
         var sentiment = label.ToLowerInvariant() switch
         {
             "positive" => "Bullish",
@@ -410,25 +437,8 @@ public class SentimentService : ISentimentService
         };
 
         var engine = keywordFallback ? "Keyword" : "FinBERT";
-        return $"[{source}] {sentiment} tone ({engine}) — {snippet}";
+        return $"[{source}] {sentiment} ({engine}) — {snippet}";
     }
-
-    private static string ExtractReasonSnippet(string articleText, string fallbackTitle)
-    {
-        var source = string.IsNullOrWhiteSpace(articleText) ? fallbackTitle : articleText;
-        var normalized = Regex.Replace(source, @"\s+", " ").Trim();
-        if (normalized.Length <= 140)
-            return normalized;
-
-        var sentenceEnd = normalized.IndexOf('.', 80);
-        if (sentenceEnd is > 80 and < 180)
-            return normalized[..(sentenceEnd + 1)].Trim();
-
-        return normalized[..140].Trim() + "...";
-    }
-
-    private static string TruncateForAnalysis(string text) =>
-        string.IsNullOrWhiteSpace(text) ? string.Empty : text.Trim()[..Math.Min(text.Trim().Length, MaxArticleChars)];
 
     private async Task<List<FeedEntry>> FetchFeedEntriesAsync(string feedUrl, CancellationToken cancellationToken)
     {
@@ -455,7 +465,7 @@ public class SentimentService : ISentimentService
         }
     }
 
-    private async Task<string> DownloadArticleTextAsync(string? link, CancellationToken cancellationToken)
+    private async Task<string> DownloadArticleSnippetAsync(string? link, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(link))
             return string.Empty;
@@ -467,7 +477,7 @@ public class SentimentService : ISentimentService
                 return string.Empty;
 
             var html = await response.Content.ReadAsStringAsync(cancellationToken);
-            return StripHtml(html);
+            return SentimentTextHelper.ExtractArticleSnippetFromHtml(html);
         }
         catch
         {
@@ -483,20 +493,12 @@ public class SentimentService : ISentimentService
         return entries.Select(e => e.Title).Take(HeadlinesPerStock).ToList();
     }
 
-    private static string StripHtml(string html)
-    {
-        var withoutScripts = Regex.Replace(html, "<script[^>]*>.*?</script>", " ", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-        var withoutStyles = Regex.Replace(withoutScripts, "<style[^>]*>.*?</style>", " ", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-        var text = Regex.Replace(withoutStyles, "<[^>]+>", " ");
-        return Regex.Replace(text, @"\s+", " ").Trim();
-    }
-
     private async Task<TextAnalysisResult> AnalyzeTextsAsync(
         IReadOnlyList<string> texts,
         CancellationToken cancellationToken)
     {
         var finbert = await TryAnalyzeWithFinBertAsync(texts, cancellationToken);
-        if (finbert is not null && finbert.Any(p => p is not null))
+        if (finbert is not null && finbert.Any(s => s is not null))
             return new TextAnalysisResult(finbert, usedKeywordFallback: false);
 
         var token = _settings.Settings.HuggingFaceApiToken?.Trim();
@@ -507,12 +509,12 @@ public class SentimentService : ISentimentService
                 : "FinBERT returned no predictions.";
 
         return new TextAnalysisResult(
-            texts.Select(text => ((string Label, double Score)?)AnalyzeTextWithKeywords(text)).ToList(),
+            texts.Select(text => (SentimentScoreVector?)SentimentTextHelper.ScoreWithKeywords(text)).ToList(),
             usedKeywordFallback: true,
             error: error);
     }
 
-    private async Task<List<(string Label, double Score)?>?> TryAnalyzeWithFinBertAsync(
+    private async Task<List<SentimentScoreVector?>?> TryAnalyzeWithFinBertAsync(
         IReadOnlyList<string> texts,
         CancellationToken cancellationToken)
     {
@@ -551,33 +553,15 @@ public class SentimentService : ISentimentService
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
             var parsed = ParseFinBertBatchResponse(json, texts.Count);
-            return parsed.Any(p => p is not null) ? parsed : null;
+            return parsed.Any(s => s is not null) ? parsed : null;
         }
 
         return null;
     }
 
-    private static (string Label, double Score) AnalyzeTextWithKeywords(string text)
+    private static List<SentimentScoreVector?> ParseFinBertBatchResponse(string json, int expectedCount)
     {
-        var lower = text.ToLowerInvariant();
-        var positiveHits = PositiveTerms.Count(term => lower.Contains(term, StringComparison.Ordinal));
-        var negativeHits = NegativeTerms.Count(term => lower.Contains(term, StringComparison.Ordinal));
-
-        if (positiveHits == 0 && negativeHits == 0)
-            return ("neutral", 0.55);
-
-        if (positiveHits > negativeHits)
-            return ("positive", Math.Min(0.92, 0.55 + (positiveHits - negativeHits) * 0.08));
-
-        if (negativeHits > positiveHits)
-            return ("negative", Math.Min(0.92, 0.55 + (negativeHits - positiveHits) * 0.08));
-
-        return ("neutral", 0.5);
-    }
-
-    private static List<(string Label, double Score)?> ParseFinBertBatchResponse(string json, int expectedCount)
-    {
-        var results = new List<(string Label, double Score)?>(expectedCount);
+        var results = new List<SentimentScoreVector?>(expectedCount);
 
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
@@ -586,7 +570,7 @@ public class SentimentService : ISentimentService
             return results;
 
         foreach (var item in root.EnumerateArray())
-            results.Add(ParseFinBertItem(item));
+            results.Add(ParseFinBertScoreVector(item));
 
         while (results.Count < expectedCount)
             results.Add(null);
@@ -594,34 +578,76 @@ public class SentimentService : ISentimentService
         return results;
     }
 
-    private static (string Label, double Score)? ParseFinBertItem(JsonElement item)
+    private static SentimentScoreVector? ParseFinBertScoreVector(JsonElement item)
     {
-        if (item.ValueKind == JsonValueKind.Array && item.GetArrayLength() > 0)
+        if (item.ValueKind != JsonValueKind.Array || item.GetArrayLength() == 0)
         {
-            var best = item.EnumerateArray()
-                .OrderByDescending(entry => entry.TryGetProperty("score", out var score) ? score.GetDouble() : 0)
-                .First();
+            if (item.TryGetProperty("label", out var singleLabel) && item.TryGetProperty("score", out var singleScore))
+            {
+                var label = singleLabel.GetString() ?? "neutral";
+                var score = singleScore.GetDouble();
+                return LabelToVector(label, score);
+            }
 
-            if (best.TryGetProperty("label", out var label) && best.TryGetProperty("score", out var bestScore))
-                return (label.GetString() ?? "neutral", bestScore.GetDouble());
+            return null;
         }
 
-        if (item.TryGetProperty("label", out var singleLabel) && item.TryGetProperty("score", out var singleScore))
-            return (singleLabel.GetString() ?? "neutral", singleScore.GetDouble());
+        double positive = 0, negative = 0, neutral = 0;
 
-        return null;
+        foreach (var entry in item.EnumerateArray())
+        {
+            if (!entry.TryGetProperty("label", out var labelEl) || !entry.TryGetProperty("score", out var scoreEl))
+                continue;
+
+            var label = labelEl.GetString() ?? string.Empty;
+            var score = scoreEl.GetDouble();
+
+            if (label.Contains("positive", StringComparison.OrdinalIgnoreCase))
+                positive = score;
+            else if (label.Contains("negative", StringComparison.OrdinalIgnoreCase))
+                negative = score;
+            else
+                neutral = score;
+        }
+
+        if (positive + negative + neutral <= 0)
+            return null;
+
+        return new SentimentScoreVector(positive, negative, neutral).Normalize();
+    }
+
+    private static SentimentScoreVector LabelToVector(string label, double score)
+    {
+        if (label.Contains("positive", StringComparison.OrdinalIgnoreCase))
+            return new SentimentScoreVector(score, 0.15, 0.15).Normalize();
+
+        if (label.Contains("negative", StringComparison.OrdinalIgnoreCase))
+            return new SentimentScoreVector(0.15, score, 0.15).Normalize();
+
+        return new SentimentScoreVector(0.15, 0.15, score).Normalize();
     }
 
     private void SortResults()
     {
         _results.Sort((a, b) =>
         {
-            var predictionCompare = b.Confidence.CompareTo(a.Confidence);
-            return predictionCompare != 0
-                ? predictionCompare
+            var predictionRank = GetPredictionRank(b.Prediction).CompareTo(GetPredictionRank(a.Prediction));
+            if (predictionRank != 0)
+                return predictionRank;
+
+            var confidenceCompare = b.Confidence.CompareTo(a.Confidence);
+            return confidenceCompare != 0
+                ? confidenceCompare
                 : string.Compare(a.Symbol, b.Symbol, StringComparison.OrdinalIgnoreCase);
         });
     }
+
+    private static int GetPredictionRank(SentimentPrediction prediction) => prediction switch
+    {
+        SentimentPrediction.Bullish => 2,
+        SentimentPrediction.Bearish => 2,
+        _ => 1
+    };
 
     private void NotifyUpdated() => Updated?.Invoke();
 
@@ -634,16 +660,16 @@ public class SentimentService : ISentimentService
     private sealed class TextAnalysisResult
     {
         public TextAnalysisResult(
-            List<(string Label, double Score)?> predictions,
+            List<SentimentScoreVector?> scores,
             bool usedKeywordFallback,
             string? error = null)
         {
-            Predictions = predictions;
+            Scores = scores;
             UsedKeywordFallback = usedKeywordFallback;
             Error = error;
         }
 
-        public List<(string Label, double Score)?> Predictions { get; }
+        public List<SentimentScoreVector?> Scores { get; }
         public bool UsedKeywordFallback { get; }
         public string? Error { get; }
     }
@@ -658,7 +684,7 @@ public class SentimentService : ISentimentService
     {
         public string Symbol { get; init; } = string.Empty;
         public string Title { get; init; } = string.Empty;
-        public string Text { get; init; } = string.Empty;
+        public string BodySnippet { get; init; } = string.Empty;
         public string Source { get; init; } = string.Empty;
         public string? Link { get; init; }
         public string FeedUrl { get; init; } = string.Empty;

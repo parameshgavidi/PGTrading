@@ -141,11 +141,7 @@
                                                     <span class="source-tag">@headline.Source</span>
                                                     <span class="@GetLabelClass(headline.Label)">@headline.Label</span>
                                                     <span class="headline-text">@headline.Headline</span>
-                                                    <span class="headline-score">(@headline.Score:P0})</span>
-                                                    @if (!string.IsNullOrEmpty(headline.Reason))
-                                                    {
-                                                        <div class="headline-reason">@headline.Reason</div>
-                                                    }
+                                                    <span class="headline-score">(@FormatScore(headline.Score))</span>
                                                 </li>
                                             }
                                         </ul>
@@ -329,6 +325,8 @@
         "negative" => "🔴",
         _ => "🟡"
     };
+
+    private static string FormatScore(double score) => $"{Math.Round(score * 100)}%";
 
     private IEnumerable<NewsSentimentItem> GetTopHeadlines() =>
         ViewModel.Results
