@@ -430,8 +430,75 @@ html, body {
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--text-secondary);
+    margin-bottom: 0;
+    padding: 0 4px;
+}
+
+.watchlist-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     margin-bottom: 8px;
     padding: 0 4px;
+}
+
+.top10-weight-probability {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    line-height: 1.2;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.04);
+    white-space: nowrap;
+}
+
+.top10-weight-probability-label {
+    color: var(--text-secondary);
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.top10-weight-probability-value {
+    font-weight: 700;
+}
+
+.top10-weight-probability-direction {
+    font-weight: 600;
+}
+
+.top10-weight-probability.bull {
+    border-color: rgba(0, 200, 83, 0.35);
+    background: rgba(0, 200, 83, 0.08);
+}
+
+.top10-weight-probability.bull .top10-weight-probability-value,
+.top10-weight-probability.bull .top10-weight-probability-direction {
+    color: var(--buy);
+}
+
+.top10-weight-probability.bear {
+    border-color: rgba(255, 82, 82, 0.35);
+    background: rgba(255, 82, 82, 0.08);
+}
+
+.top10-weight-probability.bear .top10-weight-probability-value,
+.top10-weight-probability.bear .top10-weight-probability-direction {
+    color: var(--sell);
+}
+
+.top10-weight-probability.wait {
+    border-color: rgba(212, 175, 55, 0.35);
+    background: rgba(212, 175, 55, 0.08);
+}
+
+.top10-weight-probability.wait .top10-weight-probability-value,
+.top10-weight-probability.wait .top10-weight-probability-direction {
+    color: var(--gold);
 }
 
 .watchlist-items { display: flex; flex-direction: column; gap: 2px; }
