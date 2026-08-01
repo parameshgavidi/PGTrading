@@ -24,6 +24,7 @@ public interface IAutoBuyService
     Task SetMasterAutomationAsync(bool enabled);
     Task SaveAsync();
     Task RefreshDeployedAmountsAsync();
+    IReadOnlyList<AutoBuyReadiness.Check> GetReadinessChecks();
 }
 
 public class AutoBuyService : IAutoBuyService, IDisposable
@@ -68,7 +69,10 @@ public class AutoBuyService : IAutoBuyService, IDisposable
     public async Task InitializeAsync()
     {
         CsvPath = Path.Combine(FileSystem.AppDataDirectory, "auto_buy.csv");
-        LoadFromCsv();
+        var trimmed = LoadFromCsv();
+        if (trimmed)
+            await SaveAsync();
+
         await RefreshSymbolsAsync();
 
         if (_zerodha.IsConnected)
@@ -175,11 +179,20 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         if (existing is null)
             return;
 
+        if (_zerodha.IsConnected)
+            await RefreshDeployedAmountsAsync();
+
         existing.Exchange = "NSE";
         existing.Timeframe = AutoBuyCsvFile.NormalizeTimeframe(row.Timeframe);
         existing.Lots = Math.Max(1, row.Lots);
         existing.MaxDeployAmount = Math.Max(0, row.MaxDeployAmount);
-        existing.AutomationEnabled = row.AutomationEnabled;
+
+        if (existing.MaxDeployAmount > 0
+            && _zerodha.IsConnected
+            && AutoBuyDeployHelper.IsMaxDeployReached(existing.DeployedAmount, existing.MaxDeployAmount))
+            existing.AutomationEnabled = false;
+        else
+            existing.AutomationEnabled = row.AutomationEnabled;
 
         await SaveAsync();
         StatusMessage = $"Updated {existing.Symbol}.";
@@ -194,6 +207,19 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         if (row is null || row.AutomationEnabled == enabled)
             return;
 
+        if (enabled && row.MaxDeployAmount > 0)
+        {
+            if (_zerodha.IsConnected)
+                await RefreshDeployedAmountsAsync();
+
+            if (AutoBuyDeployHelper.IsMaxDeployReached(row.DeployedAmount, row.MaxDeployAmount))
+            {
+                StatusMessage = $"Cannot enable {row.Symbol} — max deploy ₹{row.MaxDeployAmount:N0} already reached.";
+                Notify();
+                return;
+            }
+        }
+
         row.AutomationEnabled = enabled;
         await SaveAsync();
         Notify();
@@ -203,6 +229,9 @@ public class AutoBuyService : IAutoBuyService, IDisposable
     {
         if (MasterAutomationEnabled == enabled)
             return;
+
+        if (enabled && !_settings.Settings.AutoTradingEnabled)
+            StatusMessage = "Warning: Settings → Auto Trading is off — flips will not place orders until enabled.";
 
         MasterAutomationEnabled = enabled;
         _monitorCts?.Cancel();
@@ -248,13 +277,33 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         Notify();
     }
 
-    private void LoadFromCsv()
+    private bool LoadFromCsv()
     {
         var (master, rows) = AutoBuyCsvFile.Load(CsvPath);
         MasterAutomationEnabled = master;
         _rows.Clear();
-        _rows.AddRange(rows);
+
+        var trimmed = rows.Count > AutoBuyDefaults.MaxSymbols;
+
+        foreach (var row in rows.Take(AutoBuyDefaults.MaxSymbols))
+        {
+            row.Exchange = "NSE";
+            row.Timeframe = AutoBuyCsvFile.NormalizeTimeframe(row.Timeframe);
+            row.Lots = Math.Max(1, row.Lots);
+            row.MaxDeployAmount = Math.Max(0, row.MaxDeployAmount);
+            _rows.Add(row);
+        }
+
+        return trimmed;
     }
+
+    public IReadOnlyList<AutoBuyReadiness.Check> GetReadinessChecks() =>
+        AutoBuyReadiness.Evaluate(
+            MasterAutomationEnabled,
+            _rows.FirstOrDefault(),
+            _zerodha.IsConnected,
+            _settings.Settings.AutoTradingEnabled,
+            MarketHours.IsOpen());
 
     private void StartMonitorLoop()
     {
@@ -399,32 +448,51 @@ public class AutoBuyService : IAutoBuyService, IDisposable
                 return;
             }
 
-            if (!_settings.Settings.AutoTradingEnabled)
-            {
-                row.Status = "Flip detected";
-                row.Detail = "ST flip BUY — enable Auto Trading in Settings to place orders";
-                row.LastTriggeredAt = DateTime.Now;
-                return;
-            }
-
             var quantity = Math.Max(1, row.Lots);
             var limitPrice = await _zerodha.GetLtpAsync(instrument);
             if (limitPrice <= 0)
                 limitPrice = candles[^2].Close;
 
-            if (limitPrice <= 0)
+            if (!AutoBuyReadiness.CanPlaceOrder(
+                    row,
+                    _zerodha.IsConnected,
+                    _settings.Settings.AutoTradingEnabled,
+                    MarketHours.IsOpen(),
+                    quantity,
+                    limitPrice))
             {
-                row.Status = "Flip detected";
-                row.Detail = "Could not fetch price for limit order";
-                return;
-            }
+                if (!MarketHours.IsOpen())
+                {
+                    row.Status = flipped ? "Flip (market closed)" : "Market closed";
+                    row.Detail = flipped
+                        ? "ST flip detected — orders only during market hours"
+                        : "Monitoring resumes when market opens";
+                }
+                else if (!_settings.Settings.AutoTradingEnabled)
+                {
+                    row.Status = "Flip detected";
+                    row.Detail = "ST flip BUY — enable Auto Trading in Settings to place orders";
+                    row.LastTriggeredAt = DateTime.Now;
+                }
+                else if (AutoBuyDeployHelper.WouldExceedMax(
+                    row.DeployedAmount, row.MaxDeployAmount, quantity * limitPrice))
+                {
+                    row.Status = "Max reached";
+                    row.Detail = $"Order ₹{quantity * limitPrice:N0} exceeds max ₹{row.MaxDeployAmount:N0}";
+                    if (barKey is not null)
+                        _orderedBarKeys.Add(barKey);
+                    await TryDisableAutomationForMaxAsync(row);
+                }
+                else if (AutoBuyDeployHelper.IsMaxDeployReached(row.DeployedAmount, row.MaxDeployAmount))
+                {
+                    await TryDisableAutomationForMaxAsync(row);
+                }
+                else if (limitPrice <= 0)
+                {
+                    row.Status = "Flip detected";
+                    row.Detail = "Could not fetch price for limit order";
+                }
 
-            var orderValue = quantity * limitPrice;
-            if (AutoBuyDeployHelper.WouldExceedMax(row.DeployedAmount, row.MaxDeployAmount, orderValue))
-            {
-                row.Status = "Max reached";
-                row.Detail = $"Order ₹{orderValue:N0} would exceed max ₹{row.MaxDeployAmount:N0} (deployed ₹{row.DeployedAmount:N0})";
-                await TryDisableAutomationForMaxAsync(row);
                 return;
             }
 
@@ -447,6 +515,13 @@ public class AutoBuyService : IAutoBuyService, IDisposable
                 row.Status = "Order placed";
                 row.Detail = $"BUY {quantity} CNC @ LIMIT {limitPrice:N2} — order {result.OrderId}";
                 StatusMessage = $"Auto Buy: order placed for {row.Symbol}";
+
+                row.DeployedAmount = AutoBuyDeployHelper.GetDeployedAmount(
+                    row.Symbol,
+                    holdings,
+                    cncPositions);
+                row.DeployedAmount += quantity * limitPrice;
+                await TryDisableAutomationForMaxAsync(row);
             }
             else
             {

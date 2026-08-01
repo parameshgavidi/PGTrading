@@ -31,6 +31,19 @@
             <div class="holdings-banner warning">Connect to Zerodha in Settings to search symbols and place orders.</div>
         }
 
+        <div class="framework-panel auto-buy-readiness">
+            <div class="framework-panel-title">Deployment readiness (all must pass for live orders)</div>
+            <ul class="framework-conditions compact">
+                @foreach (var check in ViewModel.GetReadinessChecks())
+                {
+                    <li class="@(check.Passed ? "ready" : "blocked")">
+                        <span class="readiness-mark">@(check.Passed ? "✓" : "✗")</span>
+                        <strong>@check.Label</strong> — @check.Detail
+                    </li>
+                }
+            </ul>
+        </div>
+
         <div class="auto-buy-toolbar">
             <div class="symbol-search-wrap">
                 <label for="auto-buy-search">Search NSE company</label>

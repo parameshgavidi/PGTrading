@@ -1971,3 +1971,20 @@ code {
     margin-top: 6px;
     font-size: 12px;
 }
+
+.auto-buy-readiness {
+    margin-bottom: 16px;
+}
+
+.auto-buy-readiness .ready {
+    color: var(--buy);
+}
+
+.auto-buy-readiness .blocked {
+    color: var(--sell);
+}
+
+.readiness-mark {
+    font-weight: 700;
+    margin-right: 4px;
+}

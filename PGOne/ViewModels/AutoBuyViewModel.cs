@@ -49,6 +49,9 @@ public class AutoBuyViewModel : INotifyPropertyChanged, IDisposable
     public async Task RefreshDeployedAmountsAsync() =>
         await _autoBuy.RefreshDeployedAmountsAsync();
 
+    public IReadOnlyList<AutoBuyReadiness.Check> GetReadinessChecks() =>
+        _autoBuy.GetReadinessChecks();
+
     private void OnAutoBuyUpdated()
     {
         Notify(nameof(MasterAutomationEnabled));
