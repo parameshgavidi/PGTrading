@@ -46,6 +46,9 @@ public class AutoBuyViewModel : INotifyPropertyChanged, IDisposable
     public async Task SetMasterAutomationAsync(bool enabled) =>
         await _autoBuy.SetMasterAutomationAsync(enabled);
 
+    public async Task RefreshDeployedAmountsAsync() =>
+        await _autoBuy.RefreshDeployedAmountsAsync();
+
     private void OnAutoBuyUpdated()
     {
         Notify(nameof(MasterAutomationEnabled));

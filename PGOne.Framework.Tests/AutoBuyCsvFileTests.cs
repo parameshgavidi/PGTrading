@@ -20,7 +20,8 @@ public class AutoBuyCsvFileTests
                     Exchange = "NSE",
                     Timeframe = "5m",
                     Lots = 10,
-                    AutomationEnabled = true
+                    AutomationEnabled = true,
+                    MaxDeployAmount = 25000m
                 },
                 new()
                 {
@@ -39,6 +40,7 @@ public class AutoBuyCsvFileTests
             Assert.Equal(2, loaded.Count);
             var reliance = loaded.First(r => r.Symbol == "RELIANCE");
             Assert.Equal(10, reliance.Lots);
+            Assert.Equal(25000m, reliance.MaxDeployAmount);
             var infy = loaded.First(r => r.Symbol == "INFY");
             Assert.Equal("1m", infy.Timeframe);
             Assert.False(infy.AutomationEnabled);

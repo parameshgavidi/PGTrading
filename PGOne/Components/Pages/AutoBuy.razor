@@ -84,7 +84,9 @@
                     <tr>
                         <th>Symbol</th>
                         <th>Timeframe</th>
-                        <th>Lots</th>
+                        <th>Qty</th>
+                        <th>Deployed</th>
+                        <th>Max deploy</th>
                         <th>Automation</th>
                         <th>Status</th>
                         <th>Detail</th>
@@ -95,10 +97,12 @@
                     @foreach (var row in ViewModel.Rows)
                     {
                         <tr class="auto-buy-row @(row.AutomationEnabled ? "" : "dim-row")"
-                            @onclick="() => OpenRowModal(row)">
+                            @onclick="async () => await OpenRowModal(row)">
                             <td><strong>@row.Symbol</strong></td>
                             <td>@row.Timeframe</td>
                             <td>@row.Lots</td>
+                            <td>₹@row.DeployedAmount.ToString("N0")</td>
+                            <td>@(row.MaxDeployAmount > 0 ? $"₹{row.MaxDeployAmount:N0}" : "—")</td>
                             <td @onclick:stopPropagation="true">
                                 <label class="checkbox-label inline-toggle">
                                     <input type="checkbox"
@@ -160,6 +164,22 @@
                 </div>
 
                 <div class="form-row">
+                    <label for="ab-max">Max amount to deploy (₹)</label>
+                    <input id="ab-max"
+                           type="number"
+                           min="0"
+                           step="100"
+                           class="form-input"
+                           placeholder="0 = no limit"
+                           @bind="_editRow.MaxDeployAmount"
+                           @bind:event="oninput" />
+                    <span class="text-secondary form-hint">
+                        Deployed now: ₹@_editRow.DeployedAmount.ToString("N0").
+                        When deployed ≥ max, automation turns off and saves to CSV.
+                    </span>
+                </div>
+
+                <div class="form-row">
                     <label class="checkbox-label">
                         <input type="checkbox" @bind="_editRow.AutomationEnabled" />
                         Enable automation for this row
@@ -170,7 +190,7 @@
                     <li>Long entry only — SuperTrend Sell → Buy flip</li>
                     <li>Uses last closed bar (not the live forming candle)</li>
                     <li>NSE equity CNC delivery only — no F&amp;O</li>
-                    <li>Skips if already held in CNC positions or holdings</li>
+                    <li>Max deploy cap disables automation when reached</li>
                     <li>Requires master automation + Settings → Auto Trading enabled</li>
                 </ul>
             </div>
@@ -239,15 +259,22 @@
         await ViewModel.SetRowAutomationAsync(symbol, enabled);
     }
 
-    private void OpenRowModal(AutoBuyRow row)
+    private async Task OpenRowModal(AutoBuyRow row)
     {
+        await ViewModel.RefreshDeployedAmountsAsync();
+
+        var current = ViewModel.Rows.FirstOrDefault(r =>
+            r.Symbol.Equals(row.Symbol, StringComparison.OrdinalIgnoreCase)) ?? row;
+
         _editRow = new AutoBuyRow
         {
-            Symbol = row.Symbol,
-            Exchange = row.Exchange,
-            Timeframe = row.Timeframe,
-            Lots = row.Lots,
-            AutomationEnabled = row.AutomationEnabled
+            Symbol = current.Symbol,
+            Exchange = current.Exchange,
+            Timeframe = current.Timeframe,
+            Lots = current.Lots,
+            MaxDeployAmount = current.MaxDeployAmount,
+            AutomationEnabled = current.AutomationEnabled,
+            DeployedAmount = current.DeployedAmount
         };
         _showRowModal = true;
     }
@@ -264,6 +291,7 @@
             return;
 
         _editRow.Lots = Math.Max(1, _editRow.Lots);
+        _editRow.MaxDeployAmount = Math.Max(0, _editRow.MaxDeployAmount);
         _editRow.Timeframe = AutoBuyCsvFile.NormalizeTimeframe(_editRow.Timeframe);
         await ViewModel.UpdateRowAsync(_editRow);
         CloseRowModal();
@@ -273,7 +301,7 @@
     {
         "Order placed" => "buy",
         "Flip detected" => "sell",
-        "Order failed" or "Error" => "sell",
+        "Order failed" or "Error" or "Max reached" => "sell",
         "Watching" => "",
         _ => ""
     };

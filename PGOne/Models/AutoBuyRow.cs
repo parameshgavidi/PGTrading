@@ -8,10 +8,14 @@ public sealed class AutoBuyRow
     public string Timeframe { get; set; } = "5m";
   /// <summary>Order quantity in shares (NSE equity CNC).</summary>
     public int Lots { get; set; } = 1;
+    /// <summary>Max capital to deploy in this stock (₹). 0 = no limit.</summary>
+    public decimal MaxDeployAmount { get; set; }
     public bool AutomationEnabled { get; set; }
     public string Status { get; set; } = "Idle";
     public string? Detail { get; set; }
     public DateTime? LastTriggeredAt { get; set; }
+    /// <summary>Current deployed value (holdings + CNC) — not persisted in CSV.</summary>
+    public decimal DeployedAmount { get; set; }
 }
 
 public static class AutoBuyTimeframes

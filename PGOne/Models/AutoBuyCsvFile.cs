@@ -7,7 +7,7 @@ namespace PGOne.Models;
 public static class AutoBuyCsvFile
 {
     public const string MasterPrefix = "MASTER";
-    public const string Header = "Symbol,Exchange,Timeframe,Lots,AutomationEnabled";
+    public const string Header = "Symbol,Exchange,Timeframe,Lots,AutomationEnabled,MaxDeployAmount";
 
     public static (bool MasterAutomationEnabled, List<AutoBuyRow> Rows) Load(string path)
     {
@@ -53,7 +53,8 @@ public static class AutoBuyCsvFile
                 Exchange = parts[1].Trim().ToUpperInvariant(),
                 Timeframe = NormalizeTimeframe(parts[2]),
                 Lots = ParseInt(parts[3], 1),
-                AutomationEnabled = ParseBool(parts[4])
+                AutomationEnabled = ParseBool(parts[4]),
+                MaxDeployAmount = parts.Count > 5 ? ParseDecimal(parts[5]) : 0m
             });
         }
 
@@ -73,7 +74,8 @@ public static class AutoBuyCsvFile
                 Escape(row.Exchange),
                 Escape(NormalizeTimeframe(row.Timeframe)),
                 Math.Max(1, row.Lots).ToString(CultureInfo.InvariantCulture),
-                row.AutomationEnabled.ToString().ToLowerInvariant()));
+                row.AutomationEnabled.ToString().ToLowerInvariant(),
+                row.MaxDeployAmount.ToString("0.##", CultureInfo.InvariantCulture)));
         }
 
         var dir = Path.GetDirectoryName(path);
@@ -90,6 +92,11 @@ public static class AutoBuyCsvFile
         int.TryParse(value.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var n)
             ? n
             : fallback;
+
+    private static decimal ParseDecimal(string value) =>
+        decimal.TryParse(value.Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out var d)
+            ? d
+            : 0m;
 
     private static bool ParseBool(string value) =>
         bool.TryParse(value.Trim(), out var b) && b

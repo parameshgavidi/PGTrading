@@ -23,6 +23,7 @@ public interface IAutoBuyService
     Task SetRowAutomationAsync(string symbol, bool enabled);
     Task SetMasterAutomationAsync(bool enabled);
     Task SaveAsync();
+    Task RefreshDeployedAmountsAsync();
 }
 
 public class AutoBuyService : IAutoBuyService, IDisposable
@@ -69,6 +70,9 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         CsvPath = Path.Combine(FileSystem.AppDataDirectory, "auto_buy.csv");
         LoadFromCsv();
         await RefreshSymbolsAsync();
+
+        if (_zerodha.IsConnected)
+            await RefreshDeployedAmountsAsync();
 
         if (MasterAutomationEnabled)
             StartMonitorLoop();
@@ -174,6 +178,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         existing.Exchange = "NSE";
         existing.Timeframe = AutoBuyCsvFile.NormalizeTimeframe(row.Timeframe);
         existing.Lots = Math.Max(1, row.Lots);
+        existing.MaxDeployAmount = Math.Max(0, row.MaxDeployAmount);
         existing.AutomationEnabled = row.AutomationEnabled;
 
         await SaveAsync();
@@ -226,6 +231,23 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         return Task.CompletedTask;
     }
 
+    public async Task RefreshDeployedAmountsAsync()
+    {
+        if (!_zerodha.IsConnected)
+            return;
+
+        var holdings = await _zerodha.GetHoldingsAsync();
+        var cncPositions = await _zerodha.GetPositionsAsync(AutoBuyDefaults.Product);
+
+        foreach (var row in _rows)
+            row.DeployedAmount = AutoBuyDeployHelper.GetDeployedAmount(
+                row.Symbol,
+                holdings,
+                cncPositions);
+
+        Notify();
+    }
+
     private void LoadFromCsv()
     {
         var (master, rows) = AutoBuyCsvFile.Load(CsvPath);
@@ -270,34 +292,65 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             return;
         }
 
-        var openSymbols = await GetHeldEquitySymbolsAsync();
+        var holdings = await _zerodha.GetHoldingsAsync();
+        var cncPositions = await _zerodha.GetPositionsAsync(AutoBuyDefaults.Product);
 
         foreach (var row in _rows)
         {
+            row.DeployedAmount = AutoBuyDeployHelper.GetDeployedAmount(
+                row.Symbol,
+                holdings,
+                cncPositions);
+
+            if (await TryDisableAutomationForMaxAsync(row))
+                continue;
+
             if (!row.AutomationEnabled)
             {
                 row.Status = "Disabled";
-                row.Detail = "Row automation off";
+                row.Detail = row.MaxDeployAmount > 0 && AutoBuyDeployHelper.IsMaxDeployReached(row.DeployedAmount, row.MaxDeployAmount)
+                    ? $"Max deploy reached (₹{row.DeployedAmount:N0} / ₹{row.MaxDeployAmount:N0})"
+                    : "Row automation off";
                 continue;
             }
 
-            await EvaluateRowAsync(row, openSymbols);
+            await EvaluateRowAsync(row, holdings, cncPositions);
         }
 
         LastRefreshMessage();
         Notify();
     }
 
-    private async Task EvaluateRowAsync(AutoBuyRow row, HashSet<string> openSymbols)
+    private async Task<bool> TryDisableAutomationForMaxAsync(AutoBuyRow row)
+    {
+        if (!AutoBuyDeployHelper.IsMaxDeployReached(row.DeployedAmount, row.MaxDeployAmount))
+            return false;
+
+        row.Status = "Max reached";
+        row.Detail = $"Deployed ₹{row.DeployedAmount:N0} / max ₹{row.MaxDeployAmount:N0} — automation disabled";
+
+        if (!row.AutomationEnabled)
+            return true;
+
+        row.AutomationEnabled = false;
+        await SaveAsync();
+        return true;
+    }
+
+    private async Task EvaluateRowAsync(
+        AutoBuyRow row,
+        IReadOnlyList<Holding> holdings,
+        IReadOnlyList<Position> cncPositions)
     {
         try
         {
-            if (openSymbols.Contains(row.Symbol))
-            {
-                row.Status = "In position";
-                row.Detail = "Already held (CNC / holdings) — skip new entry";
+            row.DeployedAmount = AutoBuyDeployHelper.GetDeployedAmount(
+                row.Symbol,
+                holdings,
+                cncPositions);
+
+            if (await TryDisableAutomationForMaxAsync(row))
                 return;
-            }
 
             var instrument = InstrumentMapper.ToZerodhaKey(row.Symbol, row.Exchange);
             var candles = await _marketData.GetCandlesAsync(
@@ -330,8 +383,12 @@ public class AutoBuyService : IAutoBuyService, IDisposable
                     TrailingStopDefaults.Period,
                     TrailingStopDefaults.Multiplier);
 
+                var deployNote = row.MaxDeployAmount > 0
+                    ? $" · deployed ₹{row.DeployedAmount:N0} / ₹{row.MaxDeployAmount:N0}"
+                    : string.Empty;
+
                 row.Status = "Watching";
-                row.Detail = $"{row.Timeframe} ST(7,2.5) is {TrendUi.GetBiasLabel(currentTrend)} — waiting for Sell→Buy flip";
+                row.Detail = $"{row.Timeframe} ST(7,2.5) is {TrendUi.GetBiasLabel(currentTrend)} — waiting for Sell→Buy flip{deployNote}";
                 return;
             }
 
@@ -359,6 +416,15 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             {
                 row.Status = "Flip detected";
                 row.Detail = "Could not fetch price for limit order";
+                return;
+            }
+
+            var orderValue = quantity * limitPrice;
+            if (AutoBuyDeployHelper.WouldExceedMax(row.DeployedAmount, row.MaxDeployAmount, orderValue))
+            {
+                row.Status = "Max reached";
+                row.Detail = $"Order ₹{orderValue:N0} would exceed max ₹{row.MaxDeployAmount:N0} (deployed ₹{row.DeployedAmount:N0})";
+                await TryDisableAutomationForMaxAsync(row);
                 return;
             }
 
@@ -394,21 +460,6 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             row.Status = "Error";
             row.Detail = ex.Message;
         }
-    }
-
-    private async Task<HashSet<string>> GetHeldEquitySymbolsAsync()
-    {
-        var held = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        var holdings = await _zerodha.GetHoldingsAsync();
-        foreach (var h in holdings.Where(h => h.Quantity > 0))
-            held.Add(h.Symbol.ToUpperInvariant());
-
-        var cncPositions = await _zerodha.GetPositionsAsync(AutoBuyDefaults.Product);
-        foreach (var p in cncPositions.Where(p => p.Quantity > 0))
-            held.Add(p.Symbol.ToUpperInvariant());
-
-        return held;
     }
 
     private void LastRefreshMessage()

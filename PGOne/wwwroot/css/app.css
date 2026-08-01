@@ -1965,3 +1965,9 @@ code {
     margin-top: 12px;
     font-size: 12px;
 }
+
+.form-hint {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+}
