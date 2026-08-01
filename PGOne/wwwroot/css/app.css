@@ -1881,3 +1881,87 @@ code {
         height: 320px;
     }
 }
+
+.auto-buy-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.symbol-search-wrap {
+    position: relative;
+    flex: 1 1 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.symbol-search-input {
+    min-width: 240px;
+}
+
+.symbol-suggestions {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 40;
+    max-height: 220px;
+    overflow-y: auto;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.symbol-suggestion-item {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    text-align: left;
+    cursor: pointer;
+}
+
+.symbol-suggestion-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.auto-buy-table tbody tr.auto-buy-row {
+    cursor: pointer;
+}
+
+.auto-buy-table tbody tr.auto-buy-row:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.auto-buy-detail {
+    max-width: 280px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.master-automation-toggle {
+    font-weight: 600;
+}
+
+.inline-toggle {
+    font-size: 12px;
+}
+
+.dim-row {
+    opacity: 0.72;
+}
+
+.modal-intro {
+    margin-bottom: 12px;
+}
+
+.framework-conditions.compact {
+    margin-top: 12px;
+    font-size: 12px;
+}

@@ -61,6 +61,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<INseSymbolResolver, NseSymbolResolver>();
         builder.Services.AddSingleton<INiftyIndexService, NiftyIndexService>();
         builder.Services.AddSingleton<IIntradayCprService, IntradayCprService>();
+        builder.Services.AddSingleton<IAutoBuyService, AutoBuyService>();
 
         builder.Services.AddSingleton<DashboardViewModel>();
         builder.Services.AddSingleton<StrategyViewModel>();
@@ -70,6 +71,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<SettingsViewModel>();
         builder.Services.AddSingleton<SentimentViewModel>();
         builder.Services.AddSingleton<MultiChartViewModel>();
+        builder.Services.AddSingleton<AutoBuyViewModel>();
 
         return builder.Build();
     }
