@@ -21,9 +21,9 @@
         </div>
 
         <p class="text-secondary">
-            NSE equity MIS auto-entry when SuperTrend <strong>ST(7, 2.5)</strong> flips
-            <strong>Sell → Buy</strong> on the selected timeframe (last completed candle).
-            List is saved to <code>@ViewModel.CsvPath</code>.
+            <strong>One NSE equity</strong>, <strong>CNC delivery</strong> (no MIS / F&amp;O). Auto-entry when SuperTrend
+            <strong>ST(7, 2.5)</strong> flips <strong>Sell → Buy</strong> on the selected timeframe (last completed candle).
+            Saved to <code>@ViewModel.CsvPath</code>.
         </p>
 
         @if (!ViewModel.IsConnected)
@@ -54,7 +54,8 @@
                     </div>
                 }
             </div>
-            <button type="button" class="btn btn-primary" @onclick="AddFromSearchAsync" disabled="@string.IsNullOrWhiteSpace(_searchText)">
+            <button type="button" class="btn btn-primary" @onclick="AddFromSearchAsync"
+                    disabled="@(string.IsNullOrWhiteSpace(_searchText) || ViewModel.Rows.Count >= AutoBuyDefaults.MaxSymbols)">
                 Add company
             </button>
             <button type="button" class="btn btn-secondary" @onclick="RefreshSymbolsAsync" disabled="@ViewModel.IsLoadingSymbols">
@@ -65,6 +66,11 @@
         @if (!string.IsNullOrEmpty(ViewModel.StatusMessage))
         {
             <div class="status-message">@ViewModel.StatusMessage</div>
+        }
+
+        @if (ViewModel.Rows.Count >= AutoBuyDefaults.MaxSymbols)
+        {
+            <div class="chart-meta">One stock limit reached — remove the current symbol to add another.</div>
         }
 
         @if (ViewModel.Rows.Count == 0)
@@ -130,7 +136,7 @@
                 <p class="text-secondary modal-intro">
                     Entry when <strong>ST(7, 2.5)</strong> on the selected timeframe flips from
                     <span class="sell">downtrend (Sell)</span> to <span class="buy">uptrend (Buy)</span>
-                    on the <strong>last completed</strong> candle. Places a <strong>BUY LIMIT MIS</strong> order.
+                    on the <strong>last completed</strong> candle. Places a <strong>BUY LIMIT CNC</strong> delivery order.
                 </p>
 
                 <div class="form-row">
@@ -144,7 +150,7 @@
                 </div>
 
                 <div class="form-row">
-                    <label for="ab-lots">Lots (shares for equity MIS)</label>
+                    <label for="ab-lots">Quantity (shares)</label>
                     <input id="ab-lots"
                            type="number"
                            min="1"
@@ -163,7 +169,8 @@
                 <ul class="framework-conditions compact">
                     <li>Long entry only — SuperTrend Sell → Buy flip</li>
                     <li>Uses last closed bar (not the live forming candle)</li>
-                    <li>Skips if an open MIS long already exists</li>
+                    <li>NSE equity CNC delivery only — no F&amp;O</li>
+                    <li>Skips if already held in CNC positions or holdings</li>
                     <li>Requires master automation + Settings → Auto Trading enabled</li>
                 </ul>
             </div>
@@ -197,12 +204,6 @@
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
         InvokeAsync(StateHasChanged);
-
-    private void OnSearchInput()
-    {
-        _suggestions = ViewModel.SearchSymbols(_searchText).ToList();
-        _showSuggestions = _suggestions.Count > 0;
-    }
 
     private async Task SelectSuggestionAsync(string symbol)
     {

@@ -6,7 +6,7 @@ public sealed class AutoBuyRow
     public string Exchange { get; set; } = "NSE";
   /// <summary>1m, 5m, or 15m — SuperTrend ST(7, 2.5) evaluated on this interval.</summary>
     public string Timeframe { get; set; } = "5m";
-  /// <summary>Order quantity (shares for NSE equity MIS).</summary>
+  /// <summary>Order quantity in shares (NSE equity CNC).</summary>
     public int Lots { get; set; } = 1;
     public bool AutomationEnabled { get; set; }
     public string Status { get; set; } = "Idle";

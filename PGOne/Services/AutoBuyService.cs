@@ -114,6 +114,20 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         if (string.IsNullOrEmpty(normalized))
             return;
 
+        if (!_nseSymbols.Contains(normalized))
+        {
+            StatusMessage = $"{normalized} is not in the NSE equity list.";
+            Notify();
+            return;
+        }
+
+        if (_rows.Count >= AutoBuyDefaults.MaxSymbols)
+        {
+            StatusMessage = "Auto Buy supports one NSE equity only — remove the current stock first.";
+            Notify();
+            return;
+        }
+
         if (_rows.Any(r => r.Symbol.Equals(normalized, StringComparison.OrdinalIgnoreCase)))
         {
             StatusMessage = $"{normalized} is already in the Auto Buy list.";
@@ -157,7 +171,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         if (existing is null)
             return;
 
-        existing.Exchange = string.IsNullOrWhiteSpace(row.Exchange) ? "NSE" : row.Exchange.ToUpperInvariant();
+        existing.Exchange = "NSE";
         existing.Timeframe = AutoBuyCsvFile.NormalizeTimeframe(row.Timeframe);
         existing.Lots = Math.Max(1, row.Lots);
         existing.AutomationEnabled = row.AutomationEnabled;
@@ -256,11 +270,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             return;
         }
 
-        var openMis = await _zerodha.GetMisPositionsAsync(includeClosed: false);
-        var openSymbols = openMis
-            .Where(p => p.Quantity > 0)
-            .Select(p => p.Symbol.ToUpperInvariant())
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var openSymbols = await GetHeldEquitySymbolsAsync();
 
         foreach (var row in _rows)
         {
@@ -285,7 +295,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             if (openSymbols.Contains(row.Symbol))
             {
                 row.Status = "In position";
-                row.Detail = "Open MIS long — skip new entry";
+                row.Detail = "Already held (CNC / holdings) — skip new entry";
                 return;
             }
 
@@ -359,7 +369,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
                 quantity,
                 "LIMIT",
                 limitPrice,
-                "MIS");
+                AutoBuyDefaults.Product);
 
             row.LastTriggeredAt = DateTime.Now;
 
@@ -369,7 +379,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
                     _orderedBarKeys.Add(barKey);
 
                 row.Status = "Order placed";
-                row.Detail = $"BUY {quantity} @ LIMIT {limitPrice:N2} — order {result.OrderId}";
+                row.Detail = $"BUY {quantity} CNC @ LIMIT {limitPrice:N2} — order {result.OrderId}";
                 StatusMessage = $"Auto Buy: order placed for {row.Symbol}";
             }
             else
@@ -384,6 +394,21 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             row.Status = "Error";
             row.Detail = ex.Message;
         }
+    }
+
+    private async Task<HashSet<string>> GetHeldEquitySymbolsAsync()
+    {
+        var held = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var holdings = await _zerodha.GetHoldingsAsync();
+        foreach (var h in holdings.Where(h => h.Quantity > 0))
+            held.Add(h.Symbol.ToUpperInvariant());
+
+        var cncPositions = await _zerodha.GetPositionsAsync(AutoBuyDefaults.Product);
+        foreach (var p in cncPositions.Where(p => p.Quantity > 0))
+            held.Add(p.Symbol.ToUpperInvariant());
+
+        return held;
     }
 
     private void LastRefreshMessage()

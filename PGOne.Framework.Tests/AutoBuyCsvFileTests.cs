@@ -56,4 +56,11 @@ public class AutoBuyCsvFileTests
         Assert.Equal("5m", AutoBuyCsvFile.NormalizeTimeframe("bad"));
         Assert.Equal("15m", AutoBuyCsvFile.NormalizeTimeframe("15m"));
     }
+
+    [Fact]
+    public void MaxSymbols_is_one()
+    {
+        Assert.Equal(1, AutoBuyDefaults.MaxSymbols);
+        Assert.Equal("CNC", AutoBuyDefaults.Product);
+    }
 }
