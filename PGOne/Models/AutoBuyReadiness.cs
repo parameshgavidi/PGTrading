@@ -49,9 +49,9 @@ public static class AutoBuyReadiness
         }
 
         var triggerReady = row.Status is "Flip detected" or "Order placed" or "Ordered";
-        checks.Add(new("ST(7,2.5) downtrend→uptrend BUY", triggerReady,
+        checks.Add(new("Buy only on Sell→Buy signal", triggerReady,
             string.IsNullOrWhiteSpace(row.Detail)
-                ? $"Watching {row.Timeframe} for Sell→Buy flip (long entry only)"
+                ? $"Each {row.Timeframe} Sell→Buy flip → one BUY · Buy→Sell ignored"
                 : row.Detail));
 
         return checks;

@@ -42,6 +42,30 @@ public static class SuperTrendFlipHelper
         return prevTrend == TrendDirection.Sell && lastTrend == TrendDirection.Buy;
     }
 
+    /// <summary>
+    /// Bearish flip on the last completed candle — used only to show "no sell" status.
+    /// Auto Buy never places orders on this signal.
+    /// </summary>
+    public static bool DetectBearishFlipOnLastClosedBar(
+        IReadOnlyList<Candle> candles,
+        int period,
+        double multiplier,
+        Func<List<Candle>, int, double, TrendDirection> getTrend)
+    {
+        if (candles.Count < period + 4)
+            return false;
+
+        var lastClosedIndex = candles.Count - 2;
+        var prevClosedIndex = candles.Count - 3;
+        if (prevClosedIndex < 0)
+            return false;
+
+        var prevTrend = GetTrendAtBarClose(candles, prevClosedIndex, period, multiplier, getTrend);
+        var lastTrend = GetTrendAtBarClose(candles, lastClosedIndex, period, multiplier, getTrend);
+
+        return prevTrend == TrendDirection.Buy && lastTrend == TrendDirection.Sell;
+    }
+
     public static DateTime? GetLastClosedBarTime(IReadOnlyList<Candle> candles) =>
         candles.Count >= 2 ? candles[^2].Timestamp : null;
 }
