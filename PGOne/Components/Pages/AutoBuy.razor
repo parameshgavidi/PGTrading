@@ -23,7 +23,8 @@
         <p class="text-secondary">
             <strong>BUY only</strong> when <strong>ST(7,2.5) triggers Buy</strong> on the last completed candle.
             Otherwise <strong>wait</strong> for the buy signal. Long CNC hold — never sells.
-            One NSE equity, delivery CNC (no MIS / F&amp;O).
+            <strong>Multiple NSE equities</strong> — each row has its own timeframe (1m/5m/15m), quantity, and max deploy cap.
+            Delivery CNC only (no MIS / F&amp;O).
             Saved to <code>@ViewModel.CsvPath</code>.
         </p>
 
@@ -84,7 +85,7 @@
 
         @if (ViewModel.Rows.Count >= AutoBuyDefaults.MaxSymbols)
         {
-            <div class="chart-meta">One stock limit reached — remove the current symbol to add another.</div>
+            <div class="chart-meta">List limit reached ({AutoBuyDefaults.MaxSymbols} symbols) — remove a row to add another.</div>
         }
 
         @if (ViewModel.Rows.Count == 0)
@@ -201,6 +202,7 @@
                 </div>
 
                 <ul class="framework-conditions compact">
+                    <li>Per row: timeframe (1m/5m/15m), quantity, and max deploy apply only to that stock</li>
                     <li>BUY when ST(7,2.5) triggers Buy on last closed bar — otherwise wait</li>
                     <li>No SELL orders — automation never exits or shorts</li>
                     <li>Uses last closed bar (not the live forming candle)</li>

@@ -9,7 +9,7 @@ public static class AutoBuyReadiness
 
     public static IReadOnlyList<Check> Evaluate(
         bool masterAutomationEnabled,
-        AutoBuyRow? row,
+        IReadOnlyList<AutoBuyRow> rows,
         bool isConnected,
         bool autoTradingEnabled,
         bool isMarketOpen)
@@ -25,34 +25,49 @@ public static class AutoBuyReadiness
                 masterAutomationEnabled ? "On" : "Turn on master toggle on this page"),
         };
 
-        if (row is null)
+        if (rows.Count == 0)
         {
-            checks.Add(new("One NSE stock in list", false, "Add a symbol from the NSE equity search"));
+            checks.Add(new("NSE stocks in list", false, "Add symbols from the NSE equity search"));
             return checks;
         }
 
-        checks.Add(new("One NSE stock in list", true, row.Symbol));
-        checks.Add(new("Row automation", row.AutomationEnabled,
-            row.AutomationEnabled ? "On" : "Off — enable per stock or was auto-disabled at max deploy"));
-        checks.Add(new("Long only — BUY CNC", true,
-            $"When ST(7,2.5) turns Buy → {AutoBuyDefaults.EntrySide} only · never sell"));
+        var symbols = string.Join(", ", rows.Select(r => r.Symbol));
+        checks.Add(new("NSE stocks in list", true, $"{rows.Count} — {symbols}"));
 
-        if (row.MaxDeployAmount > 0)
-        {
-            var atMax = AutoBuyDeployHelper.IsMaxDeployReached(row.DeployedAmount, row.MaxDeployAmount);
-            checks.Add(new("Below max deploy cap", !atMax,
-                $"Deployed ₹{row.DeployedAmount:N0} · max ₹{row.MaxDeployAmount:N0}"));
-        }
+        var enabledCount = rows.Count(r => r.AutomationEnabled);
+        checks.Add(new("Row automation", enabledCount > 0,
+            enabledCount > 0
+                ? $"{enabledCount} of {rows.Count} row(s) enabled"
+                : "Enable automation on at least one row"));
+
+        checks.Add(new("Long only — BUY CNC", true,
+            $"Each row: ST(7,2.5) Buy trigger → {AutoBuyDefaults.EntrySide} only · never sell"));
+
+        var atMax = rows
+            .Where(r => r.MaxDeployAmount > 0
+                && AutoBuyDeployHelper.IsMaxDeployReached(r.DeployedAmount, r.MaxDeployAmount))
+            .Select(r => r.Symbol)
+            .ToList();
+
+        if (atMax.Count > 0)
+            checks.Add(new("Below per-stock max deploy", false,
+                $"{string.Join(", ", atMax)} at or above cap"));
         else
         {
-            checks.Add(new("Below max deploy cap", true, "No max set (₹0 = unlimited)"));
+            var capped = rows.Count(r => r.MaxDeployAmount > 0);
+            checks.Add(new("Below per-stock max deploy", true,
+                capped > 0 ? $"{capped} row(s) with per-stock caps — all within limit" : "No per-stock caps set"));
         }
 
-        var triggerReady = row.Status is "Buy signal" or "Order placed" or "Ordered";
-        checks.Add(new("ST(7,2.5) buy signal", triggerReady,
-            string.IsNullOrWhiteSpace(row.Detail)
-                ? $"Waiting for ST to turn Buy on {row.Timeframe}"
-                : row.Detail));
+        var signalRows = rows
+            .Where(r => r.Status is "Buy signal" or "Order placed" or "Ordered")
+            .Select(r => $"{r.Symbol} ({r.Timeframe})")
+            .ToList();
+
+        checks.Add(new("ST(7,2.5) buy signal", signalRows.Count > 0,
+            signalRows.Count > 0
+                ? string.Join(", ", signalRows)
+                : "Waiting for ST to turn Buy on each row's timeframe"));
 
         return checks;
     }

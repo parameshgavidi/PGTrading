@@ -60,9 +60,9 @@ public class AutoBuyCsvFileTests
     }
 
     [Fact]
-    public void MaxSymbols_is_one()
+    public void MaxSymbols_and_defaults()
     {
-        Assert.Equal(1, AutoBuyDefaults.MaxSymbols);
+        Assert.Equal(50, AutoBuyDefaults.MaxSymbols);
         Assert.Equal("CNC", AutoBuyDefaults.Product);
         Assert.Equal("BUY", AutoBuyDefaults.EntrySide);
     }
