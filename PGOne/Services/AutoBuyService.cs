@@ -414,11 +414,20 @@ public class AutoBuyService : IAutoBuyService, IDisposable
                 return;
             }
 
+            var stPeriod = TrailingStopDefaults.Period;
+            var stMult = TrailingStopDefaults.Multiplier;
+            var getTrend = _superTrend.GetTrend;
+
+            if (SuperTrendFlipHelper.DetectBearishFlipOnLastClosedBar(
+                    candles, stPeriod, stMult, getTrend))
+            {
+                row.Status = "Long hold";
+                row.Detail = $"{row.Timeframe} Buy→Sell signal — ignored (buy only, never sell)";
+                return;
+            }
+
             var flipped = SuperTrendFlipHelper.DetectBullishFlipOnLastClosedBar(
-                candles,
-                TrailingStopDefaults.Period,
-                TrailingStopDefaults.Multiplier,
-                _superTrend.GetTrend);
+                candles, stPeriod, stMult, getTrend);
 
             var lastBarTime = SuperTrendFlipHelper.GetLastClosedBarTime(candles);
             var barKey = lastBarTime.HasValue
@@ -437,14 +446,14 @@ public class AutoBuyService : IAutoBuyService, IDisposable
                     : string.Empty;
 
                 row.Status = "Watching";
-                row.Detail = $"{row.Timeframe} ST(7,2.5) is {TrendUi.GetBiasLabel(currentTrend)} — long only: waiting for downtrend→uptrend (Sell→Buy){deployNote}";
+                row.Detail = $"{row.Timeframe} — buy only when Sell→Buy flip fires (no sell on other signals){deployNote}";
                 return;
             }
 
             if (barKey is not null && _orderedBarKeys.Contains(barKey))
             {
                 row.Status = "Ordered";
-                row.Detail = "Entry already placed for this candle flip";
+                row.Detail = "BUY already sent for this flip — waits for next Sell→Buy signal";
                 return;
             }
 
@@ -499,7 +508,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             var result = await _zerodha.PlaceOrderAsync(
                 row.Exchange,
                 row.Symbol,
-                AutoBuyDefaults.EntrySide,
+                AutoBuyOrderPolicy.EntrySideOrThrow(AutoBuyDefaults.EntrySide),
                 quantity,
                 "LIMIT",
                 limitPrice,
@@ -540,7 +549,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
     private void LastRefreshMessage()
     {
         if (string.IsNullOrEmpty(StatusMessage) || StatusMessage.StartsWith("Auto Buy:", StringComparison.Ordinal))
-            StatusMessage = $"Monitoring {_rows.Count(r => r.AutomationEnabled)} symbols — ST(7,2.5) Sell→Buy flip.";
+            StatusMessage = $"Monitoring {_rows.Count(r => r.AutomationEnabled)} symbol(s) — BUY only on each Sell→Buy flip.";
     }
 
     private void Notify() => Updated?.Invoke();
