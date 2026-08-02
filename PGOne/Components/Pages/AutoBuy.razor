@@ -21,8 +21,8 @@
         </div>
 
         <p class="text-secondary">
-            <strong>BUY only</strong> when <strong>Sell → Buy</strong> signal fires (each new flip = one BUY).
-            <strong>Never sells</strong> on Buy → Sell or any other signal — long CNC hold.
+            <strong>BUY only</strong> when <strong>ST(7,2.5) triggers Buy</strong> on the last completed candle.
+            Otherwise <strong>wait</strong> for the buy signal. Long CNC hold — never sells.
             One NSE equity, delivery CNC (no MIS / F&amp;O).
             Saved to <code>@ViewModel.CsvPath</code>.
         </p>
@@ -152,9 +152,9 @@
             </div>
             <div class="modal-body">
                 <p class="text-secondary modal-intro">
-                    <strong>Long entry only</strong> — places <strong>BUY CNC</strong> when <strong>ST(7, 2.5)</strong> flips
-                    <span class="sell">downtrend (Sell)</span> to <span class="buy">uptrend (Buy)</span> on the last completed candle.
-                    Never sells or shorts — keep the position long.
+                    <strong>Long entry only</strong> — places <strong>BUY CNC</strong> when <strong>ST(7, 2.5)</strong>
+                    turns <span class="buy">Buy</span> on the last completed candle (buy trigger).
+                    Otherwise waits for the signal. Never sells or shorts.
                 </p>
 
                 <div class="form-row">
@@ -201,7 +201,7 @@
                 </div>
 
                 <ul class="framework-conditions compact">
-                    <li>Long only — BUY on ST downtrend→uptrend (Sell→Buy flip)</li>
+                    <li>BUY when ST(7,2.5) triggers Buy on last closed bar — otherwise wait</li>
                     <li>No SELL orders — automation never exits or shorts</li>
                     <li>Uses last closed bar (not the live forming candle)</li>
                     <li>NSE equity CNC delivery only — no F&amp;O</li>

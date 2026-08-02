@@ -35,7 +35,7 @@ public static class AutoBuyReadiness
         checks.Add(new("Row automation", row.AutomationEnabled,
             row.AutomationEnabled ? "On" : "Off — enable per stock or was auto-disabled at max deploy"));
         checks.Add(new("Long only — BUY CNC", true,
-            $"Entry on ST Sell→Buy flip · side {AutoBuyDefaults.EntrySide} only · no sell/short"));
+            $"When ST(7,2.5) turns Buy → {AutoBuyDefaults.EntrySide} only · never sell"));
 
         if (row.MaxDeployAmount > 0)
         {
@@ -48,10 +48,10 @@ public static class AutoBuyReadiness
             checks.Add(new("Below max deploy cap", true, "No max set (₹0 = unlimited)"));
         }
 
-        var triggerReady = row.Status is "Flip detected" or "Order placed" or "Ordered";
-        checks.Add(new("Buy only on Sell→Buy signal", triggerReady,
+        var triggerReady = row.Status is "Buy signal" or "Order placed" or "Ordered";
+        checks.Add(new("ST(7,2.5) buy signal", triggerReady,
             string.IsNullOrWhiteSpace(row.Detail)
-                ? $"Each {row.Timeframe} Sell→Buy flip → one BUY · Buy→Sell ignored"
+                ? $"Waiting for ST to turn Buy on {row.Timeframe}"
                 : row.Detail));
 
         return checks;
