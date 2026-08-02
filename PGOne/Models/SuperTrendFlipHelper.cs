@@ -66,6 +66,27 @@ public static class SuperTrendFlipHelper
         return prevTrend == TrendDirection.Buy && lastTrend == TrendDirection.Sell;
     }
 
+    /// <summary>ST(7,2.5) buy trigger: last completed candle flipped to Buy (was not Buy before).</summary>
+    public static bool IsBuyTriggerOnLastClosedBar(
+        IReadOnlyList<Candle> candles,
+        int period,
+        double multiplier,
+        Func<List<Candle>, int, double, TrendDirection> getTrend) =>
+        DetectBullishFlipOnLastClosedBar(candles, period, multiplier, getTrend);
+
+    /// <summary>ST trend on the last completed candle (not the live bar).</summary>
+    public static TrendDirection GetTrendOnLastClosedBar(
+        IReadOnlyList<Candle> candles,
+        int period,
+        double multiplier,
+        Func<List<Candle>, int, double, TrendDirection> getTrend)
+    {
+        if (candles.Count < 2)
+            return TrendDirection.Neutral;
+
+        return GetTrendAtBarClose(candles, candles.Count - 2, period, multiplier, getTrend);
+    }
+
     public static DateTime? GetLastClosedBarTime(IReadOnlyList<Candle> candles) =>
         candles.Count >= 2 ? candles[^2].Timestamp : null;
 }

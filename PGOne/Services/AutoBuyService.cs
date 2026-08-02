@@ -418,42 +418,34 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             var stMult = TrailingStopDefaults.Multiplier;
             var getTrend = _superTrend.GetTrend;
 
-            if (SuperTrendFlipHelper.DetectBearishFlipOnLastClosedBar(
-                    candles, stPeriod, stMult, getTrend))
-            {
-                row.Status = "Long hold";
-                row.Detail = $"{row.Timeframe} Buy→Sell signal — ignored (buy only, never sell)";
-                return;
-            }
-
-            var flipped = SuperTrendFlipHelper.DetectBullishFlipOnLastClosedBar(
-                candles, stPeriod, stMult, getTrend);
-
             var lastBarTime = SuperTrendFlipHelper.GetLastClosedBarTime(candles);
             var barKey = lastBarTime.HasValue
                 ? $"{row.Symbol}|{row.Timeframe}|{lastBarTime.Value:O}"
                 : null;
 
-            if (!flipped)
+            var stBuyTrigger = SuperTrendFlipHelper.IsBuyTriggerOnLastClosedBar(
+                candles, stPeriod, stMult, getTrend);
+
+            if (!stBuyTrigger)
             {
-                var currentTrend = _superTrend.GetTrend(
-                    candles,
-                    TrailingStopDefaults.Period,
-                    TrailingStopDefaults.Multiplier);
+                var stNow = SuperTrendFlipHelper.GetTrendOnLastClosedBar(
+                    candles, stPeriod, stMult, getTrend);
 
                 var deployNote = row.MaxDeployAmount > 0
                     ? $" · deployed ₹{row.DeployedAmount:N0} / ₹{row.MaxDeployAmount:N0}"
                     : string.Empty;
 
-                row.Status = "Watching";
-                row.Detail = $"{row.Timeframe} — buy only when Sell→Buy flip fires (no sell on other signals){deployNote}";
+                row.Status = "Waiting";
+                row.Detail = stNow == TrendDirection.Buy
+                    ? $"{row.Timeframe} ST(7,2.5) already Buy — waiting for next buy trigger{deployNote}"
+                    : $"{row.Timeframe} ST(7,2.5) is {TrendUi.GetBiasLabel(stNow)} — waiting for buy signal{deployNote}";
                 return;
             }
 
             if (barKey is not null && _orderedBarKeys.Contains(barKey))
             {
                 row.Status = "Ordered";
-                row.Detail = "BUY already sent for this flip — waits for next Sell→Buy signal";
+                row.Detail = "BUY already sent for this ST buy signal";
                 return;
             }
 
@@ -472,15 +464,15 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             {
                 if (!MarketHours.IsOpen())
                 {
-                    row.Status = flipped ? "Flip (market closed)" : "Market closed";
-                    row.Detail = flipped
-                        ? "ST flip detected — orders only during market hours"
+                    row.Status = stBuyTrigger ? "Buy signal (market closed)" : "Market closed";
+                    row.Detail = stBuyTrigger
+                        ? "ST turned Buy — orders only during market hours"
                         : "Monitoring resumes when market opens";
                 }
                 else if (!_settings.Settings.AutoTradingEnabled)
                 {
-                    row.Status = "Flip detected";
-                    row.Detail = "ST flip BUY — enable Auto Trading in Settings to place orders";
+                    row.Status = "Buy signal";
+                    row.Detail = "ST(7,2.5) turned Buy — enable Auto Trading in Settings to place orders";
                     row.LastTriggeredAt = DateTime.Now;
                 }
                 else if (AutoBuyDeployHelper.WouldExceedMax(
@@ -498,7 +490,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
                 }
                 else if (limitPrice <= 0)
                 {
-                    row.Status = "Flip detected";
+                    row.Status = "Buy signal";
                     row.Detail = "Could not fetch price for limit order";
                 }
 
@@ -549,7 +541,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
     private void LastRefreshMessage()
     {
         if (string.IsNullOrEmpty(StatusMessage) || StatusMessage.StartsWith("Auto Buy:", StringComparison.Ordinal))
-            StatusMessage = $"Monitoring {_rows.Count(r => r.AutomationEnabled)} symbol(s) — BUY only on each Sell→Buy flip.";
+            StatusMessage = $"Monitoring {_rows.Count(r => r.AutomationEnabled)} symbol(s) — BUY when ST(7,2.5) turns Buy.";
     }
 
     private void Notify() => Updated?.Invoke();
