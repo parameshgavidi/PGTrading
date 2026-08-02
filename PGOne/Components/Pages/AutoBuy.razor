@@ -1,0 +1,323 @@
+@page "/auto-buy"
+@inject AutoBuyViewModel ViewModel
+@implements IDisposable
+
+<div class="page-container auto-buy-page">
+    <div class="card">
+        <div class="card-header">
+            <h2>Auto Buy</h2>
+            <div class="card-header-actions">
+                <label class="checkbox-label master-automation-toggle">
+                    <input type="checkbox"
+                           checked="@ViewModel.MasterAutomationEnabled"
+                           @onchange="OnMasterAutomationChanged" />
+                    Master automation
+                </label>
+                @if (ViewModel.IsMonitoring)
+                {
+                    <span class="summary-pill buy">Monitoring</span>
+                }
+            </div>
+        </div>
+
+        <p class="text-secondary">
+            <strong>One NSE equity</strong>, <strong>CNC delivery</strong> (no MIS / F&amp;O). Auto-entry when SuperTrend
+            <strong>ST(7, 2.5)</strong> flips <strong>Sell → Buy</strong> on the selected timeframe (last completed candle).
+            Saved to <code>@ViewModel.CsvPath</code>.
+        </p>
+
+        @if (!ViewModel.IsConnected)
+        {
+            <div class="holdings-banner warning">Connect to Zerodha in Settings to search symbols and place orders.</div>
+        }
+
+        <div class="framework-panel auto-buy-readiness">
+            <div class="framework-panel-title">Deployment readiness (all must pass for live orders)</div>
+            <ul class="framework-conditions compact">
+                @foreach (var check in ViewModel.GetReadinessChecks())
+                {
+                    <li class="@(check.Passed ? "ready" : "blocked")">
+                        <span class="readiness-mark">@(check.Passed ? "✓" : "✗")</span>
+                        <strong>@check.Label</strong> — @check.Detail
+                    </li>
+                }
+            </ul>
+        </div>
+
+        <div class="auto-buy-toolbar">
+            <div class="symbol-search-wrap">
+                <label for="auto-buy-search">Search NSE company</label>
+                <input id="auto-buy-search"
+                       class="form-input symbol-search-input"
+                       placeholder="Type symbol e.g. RELIANCE"
+                       value="@_searchText"
+                       @oninput="OnSearchChanged"
+                       @onfocus="() => _showSuggestions = _suggestions.Count > 0" />
+                @if (_showSuggestions && _suggestions.Count > 0)
+                {
+                    <div class="symbol-suggestions">
+                        @foreach (var symbol in _suggestions)
+                        {
+                            <button type="button"
+                                    class="symbol-suggestion-item"
+                                    @onclick="() => SelectSuggestionAsync(symbol)">
+                                @symbol
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+            <button type="button" class="btn btn-primary" @onclick="AddFromSearchAsync"
+                    disabled="@(string.IsNullOrWhiteSpace(_searchText) || ViewModel.Rows.Count >= AutoBuyDefaults.MaxSymbols)">
+                Add company
+            </button>
+            <button type="button" class="btn btn-secondary" @onclick="RefreshSymbolsAsync" disabled="@ViewModel.IsLoadingSymbols">
+                @(ViewModel.IsLoadingSymbols ? "Loading symbols…" : "Refresh NSE list")
+            </button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(ViewModel.StatusMessage))
+        {
+            <div class="status-message">@ViewModel.StatusMessage</div>
+        }
+
+        @if (ViewModel.Rows.Count >= AutoBuyDefaults.MaxSymbols)
+        {
+            <div class="chart-meta">One stock limit reached — remove the current symbol to add another.</div>
+        }
+
+        @if (ViewModel.Rows.Count == 0)
+        {
+            <div class="empty-state">No companies in Auto Buy list. Search and add NSE symbols above.</div>
+        }
+        else
+        {
+            <table class="data-table auto-buy-table">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Timeframe</th>
+                        <th>Qty</th>
+                        <th>Deployed</th>
+                        <th>Max deploy</th>
+                        <th>Automation</th>
+                        <th>Status</th>
+                        <th>Detail</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in ViewModel.Rows)
+                    {
+                        <tr class="auto-buy-row @(row.AutomationEnabled ? "" : "dim-row")"
+                            @onclick="async () => await OpenRowModal(row)">
+                            <td><strong>@row.Symbol</strong></td>
+                            <td>@row.Timeframe</td>
+                            <td>@row.Lots</td>
+                            <td>₹@row.DeployedAmount.ToString("N0")</td>
+                            <td>@(row.MaxDeployAmount > 0 ? $"₹{row.MaxDeployAmount:N0}" : "—")</td>
+                            <td @onclick:stopPropagation="true">
+                                <label class="checkbox-label inline-toggle">
+                                    <input type="checkbox"
+                                           checked="@row.AutomationEnabled"
+                                           @onchange="e => OnRowAutomationChanged(row.Symbol, e)" />
+                                    @(row.AutomationEnabled ? "On" : "Off")
+                                </label>
+                            </td>
+                            <td class="@GetStatusClass(row.Status)">@row.Status</td>
+                            <td class="auto-buy-detail">@row.Detail</td>
+                            <td @onclick:stopPropagation="true">
+                                <button type="button"
+                                        class="btn btn-secondary btn-sm"
+                                        @onclick="() => RemoveRowAsync(row.Symbol)">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@if (_showRowModal && _editRow is not null)
+{
+    <div class="modal-overlay" @onclick="CloseRowModal">
+        <div class="modal-card" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Auto Buy — @(_editRow.Symbol)</h3>
+                <button type="button" class="modal-close" @onclick="CloseRowModal">×</button>
+            </div>
+            <div class="modal-body">
+                <p class="text-secondary modal-intro">
+                    Entry when <strong>ST(7, 2.5)</strong> on the selected timeframe flips from
+                    <span class="sell">downtrend (Sell)</span> to <span class="buy">uptrend (Buy)</span>
+                    on the <strong>last completed</strong> candle. Places a <strong>BUY LIMIT CNC</strong> delivery order.
+                </p>
+
+                <div class="form-row">
+                    <label for="ab-timeframe">Timeframe</label>
+                    <select id="ab-timeframe" class="form-input" @bind="_editRow.Timeframe">
+                        @foreach (var tf in AutoBuyTimeframes.All)
+                        {
+                            <option value="@tf">@tf</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <label for="ab-lots">Quantity (shares)</label>
+                    <input id="ab-lots"
+                           type="number"
+                           min="1"
+                           class="form-input"
+                           @bind="_editRow.Lots"
+                           @bind:event="oninput" />
+                </div>
+
+                <div class="form-row">
+                    <label for="ab-max">Max amount to deploy (₹)</label>
+                    <input id="ab-max"
+                           type="number"
+                           min="0"
+                           step="100"
+                           class="form-input"
+                           placeholder="0 = no limit"
+                           @bind="_editRow.MaxDeployAmount"
+                           @bind:event="oninput" />
+                    <span class="text-secondary form-hint">
+                        Deployed now: ₹@_editRow.DeployedAmount.ToString("N0").
+                        When deployed ≥ max, automation turns off and saves to CSV.
+                    </span>
+                </div>
+
+                <div class="form-row">
+                    <label class="checkbox-label">
+                        <input type="checkbox" @bind="_editRow.AutomationEnabled" />
+                        Enable automation for this row
+                    </label>
+                </div>
+
+                <ul class="framework-conditions compact">
+                    <li>Long entry only — SuperTrend Sell → Buy flip</li>
+                    <li>Uses last closed bar (not the live forming candle)</li>
+                    <li>NSE equity CNC delivery only — no F&amp;O</li>
+                    <li>Max deploy cap disables automation when reached</li>
+                    <li>Requires master automation + Settings → Auto Trading enabled</li>
+                </ul>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" @onclick="CloseRowModal">Cancel</button>
+                <button type="button" class="btn btn-primary" @onclick="SaveRowModalAsync">Save</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string _searchText = string.Empty;
+    private bool _showSuggestions;
+    private List<string> _suggestions = new();
+    private bool _showRowModal;
+    private AutoBuyRow? _editRow;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        await ViewModel.InitializeAsync();
+    }
+
+    private void OnSearchChanged(ChangeEventArgs e)
+    {
+        _searchText = e.Value?.ToString() ?? string.Empty;
+        _suggestions = ViewModel.SearchSymbols(_searchText).ToList();
+        _showSuggestions = _suggestions.Count > 0;
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+        InvokeAsync(StateHasChanged);
+
+    private async Task SelectSuggestionAsync(string symbol)
+    {
+        _searchText = symbol;
+        _showSuggestions = false;
+        await AddFromSearchAsync();
+    }
+
+    private async Task AddFromSearchAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_searchText))
+            return;
+
+        await ViewModel.AddSymbolAsync(_searchText.Trim());
+        _searchText = string.Empty;
+        _showSuggestions = false;
+        _suggestions.Clear();
+    }
+
+    private async Task RefreshSymbolsAsync() => await ViewModel.RefreshSymbolsAsync();
+
+    private async Task RemoveRowAsync(string symbol) => await ViewModel.RemoveSymbolAsync(symbol);
+
+    private async Task OnMasterAutomationChanged(ChangeEventArgs e)
+    {
+        var enabled = e.Value is bool b && b;
+        await ViewModel.SetMasterAutomationAsync(enabled);
+    }
+
+    private async Task OnRowAutomationChanged(string symbol, ChangeEventArgs e)
+    {
+        var enabled = e.Value is bool b && b;
+        await ViewModel.SetRowAutomationAsync(symbol, enabled);
+    }
+
+    private async Task OpenRowModal(AutoBuyRow row)
+    {
+        await ViewModel.RefreshDeployedAmountsAsync();
+
+        var current = ViewModel.Rows.FirstOrDefault(r =>
+            r.Symbol.Equals(row.Symbol, StringComparison.OrdinalIgnoreCase)) ?? row;
+
+        _editRow = new AutoBuyRow
+        {
+            Symbol = current.Symbol,
+            Exchange = current.Exchange,
+            Timeframe = current.Timeframe,
+            Lots = current.Lots,
+            MaxDeployAmount = current.MaxDeployAmount,
+            AutomationEnabled = current.AutomationEnabled,
+            DeployedAmount = current.DeployedAmount
+        };
+        _showRowModal = true;
+    }
+
+    private void CloseRowModal()
+    {
+        _showRowModal = false;
+        _editRow = null;
+    }
+
+    private async Task SaveRowModalAsync()
+    {
+        if (_editRow is null)
+            return;
+
+        _editRow.Lots = Math.Max(1, _editRow.Lots);
+        _editRow.MaxDeployAmount = Math.Max(0, _editRow.MaxDeployAmount);
+        _editRow.Timeframe = AutoBuyCsvFile.NormalizeTimeframe(_editRow.Timeframe);
+        await ViewModel.UpdateRowAsync(_editRow);
+        CloseRowModal();
+    }
+
+    private static string GetStatusClass(string status) => status switch
+    {
+        "Order placed" => "buy",
+        "Flip detected" => "sell",
+        "Order failed" or "Error" or "Max reached" => "sell",
+        "Watching" => "",
+        _ => ""
+    };
+
+    public void Dispose() => ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+}
