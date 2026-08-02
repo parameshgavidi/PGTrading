@@ -90,6 +90,9 @@ public class MarketDataService : IMarketDataService
 
     public async Task<CandleSeriesResult> GetCandlesResultAsync(string instrument, string interval, int count = 100)
     {
+        if (interval == "1W")
+            return await GetWeeklyCandlesResultAsync(instrument, count);
+
         if (_zerodha.IsConnected)
         {
             var result = await _zerodha.GetHistoricalCandlesResultAsync(instrument, interval, count + WarmupBars);
@@ -116,6 +119,47 @@ public class MarketDataService : IMarketDataService
             Candles = AttachIndicators(await GenerateDemoCandlesAsync(instrument, interval, count), interval),
             IsFromZerodha = false,
             Error = _zerodha.IsConnected ? "Using demo candles because Zerodha historical data was unavailable." : null
+        };
+    }
+
+    private async Task<CandleSeriesResult> GetWeeklyCandlesResultAsync(string instrument, int count)
+    {
+        var dailyBarsNeeded = (count + WarmupBars) * 7;
+
+        if (_zerodha.IsConnected)
+        {
+            var dailyResult = await _zerodha.GetHistoricalCandlesResultAsync(instrument, "1D", dailyBarsNeeded);
+            if (dailyResult.IsFromZerodha && dailyResult.Candles.Count > 0)
+            {
+                var weekly = CandleAggregator.ToWeekly(dailyResult.Candles);
+                var withIndicators = AttachIndicators(weekly, "1W");
+                var display = withIndicators.Count > count
+                    ? withIndicators.GetRange(withIndicators.Count - count, count)
+                    : withIndicators;
+
+                return new CandleSeriesResult
+                {
+                    Candles = display,
+                    IsFromZerodha = true
+                };
+            }
+
+            if (!string.IsNullOrEmpty(dailyResult.Error))
+                return dailyResult;
+        }
+
+        var demoDaily = await GenerateDemoCandlesAsync(instrument, "1D", dailyBarsNeeded);
+        var demoWeekly = CandleAggregator.ToWeekly(demoDaily);
+        var withIndicators = AttachIndicators(demoWeekly, "1W");
+        var display = withIndicators.Count > count
+            ? withIndicators.GetRange(withIndicators.Count - count, count)
+            : withIndicators;
+
+        return new CandleSeriesResult
+        {
+            Candles = display,
+            IsFromZerodha = false,
+            Error = _zerodha.IsConnected ? "Using demo weekly candles because Zerodha daily data was unavailable." : null
         };
     }
 
@@ -239,6 +283,7 @@ public class MarketDataService : IMarketDataService
         "15m" => 15,
         "1H" => 60,
         "1D" => 1440,
+        "1W" => 10080,
         _ => 5
     };
 }

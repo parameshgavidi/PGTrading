@@ -398,8 +398,8 @@ window.pgOneChart = (function () {
             const x = toX(i);
             const day = t.getDate();
             let label;
-            if (timeframe === '1D') {
-                label = t.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+            if (timeframe === '1D' || timeframe === '1W') {
+                label = t.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: timeframe === '1W' ? '2-digit' : undefined });
             } else if (day !== lastDay) {
                 label = t.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
                 lastDay = day;
