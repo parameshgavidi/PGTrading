@@ -19,7 +19,8 @@ public static class SuperTrendFlipHelper
 
     /// <summary>
     /// Bullish flip on the last completed candle (excludes the live forming bar).
-    /// Previous completed bar was downtrend (Sell), last completed bar is uptrend (Buy).
+    /// Long entry only: previous bar downtrend (Sell), last bar uptrend (Buy).
+    /// Bearish (Buy→Sell) flips are ignored — no sell automation.
     /// </summary>
     public static bool DetectBullishFlipOnLastClosedBar(
         IReadOnlyList<Candle> candles,

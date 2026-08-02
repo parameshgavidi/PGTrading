@@ -7,4 +7,7 @@ public static class AutoBuyDefaults
 
     /// <summary>Auto Buy tracks a single NSE equity symbol.</summary>
     public const int MaxSymbols = 1;
+
+    /// <summary>Long-only automation — BUY CNC on ST downtrend→uptrend; never SELL.</summary>
+    public const string EntrySide = "BUY";
 }

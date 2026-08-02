@@ -437,7 +437,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
                     : string.Empty;
 
                 row.Status = "Watching";
-                row.Detail = $"{row.Timeframe} ST(7,2.5) is {TrendUi.GetBiasLabel(currentTrend)} — waiting for Sell→Buy flip{deployNote}";
+                row.Detail = $"{row.Timeframe} ST(7,2.5) is {TrendUi.GetBiasLabel(currentTrend)} — long only: waiting for downtrend→uptrend (Sell→Buy){deployNote}";
                 return;
             }
 
@@ -499,7 +499,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             var result = await _zerodha.PlaceOrderAsync(
                 row.Exchange,
                 row.Symbol,
-                "BUY",
+                AutoBuyDefaults.EntrySide,
                 quantity,
                 "LIMIT",
                 limitPrice,
@@ -513,7 +513,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
                     _orderedBarKeys.Add(barKey);
 
                 row.Status = "Order placed";
-                row.Detail = $"BUY {quantity} CNC @ LIMIT {limitPrice:N2} — order {result.OrderId}";
+                row.Detail = $"BUY {quantity} CNC @ LIMIT {limitPrice:N2} — long entry · order {result.OrderId}";
                 StatusMessage = $"Auto Buy: order placed for {row.Symbol}";
 
                 row.DeployedAmount = AutoBuyDeployHelper.GetDeployedAmount(

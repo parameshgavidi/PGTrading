@@ -5,7 +5,7 @@
 <div class="page-container auto-buy-page">
     <div class="card">
         <div class="card-header">
-            <h2>Auto Buy</h2>
+            <h2>Auto Buy <span class="summary-pill buy">Long only</span></h2>
             <div class="card-header-actions">
                 <label class="checkbox-label master-automation-toggle">
                     <input type="checkbox"
@@ -21,8 +21,9 @@
         </div>
 
         <p class="text-secondary">
-            <strong>One NSE equity</strong>, <strong>CNC delivery</strong> (no MIS / F&amp;O). Auto-entry when SuperTrend
-            <strong>ST(7, 2.5)</strong> flips <strong>Sell → Buy</strong> on the selected timeframe (last completed candle).
+            <strong>Long only</strong> — <strong>BUY CNC</strong> when SuperTrend <strong>ST(7, 2.5)</strong> flips
+            <strong>downtrend → uptrend</strong> (Sell → Buy) on the last completed candle.
+            <strong>No sell orders</strong> — hold for long. One NSE equity, delivery CNC (no MIS / F&amp;O).
             Saved to <code>@ViewModel.CsvPath</code>.
         </p>
 
@@ -151,9 +152,9 @@
             </div>
             <div class="modal-body">
                 <p class="text-secondary modal-intro">
-                    Entry when <strong>ST(7, 2.5)</strong> on the selected timeframe flips from
-                    <span class="sell">downtrend (Sell)</span> to <span class="buy">uptrend (Buy)</span>
-                    on the <strong>last completed</strong> candle. Places a <strong>BUY LIMIT CNC</strong> delivery order.
+                    <strong>Long entry only</strong> — places <strong>BUY CNC</strong> when <strong>ST(7, 2.5)</strong> flips
+                    <span class="sell">downtrend (Sell)</span> to <span class="buy">uptrend (Buy)</span> on the last completed candle.
+                    Never sells or shorts — keep the position long.
                 </p>
 
                 <div class="form-row">
@@ -200,7 +201,8 @@
                 </div>
 
                 <ul class="framework-conditions compact">
-                    <li>Long entry only — SuperTrend Sell → Buy flip</li>
+                    <li>Long only — BUY on ST downtrend→uptrend (Sell→Buy flip)</li>
+                    <li>No SELL orders — automation never exits or shorts</li>
                     <li>Uses last closed bar (not the live forming candle)</li>
                     <li>NSE equity CNC delivery only — no F&amp;O</li>
                     <li>Max deploy cap disables automation when reached</li>

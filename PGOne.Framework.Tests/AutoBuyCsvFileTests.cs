@@ -64,5 +64,6 @@ public class AutoBuyCsvFileTests
     {
         Assert.Equal(1, AutoBuyDefaults.MaxSymbols);
         Assert.Equal("CNC", AutoBuyDefaults.Product);
+        Assert.Equal("BUY", AutoBuyDefaults.EntrySide);
     }
 }
