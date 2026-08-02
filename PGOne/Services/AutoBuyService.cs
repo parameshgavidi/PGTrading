@@ -131,7 +131,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
 
         if (_rows.Count >= AutoBuyDefaults.MaxSymbols)
         {
-            StatusMessage = "Auto Buy supports one NSE equity only — remove the current stock first.";
+            StatusMessage = $"Auto Buy list limit reached ({AutoBuyDefaults.MaxSymbols} symbols) — remove a stock to add another.";
             Notify();
             return;
         }
@@ -294,13 +294,16 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             _rows.Add(row);
         }
 
+        if (trimmed)
+            StatusMessage = $"CSV had more than {AutoBuyDefaults.MaxSymbols} symbols — loaded first {AutoBuyDefaults.MaxSymbols}.";
+
         return trimmed;
     }
 
     public IReadOnlyList<AutoBuyReadiness.Check> GetReadinessChecks() =>
         AutoBuyReadiness.Evaluate(
             MasterAutomationEnabled,
-            _rows.FirstOrDefault(),
+            _rows,
             _zerodha.IsConnected,
             _settings.Settings.AutoTradingEnabled,
             MarketHours.IsOpen());
