@@ -480,6 +480,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         "15m" => 75,
         "1H" => 60,
         "1D" => 90,
+        "1W" => 104,
         _ => 60
     };
 
@@ -489,6 +490,9 @@ public class DashboardViewModel : INotifyPropertyChanged
             return null;
 
         var last = ChartCandles[^1];
+        if (SelectedTimeframe is "1D" or "1W")
+            return $"{last.Timestamp:dd MMM yyyy}  O {last.Open:N2}  H {last.High:N2}  L {last.Low:N2}  C {last.Close:N2}";
+
         return $"{last.Timestamp:dd MMM HH:mm}  O {last.Open:N2}  H {last.High:N2}  L {last.Low:N2}  C {last.Close:N2}";
     }
 
@@ -592,7 +596,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         {
             "1H" => Analysis.Trend1H,
             "15m" => Analysis.Trend15M,
-            "1D" => Analysis.Trend1H,
+            "1D" or "1W" => Analysis.Trend1H,
             _ => Analysis.Trend5M
         };
     }

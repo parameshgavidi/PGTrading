@@ -90,7 +90,8 @@
                     <InstrumentChartPanel ViewModel="ViewModel"
                                           CanvasId="priceChart"
                                           Width="900"
-                                          Height="420" />
+                                          Height="420"
+                                          Timeframes="DashboardChartTimeframes" />
                 </div>
             </div>
 
@@ -534,6 +535,8 @@
 </div>
 
 @code {
+  private static readonly string[] DashboardChartTimeframes = ["1m", "5m", "15m", "1H", "1D", "1W"];
+
   private CancellationTokenSource? _refreshCts;
   private decimal _targetProfitInput;
   private decimal _targetLossInput;
