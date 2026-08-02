@@ -34,8 +34,8 @@ public static class AutoBuyReadiness
         checks.Add(new("One NSE stock in list", true, row.Symbol));
         checks.Add(new("Row automation", row.AutomationEnabled,
             row.AutomationEnabled ? "On" : "Off — enable per stock or was auto-disabled at max deploy"));
-        checks.Add(new("NSE CNC delivery only", row.Exchange.Equals("NSE", StringComparison.OrdinalIgnoreCase),
-            $"No MIS / F&O · product {AutoBuyDefaults.Product}"));
+        checks.Add(new("Long only — BUY CNC", true,
+            $"Entry on ST Sell→Buy flip · side {AutoBuyDefaults.EntrySide} only · no sell/short"));
 
         if (row.MaxDeployAmount > 0)
         {
@@ -49,8 +49,10 @@ public static class AutoBuyReadiness
         }
 
         var triggerReady = row.Status is "Flip detected" or "Order placed" or "Ordered";
-        checks.Add(new("ST(7,2.5) Sell→Buy flip", triggerReady,
-            string.IsNullOrWhiteSpace(row.Detail) ? $"Watching on {row.Timeframe}" : row.Detail));
+        checks.Add(new("ST(7,2.5) downtrend→uptrend BUY", triggerReady,
+            string.IsNullOrWhiteSpace(row.Detail)
+                ? $"Watching {row.Timeframe} for Sell→Buy flip (long entry only)"
+                : row.Detail));
 
         return checks;
     }
