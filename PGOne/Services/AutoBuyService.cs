@@ -41,6 +41,8 @@ public class AutoBuyService : IAutoBuyService, IDisposable
     private List<string> _nseSymbols = new();
     private readonly HashSet<string> _orderedBarKeys = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _monitorCts;
+    private readonly SemaphoreSlim _bootstrapLock = new(1, 1);
+    private bool _bootstrapped;
     private bool _disposed;
 
     public event Action? Updated;
@@ -64,22 +66,78 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         _marketData = marketData;
         _superTrend = superTrend;
         _settings = settings;
+        _zerodha.ConnectionChanged += OnZerodhaConnectionChanged;
+        _ = EnsureBootstrappedAsync();
     }
 
     public async Task InitializeAsync()
     {
-        CsvPath = Path.Combine(FileSystem.AppDataDirectory, "auto_buy.csv");
-        var trimmed = LoadFromCsv();
-        if (trimmed)
-            await SaveAsync();
-
-        await RefreshSymbolsAsync();
+        await EnsureBootstrappedAsync();
 
         if (_zerodha.IsConnected)
             await RefreshDeployedAmountsAsync();
 
-        if (MasterAutomationEnabled)
-            StartMonitorLoop();
+        EnsureMonitorRunning();
+        Notify();
+    }
+
+    private async Task EnsureBootstrappedAsync()
+    {
+        if (_bootstrapped)
+            return;
+
+        await _bootstrapLock.WaitAsync();
+        try
+        {
+            if (_bootstrapped)
+                return;
+
+            await _settings.LoadAsync();
+            CsvPath = Path.Combine(FileSystem.AppDataDirectory, "auto_buy.csv");
+            var trimmed = LoadFromCsv();
+            if (trimmed)
+                await SaveAsync();
+
+            if (_zerodha.IsConnected)
+            {
+                await RefreshSymbolsAsync();
+                await RefreshDeployedAmountsAsync();
+            }
+
+            _bootstrapped = true;
+            EnsureMonitorRunning();
+        }
+        finally
+        {
+            _bootstrapLock.Release();
+        }
+    }
+
+    private void OnZerodhaConnectionChanged(bool connected)
+    {
+        if (!connected)
+            return;
+
+        _ = OnZerodhaConnectedAsync();
+    }
+
+    private async Task OnZerodhaConnectedAsync()
+    {
+        try
+        {
+            await EnsureBootstrappedAsync();
+            await RefreshSymbolsAsync();
+            await RefreshDeployedAmountsAsync();
+            EnsureMonitorRunning();
+
+            if (MasterAutomationEnabled)
+                await EvaluateAllRowsAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Auto Buy startup after connect failed: {ex.Message}";
+            Notify();
+        }
     }
 
     public async Task RefreshSymbolsAsync()
@@ -316,6 +374,17 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         _ = MonitorLoopAsync(_monitorCts.Token);
     }
 
+    private void EnsureMonitorRunning()
+    {
+        if (!MasterAutomationEnabled)
+            return;
+
+        if (_monitorCts is not null && !_monitorCts.IsCancellationRequested)
+            return;
+
+        StartMonitorLoop();
+    }
+
     private async Task MonitorLoopAsync(CancellationToken cancellationToken)
     {
         try
@@ -336,6 +405,8 @@ public class AutoBuyService : IAutoBuyService, IDisposable
     {
         if (!MasterAutomationEnabled)
             return;
+
+        await _settings.LoadAsync();
 
         if (!_zerodha.IsConnected)
         {
@@ -554,6 +625,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         if (_disposed)
             return;
 
+        _zerodha.ConnectionChanged -= OnZerodhaConnectionChanged;
         _monitorCts?.Cancel();
         _monitorCts?.Dispose();
         _disposed = true;
