@@ -6,7 +6,7 @@ namespace PGOne.Services;
 public class WatchlistService : IWatchlistService
 {
   private const int QuickTrendPeriod = 10;
-  private const decimal QuickTrendMultiplier = 3m;
+  private const double QuickTrendMultiplier = 3.0;
   private const int SparklineCandleCount = 24;
 
   private readonly IZerodhaService _zerodha;
