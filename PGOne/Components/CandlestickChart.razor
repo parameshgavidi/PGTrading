@@ -125,6 +125,22 @@
             && ShowIntradayCprLevels == _lastShowIntradayCpr;
     }
 
+    private bool IsVwapOverlayToggleOnly()
+    {
+        return ShowVwapOverlay != _lastShowVwapOverlay
+            && ShowEma20Overlay == _lastShowEma20
+            && ShowSuperTrendOverlay == _lastShowSuperTrend
+            && ShowSuperTrend725Overlay == _lastShowSuperTrend725;
+    }
+
+    private bool IsEma20OverlayToggleOnly()
+    {
+        return ShowEma20Overlay != _lastShowEma20
+            && ShowVwapOverlay == _lastShowVwapOverlay
+            && ShowSuperTrendOverlay == _lastShowSuperTrend
+            && ShowSuperTrend725Overlay == _lastShowSuperTrend725;
+    }
+
     private bool IsSt725OverlayToggleOnly()
     {
         return ShowSuperTrend725Overlay != _lastShowSuperTrend725
@@ -180,6 +196,20 @@
 
         if (IsOverlayOnlyChange() && IsStudyOverlayToggleOnly())
         {
+            if (IsVwapOverlayToggleOnly())
+            {
+                var vwapOn = BuildStudyOverlayInts().ShowVwap;
+                if (await TrySetVwapOverlayAsync(vwapOn))
+                    return true;
+            }
+
+            if (IsEma20OverlayToggleOnly())
+            {
+                var emaOn = BuildStudyOverlayInts().ShowEma20;
+                if (await TrySetEma20OverlayAsync(emaOn))
+                    return true;
+            }
+
             if (IsSt725OverlayToggleOnly())
             {
                 var st725On = BuildStudyOverlayInts().ShowSt725;
@@ -202,7 +232,6 @@
 
         var supportsIntradayCpr = Timeframe == "1m";
         var showIntradayCpr = supportsIntradayCpr && ShowIntradayCprLevels && segmentPayload.Count > 0;
-        var supports5mStudies = Timeframe == "5m";
 
         var overlayOptions = new
         {
@@ -212,10 +241,10 @@
             showIntradaCpr = showIntradayCpr ? 1 : 0,
             intradayCpr = segmentPayload,
             showKeltner = ShowKeltnerLevels ? 1 : 0,
-            showVwap = supports5mStudies && ShowVwapOverlay ? 1 : 0,
+            showVwap = ShowVwapOverlay ? 1 : 0,
             showSuperTrend = ShowSuperTrendOverlay ? 1 : 0,
             showSuperTrend725 = ShowSuperTrend725Overlay ? 1 : 0,
-            showEma20 = supports5mStudies && ShowEma20Overlay ? 1 : 0
+            showEma20 = ShowEma20Overlay ? 1 : 0
         };
 
         var payload = Candles.Select(c => new
@@ -236,7 +265,9 @@
             keltnerLowerOuter = ToJsDouble(c.KeltnerLowerOuter),
             keltnerMid = ToJsDouble(c.KeltnerMid),
             vwap = ToJsDouble(c.Vwap),
-            ema20 = ToJsDouble(c.Ema20)
+            vwapLine = ToJsDouble(c.Vwap),
+            ema20 = ToJsDouble(c.Ema20),
+            ema20Line = ToJsDouble(c.Ema20)
         }).ToList();
 
         var levels = BuildLevelPayload();
@@ -281,11 +312,9 @@
 
     private (int ShowVwap, int ShowEma20, int ShowSt725, int ShowSt103) BuildStudyOverlayInts()
     {
-        var tf = (Timeframe ?? "5m").Trim();
-        var supports5mStudies = tf == "5m";
         return (
-            supports5mStudies && ShowVwapOverlay ? 1 : 0,
-            supports5mStudies && ShowEma20Overlay ? 1 : 0,
+            ShowVwapOverlay ? 1 : 0,
+            ShowEma20Overlay ? 1 : 0,
             ShowSuperTrend725Overlay ? 1 : 0,
             ShowSuperTrendOverlay ? 1 : 0);
     }
@@ -306,6 +335,48 @@
         {
             // Non-fatal: full draw already ran; this syncs overlay flags + recomputes studies.
         }
+    }
+
+    private async Task<bool> TrySetVwapOverlayAsync(int showVwap)
+    {
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            try
+            {
+                var hasState = await JS.InvokeAsync<bool>("pgOneChartHasState", CanvasId);
+                if (!hasState)
+                    return false;
+
+                return await JS.InvokeAsync<bool>("pgOneSetVwapOverlay", CanvasId, showVwap);
+            }
+            catch when (attempt < 5)
+            {
+                await Task.Delay(80 + attempt * 60);
+            }
+        }
+
+        return false;
+    }
+
+    private async Task<bool> TrySetEma20OverlayAsync(int showEma20)
+    {
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            try
+            {
+                var hasState = await JS.InvokeAsync<bool>("pgOneChartHasState", CanvasId);
+                if (!hasState)
+                    return false;
+
+                return await JS.InvokeAsync<bool>("pgOneSetEma20Overlay", CanvasId, showEma20);
+            }
+            catch when (attempt < 5)
+            {
+                await Task.Delay(80 + attempt * 60);
+            }
+        }
+
+        return false;
     }
 
     private async Task<bool> TrySetSt725OverlayAsync(int showSt725)
