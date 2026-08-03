@@ -22,6 +22,8 @@
     <Compile Include="../PGOne/Models/**/*.cs" LinkBase="Models" />
     <Compile Include="../PGOne/Services/MarketHours.cs" Link="Services/MarketHours.cs" />
     <Compile Include="../PGOne/Services/IntradayCprService.cs" Link="Services/IntradayCprService.cs" />
+    <Compile Include="../PGOne/Services/IndicatorService.cs" Link="Services/IndicatorService.cs" />
+    <Compile Include="../PGOne/Services/SuperTrendService.cs" Link="Services/SuperTrendService.cs" />
     <Compile Include="../PGOne/Services/SentimentTextHelper.cs" Link="Services/SentimentTextHelper.cs" />
     <Compile Include="../PGOne/Services/NiftyIndexService.cs" Link="Services/NiftyIndexService.cs" />
   </ItemGroup>

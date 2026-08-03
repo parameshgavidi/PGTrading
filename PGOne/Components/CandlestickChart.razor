@@ -1,6 +1,7 @@
 @namespace PGOne.Components
 @using PGOne.Models
 @inject IJSRuntime JS
+@implements IAsyncDisposable
 
 <div class="chart-area @CssClass">
     <div class="chart-zoom-controls">
@@ -46,6 +47,8 @@
     private bool _lastShowVwapOverlay;
     private int _lastCprSegmentCount;
     private string _lastCprSegmentKey = string.Empty;
+    private int _pendingRenderRetries;
+    private CancellationTokenSource? _retryCts;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -70,8 +73,16 @@
             && segmentKey == _lastCprSegmentKey)
             return;
 
-        if (!await RenderAsync(firstRender))
+        var overlayOnly = _lastRenderedVersion >= 0
+            && ChartVersion == _lastRenderedVersion
+            && OverlayVersion != _lastOverlayVersion;
+
+        if (!await RenderAsync(overlayOnly))
+        {
+            ScheduleRenderRetry();
             return;
+
+        }
 
         _lastRenderedVersion = ChartVersion;
         _lastOverlayVersion = OverlayVersion;
@@ -87,6 +98,32 @@
         _lastShowVwapOverlay = ShowVwapOverlay;
         _lastCprSegmentCount = CprSegments.Count;
         _lastCprSegmentKey = segmentKey;
+        _pendingRenderRetries = 0;
+    }
+
+    private void ScheduleRenderRetry()
+    {
+        if (_pendingRenderRetries >= 8)
+            return;
+
+        _pendingRenderRetries++;
+        _retryCts?.Cancel();
+        _retryCts = new CancellationTokenSource();
+        var token = _retryCts.Token;
+        _ = RetryRenderAfterDelayAsync(token);
+    }
+
+    private async Task RetryRenderAfterDelayAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(120 + _pendingRenderRetries * 60, token);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException)
+        {
+            // superseded by a newer retry
+        }
     }
 
     private string BuildCprSegmentKey() =>
@@ -102,44 +139,21 @@
         catch { /* WebView not ready */ }
     }
 
-    private async Task<bool> RenderAsync(bool firstRender)
+    private async Task<bool> RenderAsync(bool overlayOnly)
     {
         var segmentPayload = CprSegments.Select(s => new
         {
             start = ChartJsTime.ToEpochMs(s.Start),
             end = ChartJsTime.ToEpochMs(s.End),
-            pivot = s.Pivot,
-            tc = s.Tc,
-            bc = s.Bc
+            pivot = (double)s.Pivot,
+            tc = (double)s.Tc,
+            bc = (double)s.Bc
         }).ToList();
 
         var supportsIntradayCpr = Timeframe == "1m";
         var showIntradayCpr = supportsIntradayCpr && ShowIntradayCprLevels && segmentPayload.Count > 0;
 
         var supportsIntradayStudies = Timeframe is "1m" or "5m" or "15m";
-
-        var payload = Candles.Select(c => new
-        {
-            time = ChartJsTime.ToEpochMs(c.Timestamp),
-            open = c.Open,
-            high = c.High,
-            low = c.Low,
-            close = c.Close,
-            superTrend = c.SuperTrend,
-            superTrendEntry = c.SuperTrendEntry,
-            keltnerUpperInner = c.KeltnerUpperInner,
-            keltnerLowerInner = c.KeltnerLowerInner,
-            keltnerUpperOuter = c.KeltnerUpperOuter,
-            keltnerLowerOuter = c.KeltnerLowerOuter,
-            keltnerMid = c.KeltnerMid,
-            vwap = c.Vwap,
-            ema20 = c.Ema20
-        }).ToList();
-
-        var levels = BuildLevelPayload();
-        var pocToday = !supportsIntradayCpr && ShowPocLevels && Analysis?.VolumeProfile.HasData == true
-            ? Analysis.VolumeProfile.Poc
-            : 0m;
 
         var overlayOptions = new
         {
@@ -155,7 +169,46 @@
             showEma20 = Timeframe == "5m" && ShowEma20Overlay
         };
 
-        for (var attempt = 0; attempt < (firstRender ? 5 : 1); attempt++)
+        if (overlayOnly)
+        {
+            for (var attempt = 0; attempt < 5; attempt++)
+            {
+                try
+                {
+                    await JS.InvokeVoidAsync("pgOneChart.updateOverlayOptions", CanvasId, overlayOptions);
+                    return true;
+                }
+                catch when (attempt < 4)
+                {
+                    await Task.Delay(100 + attempt * 80);
+                }
+            }
+        }
+
+        var payload = Candles.Select(c => new
+        {
+            time = ChartJsTime.ToEpochMs(c.Timestamp),
+            open = (double)c.Open,
+            high = (double)c.High,
+            low = (double)c.Low,
+            close = (double)c.Close,
+            superTrend = ToJsDouble(c.SuperTrend),
+            superTrendEntry = ToJsDouble(c.SuperTrendEntry),
+            keltnerUpperInner = ToJsDouble(c.KeltnerUpperInner),
+            keltnerLowerInner = ToJsDouble(c.KeltnerLowerInner),
+            keltnerUpperOuter = ToJsDouble(c.KeltnerUpperOuter),
+            keltnerLowerOuter = ToJsDouble(c.KeltnerLowerOuter),
+            keltnerMid = ToJsDouble(c.KeltnerMid),
+            vwap = ToJsDouble(c.Vwap),
+            ema20 = ToJsDouble(c.Ema20)
+        }).ToList();
+
+        var levels = BuildLevelPayload();
+        var pocToday = !supportsIntradayCpr && ShowPocLevels && Analysis?.VolumeProfile.HasData == true
+            ? (double)Analysis.VolumeProfile.Poc
+            : 0d;
+
+        for (var attempt = 0; attempt < 5; attempt++)
         {
             try
             {
@@ -169,14 +222,17 @@
                     overlayOptions);
                 return true;
             }
-            catch when (attempt < 4 && firstRender)
+            catch when (attempt < 4)
             {
-                await Task.Delay(120);
+                await Task.Delay(100 + attempt * 80);
             }
         }
 
         return false;
     }
+
+    private static double? ToJsDouble(decimal? value) =>
+        value.HasValue ? (double)value.Value : null;
 
     private List<object> BuildLevelPayload()
     {
@@ -194,11 +250,17 @@
             .Select(row => new
             {
                 label = row.Label,
-                price = row.Price,
+                price = (double)row.Price,
                 group = row.Group,
                 kind = row.CssClass
             })
             .Cast<object>()
             .ToList();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _retryCts?.Cancel();
+        _retryCts?.Dispose();
     }
 }
