@@ -348,27 +348,6 @@ public class DashboardViewModel : INotifyPropertyChanged
         Notify(nameof(CprPositionClass));
     }
 
-    /// <summary>Turn off 1m CPR chart overlay on Dashboard / Live Market (keeps dedicated 1min CPR page).</summary>
-    public void Disable1mCprChartOverlay()
-    {
-        if (!ShowIntradayCprOverlay)
-            return;
-
-        ShowIntradayCprOverlay = false;
-        CprSegments = Array.Empty<IntradayCprSegment>();
-        OverlayVersion++;
-        CurrentIntradayTc = 0;
-        CurrentIntradayPivot = 0;
-        CurrentIntradayBc = 0;
-        AboveCpr = false;
-        Notify(nameof(ShowIntradayCprOverlay));
-        Notify(nameof(OverlayVersion));
-        Notify(nameof(CprSegments));
-        Notify(nameof(AboveCpr));
-        Notify(nameof(CprPositionLabel));
-        Notify(nameof(CprPositionClass));
-    }
-
     public void SetShowSuperTrendOverlay(bool show)
     {
         if (ShowSuperTrendOverlay == show)
@@ -423,13 +402,8 @@ public class DashboardViewModel : INotifyPropertyChanged
             if (SelectedTimeframe == "1m")
             {
                 var sessionDate = GetChartSessionDate();
-                if (ShowIntradayCprOverlay)
-                {
-                    var candles15m = await _marketData.GetCandlesResultAsync(SelectedInstrument, "15m", 80);
-                    CprSegments = _intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
-                }
-                else
-                    CprSegments = Array.Empty<IntradayCprSegment>();
+                var candles15m = await _marketData.GetCandlesResultAsync(SelectedInstrument, "15m", 80);
+                CprSegments = _intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
 
                 var sessionCandles = result.Candles
                     .Where(c => c.Timestamp.Date == sessionDate)
@@ -479,7 +453,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         if (ChartCandles.Count == 0)
             return null;
 
-        if (SelectedTimeframe == "1m" && ShowIntradayCprOverlay)
+        if (SelectedTimeframe == "1m")
             return CprSegments.Count > 0
                 ? $" · CPR windows {CprSegments.Count}"
                 : " · CPR windows 0 (need 15m data)";

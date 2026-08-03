@@ -7,12 +7,12 @@
                   ChartVersion="ViewModel.ChartVersion"
                   OverlayVersion="ViewModel.OverlayVersion"
                   Analysis="ViewModel.Analysis"
-                  CprSegments="@(Enable1mCprOverlay ? ViewModel.CprSegments : Array.Empty<IntradayCprSegment>())"
+                  CprSegments="ViewModel.CprSegments"
                   ShowPocLevels="ViewModel.ShowPocOverlay"
                   ShowPivotLevels="ViewModel.ShowPivotOverlay"
                   ShowCamarillaLevels="ViewModel.ShowCamarillaOverlay"
                   ShowKeltnerLevels="ViewModel.ShowKeltnerOverlay"
-                  ShowIntradayCprLevels="@(Enable1mCprOverlay && ViewModel.ShowIntradayCprOverlay)"
+                  ShowIntradayCprLevels="ViewModel.ShowIntradayCprOverlay"
                   ShowSuperTrendOverlay="ViewModel.ShowSuperTrendOverlay"
                   ShowSuperTrend725Overlay="ViewModel.ShowSuperTrend725Overlay"
                   ShowEma20Overlay="ViewModel.ShowEma20Overlay"
@@ -30,7 +30,7 @@
                     @onclick="() => ChangeTimeframeAsync(tf)">@tf</button>
         }
     </div>
-    <ChartOverlayToggles ShowIntradayCprToggle="Enable1mCprOverlay && ViewModel.SupportsIntradayCprOverlay"
+    <ChartOverlayToggles ShowIntradayCprToggle="ViewModel.SupportsIntradayCprOverlay"
                          ShowKeltnerToggle="@(ViewModel.SelectedTimeframe == "1m" || ViewModel.SelectedTimeframe == "5m")"
                          ShowIntradayStToggles="ViewModel.SupportsIntradayStOverlays"
                          ShowSt725Toggle="ViewModel.SupportsSt725Overlays"
@@ -38,7 +38,7 @@
                          ShowPoc="ViewModel.ShowPocOverlay"
                          ShowDayCpr="ViewModel.ShowPivotOverlay"
                          ShowCamarilla="ViewModel.ShowCamarillaOverlay"
-                         ShowIntradayCpr="@(Enable1mCprOverlay && ViewModel.ShowIntradayCprOverlay)"
+                         ShowIntradayCpr="ViewModel.ShowIntradayCprOverlay"
                          ShowKeltner="ViewModel.ShowKeltnerOverlay"
                          ShowSuperTrend="ViewModel.ShowSuperTrendOverlay"
                          ShowSuperTrend725="ViewModel.ShowSuperTrend725Overlay"
@@ -80,7 +80,7 @@
     {
         <span class="legend-item"><span class="legend-color pivot"></span> Day CPR (prev day)</span>
     }
-    @if (Enable1mCprOverlay && ViewModel.ShowIntradayCprOverlay && ViewModel.SupportsIntradayCprOverlay)
+    @if (ViewModel.ShowIntradayCprOverlay && ViewModel.SupportsIntradayCprOverlay)
     {
         <span class="legend-item"><span class="legend-color cpr-tc"></span> 1m CPR on chart — TC / CPR / BC per 15m</span>
     }
@@ -114,8 +114,6 @@
     [Parameter] public string CssClass { get; set; } = string.Empty;
     [Parameter] public bool ShowLastCandleSummary { get; set; } = true;
     [Parameter] public string[] Timeframes { get; set; } = DefaultTimeframes;
-    /// <summary>1m CPR TC/CPR/BC bands — only on the dedicated 1min CPR page.</summary>
-    [Parameter] public bool Enable1mCprOverlay { get; set; } = false;
 
     private string ChartSurfaceKey =>
         $"{CanvasId}|{ViewModel.SelectedSymbol}|{ViewModel.SelectedTimeframe}";
