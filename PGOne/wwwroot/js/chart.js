@@ -26,6 +26,10 @@ window.pgOneChart = (function () {
 
     function normalizeCandle(raw) {
         if (!raw) return raw;
+        var entry = num(field(raw, 'superTrendEntry'));
+        var st725Val = num(field(raw, 'st725'));
+        var st725 = st725Val != null ? st725Val : entry;
+        if (entry == null && st725Val != null) entry = st725Val;
         return {
             time: field(raw, 'time'),
             open: num(field(raw, 'open')),
@@ -33,7 +37,8 @@ window.pgOneChart = (function () {
             low: num(field(raw, 'low')),
             close: num(field(raw, 'close')),
             superTrend: num(field(raw, 'superTrend')),
-            superTrendEntry: num(field(raw, 'superTrendEntry')),
+            superTrendEntry: entry,
+            st725: st725,
             keltnerUpperInner: num(field(raw, 'keltnerUpperInner')),
             keltnerLowerInner: num(field(raw, 'keltnerLowerInner')),
             keltnerUpperOuter: num(field(raw, 'keltnerUpperOuter')),
@@ -43,6 +48,14 @@ window.pgOneChart = (function () {
             ema20: num(field(raw, 'ema20')),
             volume: num(field(raw, 'volume'))
         };
+    }
+
+    function getSt725Value(candle) {
+        if (!candle) return null;
+        var v = candle.st725;
+        if (v != null && !Number.isNaN(v)) return v;
+        v = candle.superTrendEntry;
+        return v != null && !Number.isNaN(v) ? v : null;
     }
 
     function studyFieldMissing(candles, key, minCount) {
@@ -119,7 +132,8 @@ window.pgOneChart = (function () {
                 prevUpper = upper;
                 prevLower = lower;
                 prevSt = upper;
-                candles[i][key] = prevSt;
+                if (key === 'superTrendEntry') assignSt725(candles[i], prevSt);
+                else candles[i][key] = prevSt;
                 started = true;
                 continue;
             }
@@ -129,7 +143,8 @@ window.pgOneChart = (function () {
             var wasDown = prevSt === prevUpper;
             var isUp = wasDown ? candles[i].close > upper : !(candles[i].close < lower);
             var st = isUp ? lower : upper;
-            candles[i][key] = st;
+            if (key === 'superTrendEntry') assignSt725(candles[i], st);
+            else candles[i][key] = st;
             prevUpper = upper;
             prevLower = lower;
             prevSt = st;
@@ -143,6 +158,11 @@ window.pgOneChart = (function () {
         if (flags.showVwap) computeSessionVwap(candles);
         if (flags.showSuperTrend725) computeSuperTrendSeries(candles, 7, 2.5, 'superTrendEntry');
         if (flags.showSuperTrend) computeSuperTrendSeries(candles, 10, 3, 'superTrend');
+    }
+
+    function assignSt725(candle, value) {
+        candle.superTrendEntry = value;
+        candle.st725 = value;
     }
 
     function intOverlayFlag(v) {
@@ -523,7 +543,10 @@ window.pgOneChart = (function () {
             extra.push.apply(extra, collect('superTrend'));
         }
         if (st.showSuperTrend725) {
-            extra.push.apply(extra, collect('superTrendEntry'));
+            view.forEach(function (c) {
+                var v = getSt725Value(c);
+                if (v != null) extra.push(v);
+            });
         }
         if (st.showKeltner) {
             extra.push.apply(extra, collect('keltnerUpperOuter'));
@@ -608,8 +631,11 @@ window.pgOneChart = (function () {
             ctx.setLineDash([]);
         };
 
-        const drawSuperTrendSegments = (valueKey, lineWidth) => {
+        const drawSuperTrendSegments = (getValue, lineWidth, colors, dash) => {
             ctx.lineWidth = lineWidth || 2;
+            ctx.setLineDash(dash || []);
+            var upColor = (colors && colors.up) || '#00C853';
+            var downColor = (colors && colors.down) || '#FF5252';
             let segment = null;
             const flush = () => {
                 if (!segment || segment.points.length < 1) { segment = null; return; }
@@ -620,15 +646,16 @@ window.pgOneChart = (function () {
                 segment = null;
             };
             view.forEach((candle, i) => {
-                const stv = candle[valueKey];
+                const stv = getValue(candle);
                 if (stv == null || Number.isNaN(stv)) { flush(); return; }
                 const close = candle.close;
-                const color = close >= stv ? '#00C853' : '#FF5252';
+                const color = close >= stv ? upColor : downColor;
                 const point = { x: toX(i), y: toY(stv) };
                 if (!segment || segment.color !== color) { flush(); segment = { color: color, points: [point] }; }
                 else segment.points.push(point);
             });
             flush();
+            ctx.setLineDash([]);
         };
 
         // Day CPR / POC / Camarilla — full-width dashed lines + labels on chart
@@ -677,12 +704,18 @@ window.pgOneChart = (function () {
             drawLine('ema20', 'rgba(255, 152, 0, 0.95)', [8, 4], 2.25);
         }
 
-        if (st.showSuperTrend725) {
-            drawSuperTrendSegments('superTrendEntry', 2);
+        // ST(10,3) first; ST(7,2.5) on top with distinct cyan/orange dashed style (legend st725).
+        if (st.showSuperTrend) {
+            drawSuperTrendSegments(function (c) { return c.superTrend; }, 2.25);
         }
 
-        if (st.showSuperTrend) {
-            drawSuperTrendSegments('superTrend', 2.25);
+        if (st.showSuperTrend725) {
+            drawSuperTrendSegments(
+                getSt725Value,
+                2.5,
+                { up: '#00BCD4', down: '#FF9800' },
+                [6, 3]
+            );
         }
     }
 
@@ -700,6 +733,20 @@ window.pgOneChart = (function () {
         st.showSuperTrend = overlayFlag(opts, 'showSuperTrend', false);
         st.showSuperTrend725 = overlayFlag(opts, 'showSuperTrend725', false);
         st.showEma20 = overlayFlag(opts, 'showEma20', false);
+        ensureStudyIndicators(st.candles, {
+            showVwap: st.showVwap,
+            showEma20: st.showEma20,
+            showSuperTrend725: st.showSuperTrend725,
+            showSuperTrend: st.showSuperTrend
+        });
+        scheduleRender(canvasId);
+        return true;
+    }
+
+    function setSt725Overlay(canvasId, show) {
+        const st = states[canvasId];
+        if (!st) return false;
+        st.showSuperTrend725 = intOverlayFlag(show);
         ensureStudyIndicators(st.candles, {
             showVwap: st.showVwap,
             showEma20: st.showEma20,
@@ -742,6 +789,7 @@ window.pgOneChart = (function () {
         drawCandlestickChart: setData,
         updateOverlayOptions: updateOverlayOptions,
         setStudyOverlays: setStudyOverlays,
+        setSt725Overlay: setSt725Overlay,
         hasState: hasState,
         zoom: zoom,
         resetZoom: resetZoom
@@ -754,6 +802,16 @@ window.pgOneChartReady = function () {
 
 window.pgOneChartHasState = function (canvasId) {
     return window.pgOneChart && window.pgOneChart.hasState(canvasId);
+};
+
+window.pgOneSetSt725Overlay = function (canvasId, show) {
+    try {
+        if (!window.pgOneChartReady()) return false;
+        return window.pgOneChart.setSt725Overlay(canvasId, show);
+    } catch (err) {
+        console.error('pgOneSetSt725Overlay failed', err);
+        return false;
+    }
 };
 
 window.pgOneSetStudyOverlays = function (canvasId, showVwap, showEma20, showSt725, showSt103) {
