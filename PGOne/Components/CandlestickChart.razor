@@ -73,11 +73,7 @@
             && segmentKey == _lastCprSegmentKey)
             return;
 
-        var overlayOnly = _lastRenderedVersion >= 0
-            && ChartVersion == _lastRenderedVersion
-            && OverlayVersion != _lastOverlayVersion;
-
-        if (!await RenderAsync(overlayOnly))
+        if (!await RenderAsync())
         {
             ScheduleRenderRetry();
             return;
@@ -139,7 +135,7 @@
         catch { /* WebView not ready */ }
     }
 
-    private async Task<bool> RenderAsync(bool overlayOnly)
+    private async Task<bool> RenderAsync()
     {
         var segmentPayload = CprSegments.Select(s => new
         {
@@ -153,7 +149,7 @@
         var supportsIntradayCpr = Timeframe == "1m";
         var showIntradayCpr = supportsIntradayCpr && ShowIntradayCprLevels && segmentPayload.Count > 0;
 
-        var supportsIntradayStudies = Timeframe is "1m" or "5m" or "15m";
+        var supportsSt725 = Timeframe is "1m" or "5m" or "15m";
 
         var overlayOptions = new
         {
@@ -164,26 +160,10 @@
             intradayCpr = segmentPayload,
             showKeltner = ShowKeltnerLevels,
             showVwap = Timeframe == "5m" && ShowVwapOverlay,
-            showSuperTrend = supportsIntradayStudies && ShowSuperTrendOverlay,
-            showSuperTrend725 = supportsIntradayStudies && ShowSuperTrend725Overlay,
+            showSuperTrend = ShowSuperTrendOverlay,
+            showSuperTrend725 = supportsSt725 && ShowSuperTrend725Overlay,
             showEma20 = Timeframe == "5m" && ShowEma20Overlay
         };
-
-        if (overlayOnly)
-        {
-            for (var attempt = 0; attempt < 5; attempt++)
-            {
-                try
-                {
-                    await JS.InvokeVoidAsync("pgOneChart.updateOverlayOptions", CanvasId, overlayOptions);
-                    return true;
-                }
-                catch when (attempt < 4)
-                {
-                    await Task.Delay(100 + attempt * 80);
-                }
-            }
-        }
 
         var payload = Candles.Select(c => new
         {
@@ -208,11 +188,11 @@
             ? (double)Analysis.VolumeProfile.Poc
             : 0d;
 
-        for (var attempt = 0; attempt < 5; attempt++)
+        for (var attempt = 0; attempt < 8; attempt++)
         {
             try
             {
-                await JS.InvokeVoidAsync(
+                var drawn = await JS.InvokeAsync<bool>(
                     "pgOneChart.drawCandlestickChart",
                     CanvasId,
                     payload,
@@ -220,9 +200,10 @@
                     levels,
                     pocToday,
                     overlayOptions);
-                return true;
+                if (drawn)
+                    return true;
             }
-            catch when (attempt < 4)
+            catch when (attempt < 7)
             {
                 await Task.Delay(100 + attempt * 80);
             }
