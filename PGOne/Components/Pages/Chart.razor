@@ -23,7 +23,8 @@
                 }
             </div>
         </div>
-        <CandlestickChart CanvasId="liveChart"
+        <CandlestickChart @key="@($"{ViewModel.SelectedSymbol}-{ViewModel.SelectedTimeframe}-{ViewModel.ChartVersion}")"
+                          CanvasId="liveChart"
                           Candles="ViewModel.ChartCandles"
                           ChartVersion="ViewModel.ChartVersion"
                           OverlayVersion="ViewModel.OverlayVersion"

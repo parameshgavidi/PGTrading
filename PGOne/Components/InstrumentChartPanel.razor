@@ -1,7 +1,8 @@
 @namespace PGOne.Components
 @using PGOne.ViewModels
 
-<CandlestickChart CanvasId="@CanvasId"
+<CandlestickChart @key="@ChartSurfaceKey"
+                  CanvasId="@CanvasId"
                   Candles="ViewModel.ChartCandles"
                   ChartVersion="ViewModel.ChartVersion"
                   OverlayVersion="ViewModel.OverlayVersion"
@@ -113,6 +114,9 @@
     [Parameter] public string CssClass { get; set; } = string.Empty;
     [Parameter] public bool ShowLastCandleSummary { get; set; } = true;
     [Parameter] public string[] Timeframes { get; set; } = DefaultTimeframes;
+
+    private string ChartSurfaceKey =>
+        $"{CanvasId}|{ViewModel.SelectedSymbol}|{ViewModel.SelectedTimeframe}|{ViewModel.ChartVersion}";
 
     private Task ChangeTimeframeAsync(string timeframe) => ViewModel.ChangeTimeframeAsync(timeframe);
 }

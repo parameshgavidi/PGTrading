@@ -7,6 +7,8 @@ public interface IMarketDataService
     bool IsMarketOpen { get; }
     Task<List<Candle>> GetCandlesAsync(string instrument, string interval, int count = 100);
     Task<CandleSeriesResult> GetCandlesResultAsync(string instrument, string interval, int count = 100);
+    /// <summary>Attach SuperTrend, VWAP, EMA, Keltner, etc. for chart overlays.</summary>
+    void ApplyChartIndicators(List<Candle> candles, string interval);
     /// <summary>
     /// 5m candles with real volume for footprint — uses nearest index future when index volume is zero.
     /// </summary>
@@ -207,6 +209,14 @@ public class MarketDataService : IMarketDataService
     {
         _timer?.Stop();
         _timer?.Dispose();
+    }
+
+    public void ApplyChartIndicators(List<Candle> candles, string interval)
+    {
+        if (candles.Count == 0)
+            return;
+
+        AttachIndicators(candles, interval);
     }
 
     private List<Candle> AttachIndicators(List<Candle> candles, string interval)

@@ -77,7 +77,6 @@
         {
             ScheduleRenderRetry();
             return;
-
         }
 
         _lastRenderedVersion = ChartVersion;
@@ -99,7 +98,7 @@
 
     private void ScheduleRenderRetry()
     {
-        if (_pendingRenderRetries >= 8)
+        if (_pendingRenderRetries >= 12)
             return;
 
         _pendingRenderRetries++;
@@ -113,7 +112,7 @@
     {
         try
         {
-            await Task.Delay(120 + _pendingRenderRetries * 60, token);
+            await Task.Delay(150 + _pendingRenderRetries * 80, token);
             await InvokeAsync(StateHasChanged);
         }
         catch (OperationCanceledException)
@@ -137,6 +136,9 @@
 
     private async Task<bool> RenderAsync()
     {
+        if (!await EnsureChartJsReadyAsync())
+            return false;
+
         var segmentPayload = CprSegments.Select(s => new
         {
             start = ChartJsTime.ToEpochMs(s.Start),
@@ -148,21 +150,22 @@
 
         var supportsIntradayCpr = Timeframe == "1m";
         var showIntradayCpr = supportsIntradayCpr && ShowIntradayCprLevels && segmentPayload.Count > 0;
-
         var supportsSt725 = Timeframe is "1m" or "5m" or "15m";
+        var supports5mStudies = Timeframe == "5m";
 
+        // Int flags — reliable across Blazor WebView JSON interop.
         var overlayOptions = new
         {
-            showPoc = ShowPocLevels,
-            showPivot = ShowPivotLevels,
-            showCamarilla = ShowCamarillaLevels,
+            showPoc = ShowPocLevels ? 1 : 0,
+            showPivot = ShowPivotLevels ? 1 : 0,
+            showCamarilla = ShowCamarillaLevels ? 1 : 0,
             showIntradaCpr = showIntradayCpr ? 1 : 0,
             intradayCpr = segmentPayload,
-            showKeltner = ShowKeltnerLevels,
-            showVwap = Timeframe == "5m" && ShowVwapOverlay,
-            showSuperTrend = ShowSuperTrendOverlay,
-            showSuperTrend725 = supportsSt725 && ShowSuperTrend725Overlay,
-            showEma20 = Timeframe == "5m" && ShowEma20Overlay
+            showKeltner = ShowKeltnerLevels ? 1 : 0,
+            showVwap = supports5mStudies && ShowVwapOverlay ? 1 : 0,
+            showSuperTrend = ShowSuperTrendOverlay ? 1 : 0,
+            showSuperTrend725 = supportsSt725 && ShowSuperTrend725Overlay ? 1 : 0,
+            showEma20 = supports5mStudies && ShowEma20Overlay ? 1 : 0
         };
 
         var payload = Candles.Select(c => new
@@ -188,11 +191,11 @@
             ? (double)Analysis.VolumeProfile.Poc
             : 0d;
 
-        for (var attempt = 0; attempt < 8; attempt++)
+        for (var attempt = 0; attempt < 10; attempt++)
         {
             try
             {
-                var drawn = await JS.InvokeAsync<bool>(
+                await JS.InvokeVoidAsync(
                     "pgOneChart.drawCandlestickChart",
                     CanvasId,
                     payload,
@@ -200,13 +203,33 @@
                     levels,
                     pocToday,
                     overlayOptions);
-                if (drawn)
-                    return true;
+                return true;
             }
-            catch when (attempt < 7)
+            catch when (attempt < 9)
             {
                 await Task.Delay(100 + attempt * 80);
             }
+        }
+
+        return false;
+    }
+
+    private async Task<bool> EnsureChartJsReadyAsync()
+    {
+        for (var attempt = 0; attempt < 15; attempt++)
+        {
+            try
+            {
+                var ready = await JS.InvokeAsync<bool>("pgOneChart.isReady");
+                if (ready)
+                    return true;
+            }
+            catch when (attempt < 14)
+            {
+                // chart.js still loading
+            }
+
+            await Task.Delay(80 + attempt * 40);
         }
 
         return false;

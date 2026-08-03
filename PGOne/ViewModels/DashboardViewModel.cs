@@ -416,6 +416,8 @@ public class DashboardViewModel : INotifyPropertyChanged
                 ChartCandles = result.Candles;
             }
 
+            _marketData.ApplyChartIndicators(ChartCandles, SelectedTimeframe);
+
             ChartVersion++;
             Notify(nameof(ChartCandles));
             Notify(nameof(ChartVersion));
