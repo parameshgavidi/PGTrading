@@ -363,6 +363,17 @@ window.pgOneChart = (function () {
         drawLevelLabel(ctx, x0 + 2, y, label, color);
     }
 
+    function normalizeCprSegment(raw) {
+        if (!raw) return raw;
+        return {
+            start: field(raw, 'start'),
+            end: field(raw, 'end'),
+            pivot: num(field(raw, 'pivot')),
+            tc: num(field(raw, 'tc')),
+            bc: num(field(raw, 'bc'))
+        };
+    }
+
     function drawIntradaCprLevels(ctx, view, segments, padding, chartH, slot, toY, toX) {
         if (!segments || segments.length === 0 || !view.length) return;
 
@@ -371,28 +382,17 @@ window.pgOneChart = (function () {
 
             var start = parseTime(seg.start);
             var end = parseTime(seg.end);
-            var iStart = -1, iEnd = -1;
+            if (!start || !end) return;
 
+            var iStart = -1, iEnd = -1;
             view.forEach(function (candle, i) {
                 var t = parseTime(candle.time);
                 if (!t) return;
-                var matched = findCprSegment(segments, t);
-                if (matched && segmentKey(matched) === segmentKey(seg)) {
+                if (t >= start && t < end) {
                     if (iStart < 0) iStart = i;
                     iEnd = i;
                 }
             });
-
-            if (iStart < 0 && start && end) {
-                view.forEach(function (candle, i) {
-                    var t = parseTime(candle.time);
-                    if (!t) return;
-                    if (t >= start && t < end) {
-                        if (iStart < 0) iStart = i;
-                        iEnd = i;
-                    }
-                });
-            }
 
             if (iStart < 0 || iEnd < 0) return;
 
@@ -479,7 +479,7 @@ window.pgOneChart = (function () {
         const showPoc = overlayFlag(opts, 'showPoc', true);
         const showPivot = overlayFlag(opts, 'showPivot', true);
         const showCamarilla = overlayFlag(opts, 'showCamarilla', true);
-        const intradayCprSegments = opts.intradayCpr || opts.IntradayCpr || [];
+        const intradayCprSegments = (opts.intradayCpr || opts.IntradayCpr || []).map(normalizeCprSegment);
         const showIntradaCpr = overlayFlag(opts, 'showIntradaCpr', false)
             && intradayCprSegments.length > 0;
         const showKeltner = overlayFlag(opts, 'showKeltner', false);
@@ -847,6 +847,22 @@ window.pgOneChart = (function () {
         return true;
     }
 
+    function setIntradayCprOverlay(canvasId, show, segmentsJson) {
+        const st = states[canvasId];
+        if (!st) return false;
+        st.showIntradaCpr = intOverlayFlag(show);
+        if (segmentsJson != null) {
+            var segs = typeof segmentsJson === 'string' ? JSON.parse(segmentsJson) : segmentsJson;
+            st.intradayCprSegments = (segs || []).map(normalizeCprSegment);
+            if (st.intradayCprSegments.length === 0)
+                st.showIntradaCpr = false;
+        } else if (!st.intradayCprSegments || st.intradayCprSegments.length === 0) {
+            st.showIntradaCpr = false;
+        }
+        scheduleRender(canvasId);
+        return true;
+    }
+
     function setStudyOverlays(canvasId, showVwap, showEma20, showSt725, showSt103) {
         const st = states[canvasId];
         if (!st) return false;
@@ -882,6 +898,7 @@ window.pgOneChart = (function () {
         setSt725Overlay: setSt725Overlay,
         setVwapOverlay: setVwapOverlay,
         setEma20Overlay: setEma20Overlay,
+        setIntradayCprOverlay: setIntradayCprOverlay,
         hasState: hasState,
         zoom: zoom,
         resetZoom: resetZoom
@@ -922,6 +939,16 @@ window.pgOneSetEma20Overlay = function (canvasId, show) {
         return window.pgOneChart.setEma20Overlay(canvasId, show);
     } catch (err) {
         console.error('pgOneSetEma20Overlay failed', err);
+        return false;
+    }
+};
+
+window.pgOneSetIntradayCprOverlay = function (canvasId, show, segmentsJson) {
+    try {
+        if (!window.pgOneChartReady()) return false;
+        return window.pgOneChart.setIntradayCprOverlay(canvasId, show, segmentsJson);
+    } catch (err) {
+        console.error('pgOneSetIntradayCprOverlay failed', err);
         return false;
     }
 };

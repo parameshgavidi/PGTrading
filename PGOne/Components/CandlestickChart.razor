@@ -149,6 +149,19 @@
             && ShowVwapOverlay == _lastShowVwapOverlay;
     }
 
+    private bool IsIntradayCprToggleOnly()
+    {
+        return ShowIntradayCprLevels != _lastShowIntradayCpr
+            && ShowPocLevels == _lastShowPoc
+            && ShowPivotLevels == _lastShowPivot
+            && ShowCamarillaLevels == _lastShowCamarilla
+            && ShowKeltnerLevels == _lastShowKeltner
+            && ShowSuperTrendOverlay == _lastShowSuperTrend
+            && ShowSuperTrend725Overlay == _lastShowSuperTrend725
+            && ShowEma20Overlay == _lastShowEma20
+            && ShowVwapOverlay == _lastShowVwapOverlay;
+    }
+
     private void ScheduleRenderRetry()
     {
         if (_pendingRenderRetries >= 12)
@@ -193,6 +206,13 @@
             return false;
 
         var studyFlags = BuildStudyOverlayInts();
+        var segmentsJson = BuildCprSegmentsJson();
+
+        if (IsOverlayOnlyChange() && IsIntradayCprToggleOnly())
+        {
+            if (await TrySetIntradayCprOverlayAsync(ShowIntradayCprLevels, segmentsJson))
+                return true;
+        }
 
         if (IsOverlayOnlyChange() && IsStudyOverlayToggleOnly())
         {
@@ -221,14 +241,7 @@
                 return true;
         }
 
-        var segmentPayload = CprSegments.Select(s => new
-        {
-            start = ChartJsTime.ToEpochMs(s.Start),
-            end = ChartJsTime.ToEpochMs(s.End),
-            pivot = (double)s.Pivot,
-            tc = (double)s.Tc,
-            bc = (double)s.Bc
-        }).ToList();
+        var segmentPayload = BuildCprSegmentPayload();
 
         var supportsIntradayCpr = Timeframe == "1m";
         var showIntradayCpr = supportsIntradayCpr && ShowIntradayCprLevels && segmentPayload.Count > 0;
@@ -298,6 +311,8 @@
                 if (ok)
                 {
                     await SyncStudyOverlaysAsync(studyFlags);
+                    if (Timeframe == "1m")
+                        await SyncIntradayCprOverlayAsync(ShowIntradayCprLevels, segmentsJson);
                     return true;
                 }
             }
@@ -317,6 +332,60 @@
             ShowEma20Overlay ? 1 : 0,
             ShowSuperTrend725Overlay ? 1 : 0,
             ShowSuperTrendOverlay ? 1 : 0);
+    }
+
+    private List<object> BuildCprSegmentPayload() =>
+        CprSegments.Select(s => new
+        {
+            start = ChartJsTime.ToEpochMs(s.Start),
+            end = ChartJsTime.ToEpochMs(s.End),
+            pivot = (double)s.Pivot,
+            tc = (double)s.Tc,
+            bc = (double)s.Bc
+        }).Cast<object>().ToList();
+
+    private string BuildCprSegmentsJson() =>
+        JsonSerializer.Serialize(BuildCprSegmentPayload(), ChartJson);
+
+    private async Task SyncIntradayCprOverlayAsync(bool show, string segmentsJson)
+    {
+        try
+        {
+            await JS.InvokeAsync<bool>(
+                "pgOneSetIntradayCprOverlay",
+                CanvasId,
+                show ? 1 : 0,
+                segmentsJson);
+        }
+        catch
+        {
+            // Non-fatal sync after full draw
+        }
+    }
+
+    private async Task<bool> TrySetIntradayCprOverlayAsync(bool show, string segmentsJson)
+    {
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            try
+            {
+                var hasState = await JS.InvokeAsync<bool>("pgOneChartHasState", CanvasId);
+                if (!hasState)
+                    return false;
+
+                return await JS.InvokeAsync<bool>(
+                    "pgOneSetIntradayCprOverlay",
+                    CanvasId,
+                    show ? 1 : 0,
+                    segmentsJson);
+            }
+            catch when (attempt < 5)
+            {
+                await Task.Delay(80 + attempt * 60);
+            }
+        }
+
+        return false;
     }
 
     private async Task SyncStudyOverlaysAsync((int ShowVwap, int ShowEma20, int ShowSt725, int ShowSt103) flags)

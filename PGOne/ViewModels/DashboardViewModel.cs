@@ -450,7 +450,15 @@ public class DashboardViewModel : INotifyPropertyChanged
 
     private string? BuildOverlayDiagnostic()
     {
-        if (ChartCandles.Count == 0 || SelectedTimeframe != "5m")
+        if (ChartCandles.Count == 0)
+            return null;
+
+        if (SelectedTimeframe == "1m")
+            return CprSegments.Count > 0
+                ? $" · CPR windows {CprSegments.Count}"
+                : " · CPR windows 0 (need 15m data)";
+
+        if (SelectedTimeframe != "5m")
             return null;
 
         var st103 = ChartCandles.Count(c => c.SuperTrend.HasValue);
