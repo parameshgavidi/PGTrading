@@ -32,13 +32,21 @@
             Keltner
         </button>
     }
-    @if (Show5mStudyToggles)
+    @if (ShowIntradayStToggles)
     {
+        <button type="button"
+                class="btn overlay-toggle @(ShowSuperTrend725 ? "active" : "")"
+                @onclick="ToggleSuperTrend725Async">
+            ST 7,2.5
+        </button>
         <button type="button"
                 class="btn overlay-toggle @(ShowSuperTrend ? "active" : "")"
                 @onclick="ToggleSuperTrendAsync">
             ST 10,3
         </button>
+    }
+    @if (Show5mStudyToggles)
+    {
         <button type="button"
                 class="btn overlay-toggle @(ShowEma20 ? "active" : "")"
                 @onclick="ToggleEma20Async">
@@ -60,8 +68,10 @@
     [Parameter] public bool ShowIntradayCpr { get; set; }
     [Parameter] public bool ShowKeltnerToggle { get; set; }
     [Parameter] public bool ShowKeltner { get; set; }
+    [Parameter] public bool ShowIntradayStToggles { get; set; }
     [Parameter] public bool Show5mStudyToggles { get; set; }
     [Parameter] public bool ShowSuperTrend { get; set; }
+    [Parameter] public bool ShowSuperTrend725 { get; set; }
     [Parameter] public bool ShowEma20 { get; set; }
     [Parameter] public bool ShowVwap { get; set; }
     [Parameter] public EventCallback<bool> ShowPocChanged { get; set; }
@@ -70,6 +80,7 @@
     [Parameter] public EventCallback<bool> ShowIntradayCprChanged { get; set; }
     [Parameter] public EventCallback<bool> ShowKeltnerChanged { get; set; }
     [Parameter] public EventCallback<bool> ShowSuperTrendChanged { get; set; }
+    [Parameter] public EventCallback<bool> ShowSuperTrend725Changed { get; set; }
     [Parameter] public EventCallback<bool> ShowEma20Changed { get; set; }
     [Parameter] public EventCallback<bool> ShowVwapChanged { get; set; }
 
@@ -84,6 +95,8 @@
     private async Task ToggleKeltnerAsync() => await ShowKeltnerChanged.InvokeAsync(!ShowKeltner);
 
     private async Task ToggleSuperTrendAsync() => await ShowSuperTrendChanged.InvokeAsync(!ShowSuperTrend);
+
+    private async Task ToggleSuperTrend725Async() => await ShowSuperTrend725Changed.InvokeAsync(!ShowSuperTrend725);
 
     private async Task ToggleEma20Async() => await ShowEma20Changed.InvokeAsync(!ShowEma20);
 

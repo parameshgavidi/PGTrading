@@ -43,9 +43,11 @@ public class DashboardViewModel : INotifyPropertyChanged
     public bool ShowKeltnerOverlay { get; private set; } = false;
     public bool ShowIntradayCprOverlay { get; private set; } = false;
     public bool ShowSuperTrendOverlay { get; private set; } = false;
+    public bool ShowSuperTrend725Overlay { get; private set; } = false;
     public bool ShowEma20Overlay { get; private set; } = false;
     public bool ShowVwapOverlay { get; private set; } = false;
     public bool Supports5mStudyToggles => SelectedTimeframe == "5m";
+    public bool SupportsIntradayStOverlays => SelectedTimeframe is "1m" or "5m" or "15m";
     public IReadOnlyList<IntradayCprSegment> CprSegments { get; private set; } = Array.Empty<IntradayCprSegment>();
     public decimal CurrentIntradayTc { get; private set; }
     public decimal CurrentIntradayPivot { get; private set; }
@@ -171,6 +173,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         Notify(nameof(Is1mCprChart));
         Notify(nameof(SupportsIntradayCprOverlay));
         Notify(nameof(Supports5mStudyToggles));
+        Notify(nameof(SupportsIntradayStOverlays));
         Notify(nameof(OverlayVersion));
         Notify();
     }
@@ -351,6 +354,17 @@ public class DashboardViewModel : INotifyPropertyChanged
         ShowSuperTrendOverlay = show;
         OverlayVersion++;
         Notify(nameof(ShowSuperTrendOverlay));
+        Notify(nameof(OverlayVersion));
+    }
+
+    public void SetShowSuperTrend725Overlay(bool show)
+    {
+        if (ShowSuperTrend725Overlay == show)
+            return;
+
+        ShowSuperTrend725Overlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowSuperTrend725Overlay));
         Notify(nameof(OverlayVersion));
     }
 
@@ -622,9 +636,11 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowKeltnerOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowIntradayCprOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowSuperTrendOverlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowSuperTrend725Overlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowEma20Overlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowVwapOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Supports5mStudyToggles)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SupportsIntradayStOverlays)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CprSegments)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentIntradayTc)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentIntradayPivot)));

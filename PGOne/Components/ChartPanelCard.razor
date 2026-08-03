@@ -25,6 +25,7 @@
                       ShowKeltnerLevels="Panel.ShowKeltnerOverlay"
                       ShowIntradayCprLevels="Panel.ShowIntradayCprOverlay"
                       ShowSuperTrendOverlay="Panel.ShowSuperTrendOverlay"
+                      ShowSuperTrend725Overlay="Panel.ShowSuperTrend725Overlay"
                       ShowEma20Overlay="Panel.ShowEma20Overlay"
                       ShowVwapOverlay="Panel.ShowVwapOverlay"
                       Timeframe="Panel.SelectedTimeframe"
@@ -42,6 +43,7 @@
         </div>
         <ChartOverlayToggles ShowIntradayCprToggle="Panel.SupportsIntradayCprOverlay"
                              ShowKeltnerToggle="@(Panel.SelectedTimeframe == "1m" || Panel.SelectedTimeframe == "5m")"
+                             ShowIntradayStToggles="Panel.SupportsIntradayStOverlays"
                              Show5mStudyToggles="Panel.Supports5mStudyToggles"
                              ShowPoc="Panel.ShowPocOverlay"
                              ShowDayCpr="Panel.ShowPivotOverlay"
@@ -49,6 +51,7 @@
                              ShowIntradayCpr="Panel.ShowIntradayCprOverlay"
                              ShowKeltner="Panel.ShowKeltnerOverlay"
                              ShowSuperTrend="Panel.ShowSuperTrendOverlay"
+                             ShowSuperTrend725="Panel.ShowSuperTrend725Overlay"
                              ShowEma20="Panel.ShowEma20Overlay"
                              ShowVwap="Panel.ShowVwapOverlay"
                              ShowPocChanged="v => OnShowPoc(v)"
@@ -57,6 +60,7 @@
                              ShowIntradayCprChanged="v => OnShowIntradayCpr(v)"
                              ShowKeltnerChanged="v => OnShowKeltner(v)"
                              ShowSuperTrendChanged="v => OnShowSuperTrend(v)"
+                             ShowSuperTrend725Changed="v => OnShowSuperTrend725(v)"
                              ShowEma20Changed="v => OnShowEma20(v)"
                              ShowVwapChanged="v => OnShowVwap(v)" />
     </div>
@@ -119,6 +123,7 @@
     private void OnShowKeltner(bool v) => ViewModel.SetPanelShowKeltner(Panel, v);
     private void OnShowIntradayCpr(bool v) => ViewModel.SetPanelShowIntradayCpr(Panel, v);
     private void OnShowSuperTrend(bool v) => ViewModel.SetPanelShowSuperTrend(Panel, v);
+    private void OnShowSuperTrend725(bool v) => ViewModel.SetPanelShowSuperTrend725(Panel, v);
     private void OnShowEma20(bool v) => ViewModel.SetPanelShowEma20(Panel, v);
     private void OnShowVwap(bool v) => ViewModel.SetPanelShowVwap(Panel, v);
 }

@@ -35,6 +35,7 @@
                           ShowKeltnerLevels="ViewModel.ShowKeltnerOverlay"
                           ShowIntradayCprLevels="ViewModel.ShowIntradayCprOverlay"
                           ShowSuperTrendOverlay="ViewModel.ShowSuperTrendOverlay"
+                          ShowSuperTrend725Overlay="ViewModel.ShowSuperTrend725Overlay"
                           ShowEma20Overlay="ViewModel.ShowEma20Overlay"
                           ShowVwapOverlay="ViewModel.ShowVwapOverlay"
                           Timeframe="ViewModel.SelectedTimeframe"
@@ -51,6 +52,7 @@
             </div>
             <ChartOverlayToggles ShowIntradayCprToggle="ViewModel.SupportsIntradayCprOverlay"
                                  ShowKeltnerToggle="@(ViewModel.SelectedTimeframe == "1m" || ViewModel.SelectedTimeframe == "5m")"
+                                 ShowIntradayStToggles="ViewModel.SupportsIntradayStOverlays"
                                  Show5mStudyToggles="ViewModel.Supports5mStudyToggles"
                                  ShowPoc="ViewModel.ShowPocOverlay"
                                  ShowDayCpr="ViewModel.ShowPivotOverlay"
@@ -58,6 +60,7 @@
                                  ShowIntradayCpr="ViewModel.ShowIntradayCprOverlay"
                                  ShowKeltner="ViewModel.ShowKeltnerOverlay"
                                  ShowSuperTrend="ViewModel.ShowSuperTrendOverlay"
+                                 ShowSuperTrend725="ViewModel.ShowSuperTrend725Overlay"
                                  ShowEma20="ViewModel.ShowEma20Overlay"
                                  ShowVwap="ViewModel.ShowVwapOverlay"
                                  ShowPocChanged="v => ViewModel.SetShowPocOverlay(v)"
@@ -66,14 +69,19 @@
                                  ShowIntradayCprChanged="v => ViewModel.SetShowIntradayCprOverlay(v)"
                                  ShowKeltnerChanged="v => ViewModel.SetShowKeltnerOverlay(v)"
                                  ShowSuperTrendChanged="v => ViewModel.SetShowSuperTrendOverlay(v)"
+                                 ShowSuperTrend725Changed="v => ViewModel.SetShowSuperTrend725Overlay(v)"
                                  ShowEma20Changed="v => ViewModel.SetShowEma20Overlay(v)"
                                  ShowVwapChanged="v => ViewModel.SetShowVwapOverlay(v)" />
         </div>
         <div class="chart-legend">
-            @if (ViewModel.ShowSuperTrendOverlay && ViewModel.SelectedTimeframe == "5m")
+            @if (ViewModel.ShowSuperTrend725Overlay && ViewModel.SupportsIntradayStOverlays)
             {
-                <span class="legend-item"><span class="legend-color buy"></span> SuperTrend BUY</span>
-                <span class="legend-item"><span class="legend-color sell"></span> SuperTrend SELL</span>
+                <span class="legend-item"><span class="legend-color st725"></span> ST(7,2.5)</span>
+            }
+            @if (ViewModel.ShowSuperTrendOverlay && ViewModel.SupportsIntradayStOverlays)
+            {
+                <span class="legend-item"><span class="legend-color buy"></span> ST(10,3) BUY</span>
+                <span class="legend-item"><span class="legend-color sell"></span> ST(10,3) SELL</span>
             }
             <span class="legend-item"><span class="legend-color candle-up"></span> Bullish Candle</span>
             <span class="legend-item"><span class="legend-color candle-down"></span> Bearish Candle</span>

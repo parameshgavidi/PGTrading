@@ -211,9 +211,16 @@ public class MarketDataService : IMarketDataService
 
     private List<Candle> AttachIndicators(List<Candle> candles, string interval)
     {
-        AttachSuperTrend(candles);
+        AttachSuperTrendValues(candles, 10, 3.0, (c, v) => c.SuperTrend = v);
 
-        // Keltner on 1m and 5m; VWAP only on 5m range-bound playbook.
+        if (interval is "1m" or "5m" or "15m")
+            AttachSuperTrendValues(
+                candles,
+                TrailingStopDefaults.Period,
+                TrailingStopDefaults.Multiplier,
+                (c, v) => c.SuperTrendEntry = v);
+
+        // Keltner on 1m and 5m; VWAP + EMA20 on 5m.
         if (interval is "1m" or "5m")
         {
             var cfg = _settings.Strategy;
@@ -229,17 +236,19 @@ public class MarketDataService : IMarketDataService
         return candles;
     }
 
-    private List<Candle> AttachSuperTrend(List<Candle> candles)
+    private void AttachSuperTrendValues(
+        List<Candle> candles,
+        int period,
+        double multiplier,
+        Action<Candle, decimal> assign)
     {
-        var (_, values) = _superTrend.Calculate(candles, 10, 3.0);
+        var (_, values) = _superTrend.Calculate(candles, period, multiplier);
         if (values.Count == 0)
-            return candles;
+            return;
 
         var startIndex = candles.Count - values.Count;
         for (var i = 0; i < values.Count; i++)
-            candles[startIndex + i].SuperTrend = values[i];
-
-        return candles;
+            assign(candles[startIndex + i], values[i]);
     }
 
     private async Task<List<Candle>> GenerateDemoCandlesAsync(string instrument, string interval, int count)
