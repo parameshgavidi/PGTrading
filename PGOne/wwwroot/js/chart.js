@@ -46,10 +46,44 @@ window.pgOneChart = (function () {
             keltnerUpperOuter: num(field(raw, 'keltnerUpperOuter')),
             keltnerLowerOuter: num(field(raw, 'keltnerLowerOuter')),
             keltnerMid: num(field(raw, 'keltnerMid')),
-            vwap: num(field(raw, 'vwap')),
-            ema20: num(field(raw, 'ema20')),
+            vwap: getNormalizedStudy(field(raw, 'vwap'), field(raw, 'vwapLine')),
+            vwapLine: getNormalizedStudy(field(raw, 'vwapLine'), field(raw, 'vwap')),
+            ema20: getNormalizedStudy(field(raw, 'ema20'), field(raw, 'ema20Line')),
+            ema20Line: getNormalizedStudy(field(raw, 'ema20Line'), field(raw, 'ema20')),
             volume: num(field(raw, 'volume'))
         };
+    }
+
+    function getNormalizedStudy(primary, fallback) {
+        var v = num(primary);
+        if (v != null) return v;
+        return num(fallback);
+    }
+
+    function getVwapValue(candle) {
+        if (!candle) return null;
+        var v = candle.vwapLine;
+        if (v != null && !Number.isNaN(v)) return v;
+        v = candle.vwap;
+        return v != null && !Number.isNaN(v) ? v : null;
+    }
+
+    function getEma20Value(candle) {
+        if (!candle) return null;
+        var v = candle.ema20Line;
+        if (v != null && !Number.isNaN(v)) return v;
+        v = candle.ema20;
+        return v != null && !Number.isNaN(v) ? v : null;
+    }
+
+    function assignVwapValue(candle, value) {
+        candle.vwap = value;
+        candle.vwapLine = value;
+    }
+
+    function assignEma20Value(candle, value) {
+        candle.ema20 = value;
+        candle.ema20Line = value;
     }
 
     function getSt725Value(candle) {
@@ -84,10 +118,10 @@ window.pgOneChart = (function () {
         var sum = 0;
         for (var i = 0; i < period; i++) sum += candles[i].close;
         var ema = sum / period;
-        candles[period - 1].ema20 = ema;
+        assignEma20Value(candles[period - 1], ema);
         for (var j = period; j < candles.length; j++) {
             ema = candles[j].close * k + ema * (1 - k);
-            candles[j].ema20 = ema;
+            assignEma20Value(candles[j], ema);
         }
     }
 
@@ -110,7 +144,7 @@ window.pgOneChart = (function () {
             cumVol += vol;
             cumTyp += typical;
             cnt++;
-            c.vwap = cumVol > 0 ? cumPv / cumVol : cumTyp / cnt;
+            assignVwapValue(c, cumVol > 0 ? cumPv / cumVol : cumTyp / cnt);
         }
     }
 
@@ -558,10 +592,16 @@ window.pgOneChart = (function () {
             extra.push.apply(extra, collect('keltnerLowerOuter'));
         }
         if (st.showVwap) {
-            extra.push.apply(extra, collect('vwap'));
+            view.forEach(function (c) {
+                var v = getVwapValue(c);
+                if (v != null) extra.push(v);
+            });
         }
         if (st.showEma20) {
-            extra.push.apply(extra, collect('ema20'));
+            view.forEach(function (c) {
+                var v = getEma20Value(c);
+                if (v != null) extra.push(v);
+            });
         }
         const maxPrice = Math.max(...highs, ...(extra.length ? extra : [Number.MIN_VALUE]), ...(levelPrices.length ? levelPrices : [Number.MIN_VALUE]), ...(intradayPrices.length ? intradayPrices : [Number.MIN_VALUE]));
         const minPrice = Math.min(...lows, ...(extra.length ? extra : [Number.MAX_VALUE]), ...(levelPrices.length ? levelPrices : [Number.MAX_VALUE]), ...(intradayPrices.length ? intradayPrices : [Number.MAX_VALUE]));
@@ -618,6 +658,23 @@ window.pgOneChart = (function () {
             }
             ctx.fillText(label, x, height - 10);
         }
+
+        const drawStudyLine = (getValue, color, dash, width) => {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width || 2;
+            ctx.setLineDash(dash || []);
+            ctx.beginPath();
+            let started = false;
+            view.forEach((c, i) => {
+                const v = getValue(c);
+                if (v == null || Number.isNaN(v)) { started = false; return; }
+                const x = toX(i), y = toY(v);
+                if (!started) { ctx.moveTo(x, y); started = true; }
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+            ctx.setLineDash([]);
+        };
 
         const drawLine = (key, color, dash, width) => {
             ctx.strokeStyle = color;
@@ -701,15 +758,7 @@ window.pgOneChart = (function () {
             drawLine('keltnerLowerOuter', 'rgba(120,144,255,0.55)');
         }
 
-        if (st.showVwap) {
-            drawLine('vwap', '#D4AF37', [4, 3], 2.25);
-        }
-
-        if (st.showEma20) {
-            drawLine('ema20', 'rgba(255, 152, 0, 0.95)', [8, 4], 2.25);
-        }
-
-        // ST(10,3) first; ST(7,2.5) on top with distinct cyan/orange dashed style (legend st725).
+        // ST overlays first; VWAP / EMA drawn on top (same pattern as ST7 over ST10).
         if (st.showSuperTrend) {
             drawSuperTrendSegments(function (c) { return c.superTrend; }, 2.25);
         }
@@ -721,6 +770,14 @@ window.pgOneChart = (function () {
                 { up: '#00BCD4', down: '#FF9800' },
                 [6, 3]
             );
+        }
+
+        if (st.showVwap) {
+            drawStudyLine(getVwapValue, '#D4AF37', [4, 3], 2.5);
+        }
+
+        if (st.showEma20) {
+            drawStudyLine(getEma20Value, 'rgba(255, 152, 0, 0.95)', [8, 4], 2.5);
         }
     }
 
@@ -752,6 +809,34 @@ window.pgOneChart = (function () {
         const st = states[canvasId];
         if (!st) return false;
         st.showSuperTrend725 = intOverlayFlag(show);
+        ensureStudyIndicators(st.candles, {
+            showVwap: st.showVwap,
+            showEma20: st.showEma20,
+            showSuperTrend725: st.showSuperTrend725,
+            showSuperTrend: st.showSuperTrend
+        });
+        scheduleRender(canvasId);
+        return true;
+    }
+
+    function setVwapOverlay(canvasId, show) {
+        const st = states[canvasId];
+        if (!st) return false;
+        st.showVwap = intOverlayFlag(show);
+        ensureStudyIndicators(st.candles, {
+            showVwap: st.showVwap,
+            showEma20: st.showEma20,
+            showSuperTrend725: st.showSuperTrend725,
+            showSuperTrend: st.showSuperTrend
+        });
+        scheduleRender(canvasId);
+        return true;
+    }
+
+    function setEma20Overlay(canvasId, show) {
+        const st = states[canvasId];
+        if (!st) return false;
+        st.showEma20 = intOverlayFlag(show);
         ensureStudyIndicators(st.candles, {
             showVwap: st.showVwap,
             showEma20: st.showEma20,
@@ -795,6 +880,8 @@ window.pgOneChart = (function () {
         updateOverlayOptions: updateOverlayOptions,
         setStudyOverlays: setStudyOverlays,
         setSt725Overlay: setSt725Overlay,
+        setVwapOverlay: setVwapOverlay,
+        setEma20Overlay: setEma20Overlay,
         hasState: hasState,
         zoom: zoom,
         resetZoom: resetZoom
@@ -815,6 +902,26 @@ window.pgOneSetSt725Overlay = function (canvasId, show) {
         return window.pgOneChart.setSt725Overlay(canvasId, show);
     } catch (err) {
         console.error('pgOneSetSt725Overlay failed', err);
+        return false;
+    }
+};
+
+window.pgOneSetVwapOverlay = function (canvasId, show) {
+    try {
+        if (!window.pgOneChartReady()) return false;
+        return window.pgOneChart.setVwapOverlay(canvasId, show);
+    } catch (err) {
+        console.error('pgOneSetVwapOverlay failed', err);
+        return false;
+    }
+};
+
+window.pgOneSetEma20Overlay = function (canvasId, show) {
+    try {
+        if (!window.pgOneChartReady()) return false;
+        return window.pgOneChart.setEma20Overlay(canvasId, show);
+    } catch (err) {
+        console.error('pgOneSetEma20Overlay failed', err);
         return false;
     }
 };
