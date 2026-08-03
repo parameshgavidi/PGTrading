@@ -83,23 +83,31 @@ public class WatchlistService : IWatchlistService
     }
   }
 
-  private async Task<Dictionary<string, WatchlistMarketSnapshot>> BuildMarketSnapshotsAsync(
+  private async Task<IReadOnlyDictionary<string, WatchlistMarketSnapshot>> BuildMarketSnapshotsAsync(
       IReadOnlyList<string> symbols,
       int maxConcurrency)
   {
-    var snapshots = new ConcurrentDictionary<string, WatchlistMarketSnapshot>(StringComparer.OrdinalIgnoreCase);
+    var snapshots = new Dictionary<string, WatchlistMarketSnapshot>(StringComparer.OrdinalIgnoreCase);
     using var gate = new SemaphoreSlim(maxConcurrency);
+    var lockObj = new object();
 
     var tasks = symbols.Select(async symbol =>
     {
       await gate.WaitAsync();
       try
       {
-        snapshots[symbol] = await BuildMarketSnapshotAsync(symbol);
+        var snapshot = await BuildMarketSnapshotAsync(symbol);
+        lock (lockObj)
+        {
+          snapshots[symbol] = snapshot;
+        }
       }
       catch
       {
-        snapshots[symbol] = WatchlistMarketSnapshot.Empty;
+        lock (lockObj)
+        {
+          snapshots[symbol] = WatchlistMarketSnapshot.Empty;
+        }
       }
       finally
       {
@@ -108,7 +116,7 @@ public class WatchlistService : IWatchlistService
     });
 
     await Task.WhenAll(tasks);
-    return new Dictionary<string, WatchlistMarketSnapshot>(snapshots, StringComparer.OrdinalIgnoreCase);
+    return snapshots;
   }
 
   private async Task<WatchlistMarketSnapshot> BuildMarketSnapshotAsync(string symbol)
@@ -130,7 +138,7 @@ public class WatchlistService : IWatchlistService
   private static List<WatchItem> BuildWatchItems(
       IReadOnlyList<string> symbols,
       Dictionary<string, InstrumentQuote> quotes,
-      Dictionary<string, WatchlistMarketSnapshot> snapshots,
+      IReadOnlyDictionary<string, WatchlistMarketSnapshot> snapshots,
       bool markFavorites = false)
   {
     var items = new List<WatchItem>();
