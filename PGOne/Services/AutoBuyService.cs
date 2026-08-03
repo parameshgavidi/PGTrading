@@ -24,6 +24,7 @@ public interface IAutoBuyService
     Task SetMasterAutomationAsync(bool enabled);
     Task SaveAsync();
     Task RefreshDeployedAmountsAsync();
+    Task RefreshSettingsAsync();
     IReadOnlyList<AutoBuyReadiness.Check> GetReadinessChecks();
 }
 
@@ -67,7 +68,13 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         _superTrend = superTrend;
         _settings = settings;
         _zerodha.ConnectionChanged += OnZerodhaConnectionChanged;
+        _settings.SettingsChanged += OnSettingsChanged;
         _ = EnsureBootstrappedAsync();
+    }
+
+    private void OnSettingsChanged()
+    {
+        _ = RefreshSettingsAsync();
     }
 
     public async Task InitializeAsync()
@@ -358,6 +365,12 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         return trimmed;
     }
 
+    public async Task RefreshSettingsAsync()
+    {
+        await _settings.LoadAsync();
+        Notify();
+    }
+
     public IReadOnlyList<AutoBuyReadiness.Check> GetReadinessChecks() =>
         AutoBuyReadiness.Evaluate(
             MasterAutomationEnabled,
@@ -626,6 +639,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             return;
 
         _zerodha.ConnectionChanged -= OnZerodhaConnectionChanged;
+        _settings.SettingsChanged -= OnSettingsChanged;
         _monitorCts?.Cancel();
         _monitorCts?.Dispose();
         _disposed = true;

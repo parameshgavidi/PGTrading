@@ -71,9 +71,16 @@
             </div>
             <div class="form-row checkbox-row">
                 <label>Auto Trading</label>
-                <input type="checkbox" @bind="ViewModel.Settings.AutoTradingEnabled" />
-                <span>@(ViewModel.Settings.AutoTradingEnabled ? "Enabled" : "Disabled")</span>
+                <input type="checkbox"
+                       checked="@ViewModel.Settings.AutoTradingEnabled"
+                       @onchange="OnAutoTradingChanged" />
+                <span class="@(ViewModel.Settings.AutoTradingEnabled ? "buy" : "sell")">
+                    @(ViewModel.Settings.AutoTradingEnabled ? "Enabled — live orders allowed" : "Disabled — monitoring only, no broker orders")
+                </span>
             </div>
+            <p class="text-secondary form-hint">
+                Required for Auto Buy and other automation to place orders at Zerodha. Check the box, then click <strong>Save Settings</strong> below.
+            </p>
         </div>
 
         <div class="settings-section">
@@ -158,6 +165,13 @@
     }
 
     private async Task Save() => await ViewModel.SaveAsync();
+
+    private void OnAutoTradingChanged(ChangeEventArgs e)
+    {
+        ViewModel.Settings.AutoTradingEnabled = e.Value is bool enabled && enabled;
+        InvokeAsync(StateHasChanged);
+    }
+
     private async Task Connect() => await ViewModel.ConnectAsync();
     private void Disconnect() => ViewModel.Disconnect();
 
