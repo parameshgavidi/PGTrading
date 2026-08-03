@@ -99,9 +99,7 @@ public class MarketDataService : IMarketDataService
             if (result.IsFromZerodha && result.Candles.Count > 0)
             {
                 var withIndicators = AttachIndicators(result.Candles, interval);
-                var display = withIndicators.Count > count
-                    ? withIndicators.GetRange(withIndicators.Count - count, count)
-                    : withIndicators;
+                var display = TrimToDisplayCount(withIndicators, count);
 
                 return new CandleSeriesResult
                 {
@@ -132,14 +130,12 @@ public class MarketDataService : IMarketDataService
             if (dailyResult.IsFromZerodha && dailyResult.Candles.Count > 0)
             {
                 var weekly = CandleAggregator.ToWeekly(dailyResult.Candles);
-                var withIndicators = AttachIndicators(weekly, "1W");
-                var display = withIndicators.Count > count
-                    ? withIndicators.GetRange(withIndicators.Count - count, count)
-                    : withIndicators;
+                var weeklyWithIndicators = AttachIndicators(weekly, "1W");
+                var weeklyDisplay = TrimToDisplayCount(weeklyWithIndicators, count);
 
                 return new CandleSeriesResult
                 {
-                    Candles = display,
+                    Candles = weeklyDisplay,
                     IsFromZerodha = true
                 };
             }
@@ -150,18 +146,19 @@ public class MarketDataService : IMarketDataService
 
         var demoDaily = await GenerateDemoCandlesAsync(instrument, "1D", dailyBarsNeeded);
         var demoWeekly = CandleAggregator.ToWeekly(demoDaily);
-        var withIndicators = AttachIndicators(demoWeekly, "1W");
-        var display = withIndicators.Count > count
-            ? withIndicators.GetRange(withIndicators.Count - count, count)
-            : withIndicators;
+        var demoWeeklyWithIndicators = AttachIndicators(demoWeekly, "1W");
+        var demoWeeklyDisplay = TrimToDisplayCount(demoWeeklyWithIndicators, count);
 
         return new CandleSeriesResult
         {
-            Candles = display,
+            Candles = demoWeeklyDisplay,
             IsFromZerodha = false,
             Error = _zerodha.IsConnected ? "Using demo weekly candles because Zerodha daily data was unavailable." : null
         };
     }
+
+    private static List<Candle> TrimToDisplayCount(List<Candle> candles, int count) =>
+        candles.Count > count ? candles.GetRange(candles.Count - count, count) : candles;
 
     public async Task<decimal> GetCurrentPriceAsync(string instrument)
     {
