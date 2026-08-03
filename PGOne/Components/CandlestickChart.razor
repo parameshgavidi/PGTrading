@@ -1,4 +1,5 @@
 @namespace PGOne.Components
+@using System.Text.Json
 @using PGOne.Models
 @inject IJSRuntime JS
 @implements IAsyncDisposable
@@ -13,6 +14,11 @@
 </div>
 
 @code {
+    private static readonly JsonSerializerOptions ChartJson = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     [Parameter] public string CanvasId { get; set; } = "priceChart";
     [Parameter] public List<Candle> Candles { get; set; } = new();
     [Parameter] public int ChartVersion { get; set; }
@@ -136,7 +142,7 @@
 
     private async Task<bool> RenderAsync()
     {
-        if (!await EnsureChartJsReadyAsync())
+        if (!await WaitForChartJsAsync())
             return false;
 
         var segmentPayload = CprSegments.Select(s => new
@@ -153,7 +159,6 @@
         var supportsSt725 = Timeframe is "1m" or "5m" or "15m";
         var supports5mStudies = Timeframe == "5m";
 
-        // Int flags — reliable across Blazor WebView JSON interop.
         var overlayOptions = new
         {
             showPoc = ShowPocLevels ? 1 : 0,
@@ -175,6 +180,7 @@
             high = (double)c.High,
             low = (double)c.Low,
             close = (double)c.Close,
+            volume = (double)c.Volume,
             superTrend = ToJsDouble(c.SuperTrend),
             superTrendEntry = ToJsDouble(c.SuperTrendEntry),
             keltnerUpperInner = ToJsDouble(c.KeltnerUpperInner),
@@ -191,21 +197,25 @@
             ? (double)Analysis.VolumeProfile.Poc
             : 0d;
 
-        for (var attempt = 0; attempt < 10; attempt++)
+        var candlesJson = JsonSerializer.Serialize(payload, ChartJson);
+        var levelsJson = JsonSerializer.Serialize(levels, ChartJson);
+        var overlaysJson = JsonSerializer.Serialize(overlayOptions, ChartJson);
+
+        for (var attempt = 0; attempt < 12; attempt++)
         {
             try
             {
                 await JS.InvokeVoidAsync(
-                    "pgOneChart.drawCandlestickChart",
+                    "pgOneDrawCandles",
                     CanvasId,
-                    payload,
+                    candlesJson,
                     Timeframe,
-                    levels,
+                    levelsJson,
                     pocToday,
-                    overlayOptions);
+                    overlaysJson);
                 return true;
             }
-            catch when (attempt < 9)
+            catch when (attempt < 11)
             {
                 await Task.Delay(100 + attempt * 80);
             }
@@ -214,22 +224,19 @@
         return false;
     }
 
-    private async Task<bool> EnsureChartJsReadyAsync()
+    private async Task<bool> WaitForChartJsAsync()
     {
-        for (var attempt = 0; attempt < 15; attempt++)
+        for (var attempt = 0; attempt < 20; attempt++)
         {
             try
             {
-                var ready = await JS.InvokeAsync<bool>("pgOneChart.isReady");
-                if (ready)
-                    return true;
+                await JS.InvokeVoidAsync("pgOneChartReady");
+                return true;
             }
-            catch when (attempt < 14)
+            catch when (attempt < 19)
             {
-                // chart.js still loading
+                await Task.Delay(80 + attempt * 40);
             }
-
-            await Task.Delay(80 + attempt * 40);
         }
 
         return false;
