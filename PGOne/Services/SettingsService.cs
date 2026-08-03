@@ -1,3 +1,4 @@
+using System.Text.Json;
 using PGOne.Models;
 
 namespace PGOne.Services;
@@ -9,6 +10,7 @@ public interface ISettingsService
     LongTermStrategyConfig LongTermStrategy { get; }
     event Action? SettingsChanged;
     void ApplySettings(AppSettings settings);
+    void ReloadFromStorage();
     Task SaveSettingsAsync();
     Task SaveStrategyAsync();
     Task SaveLongTermStrategyAsync();
@@ -21,6 +23,13 @@ public class SettingsService : ISettingsService
     private const string StrategyKey = "pgone_strategy";
     private const string LongTermStrategyKey = "pgone_strategy_longterm";
 
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false
+    };
+
     public AppSettings Settings { get; private set; } = new();
     public StrategyConfig Strategy { get; private set; } = new();
     public LongTermStrategyConfig LongTermStrategy { get; private set; } = new();
@@ -29,19 +38,30 @@ public class SettingsService : ISettingsService
 
     public async Task LoadAsync()
     {
-        var settingsJson = Preferences.Default.Get(SettingsKey, string.Empty);
-        if (!string.IsNullOrEmpty(settingsJson))
-            Settings = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(settingsJson) ?? new();
+        ReloadFromStorage();
 
         var strategyJson = Preferences.Default.Get(StrategyKey, string.Empty);
         if (!string.IsNullOrEmpty(strategyJson))
-            Strategy = System.Text.Json.JsonSerializer.Deserialize<StrategyConfig>(strategyJson) ?? new();
+            Strategy = JsonSerializer.Deserialize<StrategyConfig>(strategyJson, JsonOptions) ?? new();
 
         var longTermJson = Preferences.Default.Get(LongTermStrategyKey, string.Empty);
         if (!string.IsNullOrEmpty(longTermJson))
-            LongTermStrategy = System.Text.Json.JsonSerializer.Deserialize<LongTermStrategyConfig>(longTermJson) ?? new();
+            LongTermStrategy = JsonSerializer.Deserialize<LongTermStrategyConfig>(longTermJson, JsonOptions) ?? new();
 
         await Task.CompletedTask;
+    }
+
+    public void ReloadFromStorage()
+    {
+        var settingsJson = Preferences.Default.Get(SettingsKey, string.Empty);
+        if (string.IsNullOrEmpty(settingsJson))
+            return;
+
+        var loaded = JsonSerializer.Deserialize<AppSettings>(settingsJson, JsonOptions);
+        if (loaded is null)
+            return;
+
+        ApplySettings(loaded);
     }
 
     public void ApplySettings(AppSettings settings)
@@ -65,20 +85,20 @@ public class SettingsService : ISettingsService
 
     public async Task SaveSettingsAsync()
     {
-        Preferences.Default.Set(SettingsKey, System.Text.Json.JsonSerializer.Serialize(Settings));
+        Preferences.Default.Set(SettingsKey, JsonSerializer.Serialize(Settings, JsonOptions));
         SettingsChanged?.Invoke();
         await Task.CompletedTask;
     }
 
     public async Task SaveStrategyAsync()
     {
-        Preferences.Default.Set(StrategyKey, System.Text.Json.JsonSerializer.Serialize(Strategy));
+        Preferences.Default.Set(StrategyKey, JsonSerializer.Serialize(Strategy, JsonOptions));
         await Task.CompletedTask;
     }
 
     public async Task SaveLongTermStrategyAsync()
     {
-        Preferences.Default.Set(LongTermStrategyKey, System.Text.Json.JsonSerializer.Serialize(LongTermStrategy));
+        Preferences.Default.Set(LongTermStrategyKey, JsonSerializer.Serialize(LongTermStrategy, JsonOptions));
         await Task.CompletedTask;
     }
 }
