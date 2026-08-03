@@ -85,6 +85,11 @@
             return;
         }
 
+        MarkRenderSuccessful(segmentKey);
+    }
+
+    private void MarkRenderSuccessful(string segmentKey)
+    {
         _lastRenderedVersion = ChartVersion;
         _lastOverlayVersion = OverlayVersion;
         _lastTimeframe = Timeframe;
@@ -100,6 +105,24 @@
         _lastCprSegmentCount = CprSegments.Count;
         _lastCprSegmentKey = segmentKey;
         _pendingRenderRetries = 0;
+    }
+
+    private bool IsOverlayOnlyChange()
+    {
+        return ChartVersion == _lastRenderedVersion
+            && OverlayVersion != _lastOverlayVersion
+            && Timeframe == _lastTimeframe
+            && CprSegments.Count == _lastCprSegmentCount
+            && BuildCprSegmentKey() == _lastCprSegmentKey;
+    }
+
+    private bool IsStudyOverlayToggleOnly()
+    {
+        return ShowPocLevels == _lastShowPoc
+            && ShowPivotLevels == _lastShowPivot
+            && ShowCamarillaLevels == _lastShowCamarilla
+            && ShowKeltnerLevels == _lastShowKeltner
+            && ShowIntradayCprLevels == _lastShowIntradayCpr;
     }
 
     private void ScheduleRenderRetry()
@@ -144,6 +167,14 @@
     {
         if (!await WaitForChartJsAsync())
             return false;
+
+        var studyFlags = BuildStudyOverlayInts();
+
+        if (IsOverlayOnlyChange() && IsStudyOverlayToggleOnly())
+        {
+            if (await TrySetStudyOverlaysAsync(studyFlags))
+                return true;
+        }
 
         var segmentPayload = CprSegments.Select(s => new
         {
@@ -205,19 +236,62 @@
         {
             try
             {
-                await JS.InvokeVoidAsync(
+                var ok = await JS.InvokeAsync<bool>(
                     "pgOneDrawCandles",
                     CanvasId,
                     candlesJson,
                     Timeframe,
                     levelsJson,
                     pocToday,
-                    overlaysJson);
-                return true;
+                    overlaysJson,
+                    studyFlags.ShowVwap,
+                    studyFlags.ShowEma20,
+                    studyFlags.ShowSt725,
+                    studyFlags.ShowSt103);
+                if (ok)
+                    return true;
             }
             catch when (attempt < 11)
             {
                 await Task.Delay(100 + attempt * 80);
+            }
+        }
+
+        return false;
+    }
+
+    private (int ShowVwap, int ShowEma20, int ShowSt725, int ShowSt103) BuildStudyOverlayInts()
+    {
+        var supportsSt725 = Timeframe is "1m" or "5m" or "15m";
+        var supports5mStudies = Timeframe == "5m";
+        return (
+            supports5mStudies && ShowVwapOverlay ? 1 : 0,
+            supports5mStudies && ShowEma20Overlay ? 1 : 0,
+            supportsSt725 && ShowSuperTrend725Overlay ? 1 : 0,
+            ShowSuperTrendOverlay ? 1 : 0);
+    }
+
+    private async Task<bool> TrySetStudyOverlaysAsync((int ShowVwap, int ShowEma20, int ShowSt725, int ShowSt103) flags)
+    {
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            try
+            {
+                var hasState = await JS.InvokeAsync<bool>("pgOneChartHasState", CanvasId);
+                if (!hasState)
+                    return false;
+
+                return await JS.InvokeAsync<bool>(
+                    "pgOneSetStudyOverlays",
+                    CanvasId,
+                    flags.ShowVwap,
+                    flags.ShowEma20,
+                    flags.ShowSt725,
+                    flags.ShowSt103);
+            }
+            catch when (attempt < 5)
+            {
+                await Task.Delay(80 + attempt * 60);
             }
         }
 
@@ -230,8 +304,8 @@
         {
             try
             {
-                await JS.InvokeVoidAsync("pgOneChartReady");
-                return true;
+                if (await JS.InvokeAsync<bool>("pgOneChartReady"))
+                    return true;
             }
             catch when (attempt < 19)
             {
