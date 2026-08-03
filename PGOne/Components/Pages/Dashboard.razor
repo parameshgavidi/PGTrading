@@ -72,10 +72,6 @@
                                     @(ViewModel.NiftyChange >= 0 ? "▲" : "▼") @Math.Abs(ViewModel.NiftyChange).ToString("N2") (@ViewModel.NiftyChangePercent%)
                                 </span>
                                 <TrendBadge Trend="ViewModel.NiftyTrend" />
-                                @if (ViewModel.SupportsIntradayCprOverlay && ViewModel.ShowIntradayCprOverlay)
-                                {
-                                    <span class="cpr-position-badge @ViewModel.CprPositionClass">@ViewModel.CprPositionLabel</span>
-                                }
                             </div>
                         </div>
                     </div>
@@ -551,6 +547,7 @@
 
   protected override void OnInitialized()
   {
+    ViewModel.Disable1mCprChartOverlay();
     ViewModel.PropertyChanged += OnViewModelPropertyChanged;
     SentimentViewModel.PropertyChanged += OnSentimentPropertyChanged;
     _refreshCts = new CancellationTokenSource();
