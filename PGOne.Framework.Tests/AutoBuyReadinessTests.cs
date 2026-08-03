@@ -102,8 +102,8 @@ public class AutoBuyReadinessTests
 
         var deploy = checks.First(c => c.Label == "Deploy capacity");
         Assert.True(deploy.Passed);
-        Assert.Contains("TCS", deploy.Detail);
         Assert.Contains("RELIANCE", deploy.Detail);
+        Assert.Contains("can still enter", deploy.Detail);
     }
 
     [Fact]
