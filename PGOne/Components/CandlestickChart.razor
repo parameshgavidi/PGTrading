@@ -202,7 +202,6 @@
 
         var supportsIntradayCpr = Timeframe == "1m";
         var showIntradayCpr = supportsIntradayCpr && ShowIntradayCprLevels && segmentPayload.Count > 0;
-        var supportsSt725 = Timeframe is "1m" or "5m" or "15m";
         var supports5mStudies = Timeframe == "5m";
 
         var overlayOptions = new
@@ -215,7 +214,7 @@
             showKeltner = ShowKeltnerLevels ? 1 : 0,
             showVwap = supports5mStudies && ShowVwapOverlay ? 1 : 0,
             showSuperTrend = ShowSuperTrendOverlay ? 1 : 0,
-            showSuperTrend725 = supportsSt725 && ShowSuperTrend725Overlay ? 1 : 0,
+            showSuperTrend725 = ShowSuperTrend725Overlay ? 1 : 0,
             showEma20 = supports5mStudies && ShowEma20Overlay ? 1 : 0
         };
 
@@ -228,6 +227,7 @@
             close = (double)c.Close,
             volume = (double)c.Volume,
             superTrend = ToJsDouble(c.SuperTrend),
+            superTrend725 = ToJsDouble(c.SuperTrendEntry),
             superTrendEntry = ToJsDouble(c.SuperTrendEntry),
             st725 = ToJsDouble(c.SuperTrendEntry),
             keltnerUpperInner = ToJsDouble(c.KeltnerUpperInner),
@@ -265,7 +265,10 @@
                     studyFlags.ShowSt725,
                     studyFlags.ShowSt103);
                 if (ok)
+                {
+                    await SyncStudyOverlaysAsync(studyFlags);
                     return true;
+                }
             }
             catch when (attempt < 11)
             {
@@ -278,13 +281,31 @@
 
     private (int ShowVwap, int ShowEma20, int ShowSt725, int ShowSt103) BuildStudyOverlayInts()
     {
-        var supportsSt725 = Timeframe is "1m" or "5m" or "15m";
-        var supports5mStudies = Timeframe == "5m";
+        var tf = (Timeframe ?? "5m").Trim();
+        var supports5mStudies = tf == "5m";
         return (
             supports5mStudies && ShowVwapOverlay ? 1 : 0,
             supports5mStudies && ShowEma20Overlay ? 1 : 0,
-            supportsSt725 && ShowSuperTrend725Overlay ? 1 : 0,
+            ShowSuperTrend725Overlay ? 1 : 0,
             ShowSuperTrendOverlay ? 1 : 0);
+    }
+
+    private async Task SyncStudyOverlaysAsync((int ShowVwap, int ShowEma20, int ShowSt725, int ShowSt103) flags)
+    {
+        try
+        {
+            await JS.InvokeAsync<bool>(
+                "pgOneSetStudyOverlays",
+                CanvasId,
+                flags.ShowVwap,
+                flags.ShowEma20,
+                flags.ShowSt725,
+                flags.ShowSt103);
+        }
+        catch
+        {
+            // Non-fatal: full draw already ran; this syncs overlay flags + recomputes studies.
+        }
     }
 
     private async Task<bool> TrySetSt725OverlayAsync(int showSt725)
