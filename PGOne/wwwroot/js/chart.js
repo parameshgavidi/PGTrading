@@ -28,8 +28,9 @@ window.pgOneChart = (function () {
         if (!raw) return raw;
         var entry = num(field(raw, 'superTrendEntry'));
         var st725Val = num(field(raw, 'st725'));
-        var st725 = st725Val != null ? st725Val : entry;
-        if (entry == null && st725Val != null) entry = st725Val;
+        var st725Line = num(field(raw, 'superTrend725'));
+        var st725 = st725Line != null ? st725Line : (st725Val != null ? st725Val : entry);
+        if (entry == null && st725 != null) entry = st725;
         return {
             time: field(raw, 'time'),
             open: num(field(raw, 'open')),
@@ -37,6 +38,7 @@ window.pgOneChart = (function () {
             low: num(field(raw, 'low')),
             close: num(field(raw, 'close')),
             superTrend: num(field(raw, 'superTrend')),
+            superTrend725: st725,
             superTrendEntry: entry,
             st725: st725,
             keltnerUpperInner: num(field(raw, 'keltnerUpperInner')),
@@ -52,10 +54,18 @@ window.pgOneChart = (function () {
 
     function getSt725Value(candle) {
         if (!candle) return null;
-        var v = candle.st725;
+        var v = candle.superTrend725;
+        if (v != null && !Number.isNaN(v)) return v;
+        v = candle.st725;
         if (v != null && !Number.isNaN(v)) return v;
         v = candle.superTrendEntry;
         return v != null && !Number.isNaN(v) ? v : null;
+    }
+
+    function assignSt725Values(candle, value) {
+        candle.superTrend725 = value;
+        candle.st725 = value;
+        candle.superTrendEntry = value;
     }
 
     function studyFieldMissing(candles, key, minCount) {
@@ -132,7 +142,7 @@ window.pgOneChart = (function () {
                 prevUpper = upper;
                 prevLower = lower;
                 prevSt = upper;
-                if (key === 'superTrendEntry') assignSt725(candles[i], prevSt);
+                if (key === 'superTrend725' || key === 'superTrendEntry') assignSt725Values(candles[i], prevSt);
                 else candles[i][key] = prevSt;
                 started = true;
                 continue;
@@ -143,7 +153,7 @@ window.pgOneChart = (function () {
             var wasDown = prevSt === prevUpper;
             var isUp = wasDown ? candles[i].close > upper : !(candles[i].close < lower);
             var st = isUp ? lower : upper;
-            if (key === 'superTrendEntry') assignSt725(candles[i], st);
+            if (key === 'superTrend725' || key === 'superTrendEntry') assignSt725Values(candles[i], st);
             else candles[i][key] = st;
             prevUpper = upper;
             prevLower = lower;
@@ -156,13 +166,8 @@ window.pgOneChart = (function () {
         // Always compute when overlay is enabled so toggling ON never hits empty series.
         if (flags.showEma20) computeEma20(candles, 20);
         if (flags.showVwap) computeSessionVwap(candles);
-        if (flags.showSuperTrend725) computeSuperTrendSeries(candles, 7, 2.5, 'superTrendEntry');
+        if (flags.showSuperTrend725) computeSuperTrendSeries(candles, 7, 2.5, 'superTrend725');
         if (flags.showSuperTrend) computeSuperTrendSeries(candles, 10, 3, 'superTrend');
-    }
-
-    function assignSt725(candle, value) {
-        candle.superTrendEntry = value;
-        candle.st725 = value;
     }
 
     function intOverlayFlag(v) {
@@ -838,8 +843,6 @@ window.pgOneDrawCandles = function (
 ) {
     try {
         if (!window.pgOneChartReady()) return false;
-        var candles = typeof candlesJson === 'string' ? JSON.parse(candlesJson) : candlesJson;
-        var levels = typeof levelsJson === 'string' ? JSON.parse(levelsJson) : (levelsJson || []);
         var overlayOptions = typeof overlaysJson === 'string' ? JSON.parse(overlaysJson) : (overlaysJson || {});
         overlayOptions = window.pgOneMergeOverlayInts(overlayOptions, {
             showVwap: showVwapInt,
@@ -847,6 +850,8 @@ window.pgOneDrawCandles = function (
             showSuperTrend725: showSt725Int,
             showSuperTrend: showSt103Int
         });
+        var candles = typeof candlesJson === 'string' ? JSON.parse(candlesJson) : candlesJson;
+        var levels = typeof levelsJson === 'string' ? JSON.parse(levelsJson) : (levelsJson || []);
         return window.pgOneChart.drawCandlestickChart(canvasId, candles, timeframe, levels, pocToday, overlayOptions);
     } catch (err) {
         console.error('pgOneDrawCandles failed', err);
