@@ -99,7 +99,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             if (_bootstrapped)
                 return;
 
-            await _settings.LoadAsync();
+            _settings.ReloadFromStorage();
             CsvPath = Path.Combine(FileSystem.AppDataDirectory, "auto_buy.csv");
             var trimmed = LoadFromCsv();
             if (trimmed)
@@ -367,17 +367,20 @@ public class AutoBuyService : IAutoBuyService, IDisposable
 
     public async Task RefreshSettingsAsync()
     {
-        await _settings.LoadAsync();
+        _settings.ReloadFromStorage();
         Notify();
     }
 
-    public IReadOnlyList<AutoBuyReadiness.Check> GetReadinessChecks() =>
-        AutoBuyReadiness.Evaluate(
+    public IReadOnlyList<AutoBuyReadiness.Check> GetReadinessChecks()
+    {
+        _settings.ReloadFromStorage();
+        return AutoBuyReadiness.Evaluate(
             MasterAutomationEnabled,
             _rows,
             _zerodha.IsConnected,
             _settings.Settings.AutoTradingEnabled,
             MarketHours.IsOpen());
+    }
 
     private void StartMonitorLoop()
     {
@@ -419,7 +422,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         if (!MasterAutomationEnabled)
             return;
 
-        await _settings.LoadAsync();
+        _settings.ReloadFromStorage();
 
         if (!_zerodha.IsConnected)
         {

@@ -30,7 +30,7 @@ public class SettingsViewModel : INotifyPropertyChanged
     public async Task LoadAsync()
     {
         await _settings.LoadAsync();
-        Settings = _settings.Settings;
+        Settings = CloneSettings(_settings.Settings);
         Notify();
     }
 
@@ -38,7 +38,14 @@ public class SettingsViewModel : INotifyPropertyChanged
     {
         _settings.ApplySettings(Settings);
         await _settings.SaveSettingsAsync();
-        SetStatusMessage("Settings saved!");
+        _settings.ReloadFromStorage();
+        Settings = CloneSettings(_settings.Settings);
+
+        SetStatusMessage(_settings.Settings.AutoTradingEnabled
+            ? "Settings saved! Auto Trading is ON — live orders allowed."
+            : "Settings saved! Auto Trading is OFF — check the box above, then save again.");
+
+        Notify(nameof(Settings));
     }
 
     public async Task ConnectAsync()
@@ -99,6 +106,25 @@ public class SettingsViewModel : INotifyPropertyChanged
         SetStatusMessage("Please enter your API Key and save settings first.");
         return false;
     }
+
+    private static AppSettings CloneSettings(AppSettings source) => new()
+    {
+        Broker = source.Broker,
+        ApiKey = source.ApiKey,
+        ApiSecret = source.ApiSecret,
+        AccessToken = source.AccessToken,
+        LotSize = source.LotSize,
+        RiskPercent = source.RiskPercent,
+        TargetProfitAmount = source.TargetProfitAmount,
+        TargetLossAmount = source.TargetLossAmount,
+        AutoTradingEnabled = source.AutoTradingEnabled,
+        DesktopNotifications = source.DesktopNotifications,
+        TelegramNotifications = source.TelegramNotifications,
+        SoundNotifications = source.SoundNotifications,
+        TelegramBotToken = source.TelegramBotToken,
+        TelegramChatId = source.TelegramChatId,
+        HuggingFaceApiToken = source.HuggingFaceApiToken
+    };
 
     private void Notify([CallerMemberName] string? property = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
