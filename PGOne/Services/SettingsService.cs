@@ -7,6 +7,7 @@ public interface ISettingsService
     AppSettings Settings { get; }
     StrategyConfig Strategy { get; }
     LongTermStrategyConfig LongTermStrategy { get; }
+    event Action? SettingsChanged;
     void ApplySettings(AppSettings settings);
     Task SaveSettingsAsync();
     Task SaveStrategyAsync();
@@ -23,6 +24,8 @@ public class SettingsService : ISettingsService
     public AppSettings Settings { get; private set; } = new();
     public StrategyConfig Strategy { get; private set; } = new();
     public LongTermStrategyConfig LongTermStrategy { get; private set; } = new();
+
+    public event Action? SettingsChanged;
 
     public async Task LoadAsync()
     {
@@ -63,6 +66,7 @@ public class SettingsService : ISettingsService
     public async Task SaveSettingsAsync()
     {
         Preferences.Default.Set(SettingsKey, System.Text.Json.JsonSerializer.Serialize(Settings));
+        SettingsChanged?.Invoke();
         await Task.CompletedTask;
     }
 

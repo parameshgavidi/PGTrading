@@ -9,15 +9,19 @@ public class AutoBuyViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly IAutoBuyService _autoBuy;
     private readonly IZerodhaService _zerodha;
+    private readonly ISettingsService _settings;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public AutoBuyViewModel(IAutoBuyService autoBuy, IZerodhaService zerodha)
+    public AutoBuyViewModel(IAutoBuyService autoBuy, IZerodhaService zerodha, ISettingsService settings)
     {
         _autoBuy = autoBuy;
         _zerodha = zerodha;
+        _settings = settings;
         _autoBuy.Updated += OnAutoBuyUpdated;
     }
+
+    public bool IsAutoTradingEnabled => _settings.Settings.AutoTradingEnabled;
 
     public bool MasterAutomationEnabled => _autoBuy.MasterAutomationEnabled;
     public IReadOnlyList<AutoBuyRow> Rows => _autoBuy.Rows;
@@ -49,6 +53,8 @@ public class AutoBuyViewModel : INotifyPropertyChanged, IDisposable
     public async Task RefreshDeployedAmountsAsync() =>
         await _autoBuy.RefreshDeployedAmountsAsync();
 
+    public async Task RefreshSettingsAsync() => await _autoBuy.RefreshSettingsAsync();
+
     public IReadOnlyList<AutoBuyReadiness.Check> GetReadinessChecks() =>
         _autoBuy.GetReadinessChecks();
 
@@ -58,6 +64,7 @@ public class AutoBuyViewModel : INotifyPropertyChanged, IDisposable
         Notify(nameof(Rows));
         Notify(nameof(IsMonitoring));
         Notify(nameof(StatusMessage));
+        Notify(nameof(IsAutoTradingEnabled));
     }
 
     private void Notify([CallerMemberName] string? name = null) =>

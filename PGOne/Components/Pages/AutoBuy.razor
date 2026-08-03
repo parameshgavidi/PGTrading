@@ -35,6 +35,13 @@
             <div class="holdings-banner warning">Connect to Zerodha in Settings to search symbols and place orders.</div>
         }
 
+        @if (!ViewModel.IsAutoTradingEnabled)
+        {
+            <div class="holdings-banner warning">
+                Live orders blocked — open <strong>Settings</strong> → <strong>Trading</strong> → check <strong>Auto Trading</strong> → click <strong>Save Settings</strong>.
+            </div>
+        }
+
         <div class="framework-panel auto-buy-readiness">
             <div class="framework-panel-title">Deployment readiness (all must pass for live orders)</div>
             <ul class="framework-conditions compact">
@@ -240,7 +247,21 @@
     protected override async Task OnInitializedAsync()
     {
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        Navigation.LocationChanged += OnLocationChanged;
         await ViewModel.InitializeAsync();
+        await ViewModel.RefreshSettingsAsync();
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        if (!e.Location.Contains("auto-buy", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        _ = InvokeAsync(async () =>
+        {
+            await ViewModel.RefreshSettingsAsync();
+            StateHasChanged();
+        });
     }
 
     private void OnSearchChanged(ChangeEventArgs e)
@@ -342,5 +363,9 @@
         _ => ""
     };
 
-    public void Dispose() => ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+    public void Dispose()
+    {
+        ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
 }
