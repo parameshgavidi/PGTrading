@@ -6,9 +6,9 @@
 
 <div class="chart-area @CssClass">
     <div class="chart-zoom-controls">
-        <button type="button" class="zoom-btn" title="Zoom in" @onclick="ZoomIn">+</button>
-        <button type="button" class="zoom-btn" title="Zoom out" @onclick="ZoomOut">−</button>
-        <button type="button" class="zoom-btn" title="Reset zoom" @onclick="ResetZoom">⟳</button>
+        <button type="button" class="zoom-btn" title="Zoom in (time)" @onclick="ZoomIn">+</button>
+        <button type="button" class="zoom-btn" title="Zoom out (time)" @onclick="ZoomOut">−</button>
+        <button type="button" class="zoom-btn" title="Reset zoom and price scale" @onclick="ResetZoom">⟳</button>
     </div>
     <canvas id="@CanvasId" width="@Width" height="@Height"></canvas>
 </div>

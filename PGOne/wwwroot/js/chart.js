@@ -1,6 +1,10 @@
 // Candlestick chart renderer for PG One with zoom/pan support.
 window.pgOneChart = (function () {
     const states = {};
+    const PRICE_AXIS_WIDTH = 56;
+    const Y_SCALE_MIN = 0.05;
+    const Y_SCALE_MAX = 20;
+    const CHART_PADDING = { top: 10, right: 52, bottom: 22, left: 6 };
 
     function num(v) { return v == null ? null : Number(v); }
 
@@ -218,33 +222,180 @@ window.pgOneChart = (function () {
         return merged;
     }
 
+    function isPriceAxisEvent(canvas, e) {
+        const rect = canvas.getBoundingClientRect();
+        return e.clientX - rect.left >= rect.width - PRICE_AXIS_WIDTH;
+    }
+
+    function getChartView(st) {
+        const candles = st.candles;
+        const start = clamp(candles.length - st.offset - st.count, 0, Math.max(0, candles.length - 1));
+        const end = clamp(candles.length - st.offset, 1, candles.length);
+        return candles.slice(start, end);
+    }
+
+    function collectViewExtents(st, view) {
+        const collect = (key) => view.map(c => c[key]).filter(v => v != null && !Number.isNaN(v));
+        const highs = view.map(c => c.high);
+        const lows = view.map(c => c.low);
+        const levelPrices = filterLevels(st).map(l => Number(l.price)).filter(v => !Number.isNaN(v));
+        var intradayPrices = [];
+        if (st.showIntradaCpr && st.intradayCprSegments) {
+            st.intradayCprSegments.forEach(function (s) {
+                intradayPrices.push(Number(s.tc), Number(s.pivot), Number(s.bc));
+            });
+        }
+        const extra = [];
+        if (st.showSuperTrend) extra.push.apply(extra, collect('superTrend'));
+        if (st.showSuperTrend725) {
+            view.forEach(function (c) {
+                var v = getSt725Value(c);
+                if (v != null) extra.push(v);
+            });
+        }
+        if (st.showKeltner) {
+            extra.push.apply(extra, collect('keltnerUpperOuter'));
+            extra.push.apply(extra, collect('keltnerLowerOuter'));
+        }
+        if (st.showVwap) {
+            view.forEach(function (c) {
+                var v = getVwapValue(c);
+                if (v != null) extra.push(v);
+            });
+        }
+        if (st.showEma20) {
+            view.forEach(function (c) {
+                var v = getEma20Value(c);
+                if (v != null) extra.push(v);
+            });
+        }
+        const maxPrice = Math.max(
+            ...highs,
+            ...(extra.length ? extra : [Number.MIN_VALUE]),
+            ...(levelPrices.length ? levelPrices : [Number.MIN_VALUE]),
+            ...(intradayPrices.length ? intradayPrices : [Number.MIN_VALUE])
+        );
+        const minPrice = Math.min(
+            ...lows,
+            ...(extra.length ? extra : [Number.MAX_VALUE]),
+            ...(levelPrices.length ? levelPrices : [Number.MAX_VALUE]),
+            ...(intradayPrices.length ? intradayPrices : [Number.MAX_VALUE])
+        );
+        return { minPrice, maxPrice, priceRange: (maxPrice - minPrice) || 1 };
+    }
+
+    function getVisiblePriceBounds(st, view) {
+        const { minPrice, maxPrice, priceRange } = collectViewExtents(st, view);
+        const margin = priceRange * 0.04;
+        const autoRange = priceRange + margin * 2;
+        const mid = (maxPrice + minPrice) / 2;
+        const yScale = st.yScale != null ? st.yScale : 1;
+        const yPan = st.yPan != null ? st.yPan : 0;
+        const visibleRange = autoRange * yScale;
+        const visibleMax = mid + visibleRange / 2 + yPan;
+        const visibleMin = mid - visibleRange / 2 + yPan;
+        return { minPrice, maxPrice, visibleMax, visibleMin, visibleRange, mid, autoRange };
+    }
+
+    function scaleYAt(id, factor) {
+        const st = states[id];
+        if (!st) return;
+        const yScale = st.yScale != null ? st.yScale : 1;
+        st.yScale = clamp(yScale / factor, Y_SCALE_MIN, Y_SCALE_MAX);
+        scheduleRender(id);
+    }
+
+    function panYByPixels(id, deltaYPixels) {
+        const st = states[id];
+        if (!st || deltaYPixels === 0) return;
+        const view = getChartView(st);
+        if (view.length === 0) return;
+        const canvas = st.canvas;
+        const container = canvas.parentElement;
+        const cssH = Math.max((container ? container.clientHeight : canvas.clientHeight) - 4, 240);
+        const chartH = cssH - CHART_PADDING.top - CHART_PADDING.bottom;
+        const { visibleRange } = getVisiblePriceBounds(st, view);
+        const pricePerPixel = visibleRange / chartH;
+        st.yPan = (st.yPan || 0) + deltaYPixels * pricePerPixel;
+        scheduleRender(id);
+    }
+
     function ensureInteractions(canvas, id) {
         if (canvas.dataset.pgBound === '1') return;
         canvas.dataset.pgBound = '1';
+
+        const interaction = { dragging: false, mode: null, lastX: 0, lastY: 0 };
 
         canvas.addEventListener('wheel', function (e) {
             const st = states[id];
             if (!st) return;
             e.preventDefault();
             const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-            zoomAt(id, factor);
+            if (e.shiftKey || isPriceAxisEvent(canvas, e)) {
+                scaleYAt(id, factor);
+            } else {
+                zoomAt(id, factor);
+            }
         }, { passive: false });
 
-        let dragging = false, lastX = 0;
-        canvas.addEventListener('mousedown', function (e) { dragging = true; lastX = e.clientX; });
-        window.addEventListener('mouseup', function () { dragging = false; });
+        canvas.addEventListener('mousedown', function (e) {
+            interaction.dragging = true;
+            if (isPriceAxisEvent(canvas, e) || e.shiftKey) {
+                interaction.mode = 'yScale';
+                interaction.lastY = e.clientY;
+            } else if (e.button === 2 || e.altKey) {
+                interaction.mode = 'yPan';
+                interaction.lastY = e.clientY;
+            } else {
+                interaction.mode = 'xPan';
+                interaction.lastX = e.clientX;
+            }
+        });
+
+        window.addEventListener('mouseup', function () {
+            interaction.dragging = false;
+            interaction.mode = null;
+        });
+
         canvas.addEventListener('mousemove', function (e) {
-            if (!dragging) return;
             const st = states[id];
             if (!st) return;
+
+            if (!interaction.dragging) {
+                canvas.style.cursor = isPriceAxisEvent(canvas, e) ? 'ns-resize' : 'crosshair';
+                return;
+            }
+
+            if (interaction.mode === 'yScale') {
+                const deltaY = e.clientY - interaction.lastY;
+                if (deltaY !== 0) {
+                    const yScale = st.yScale != null ? st.yScale : 1;
+                    st.yScale = clamp(yScale * Math.pow(1.008, deltaY), Y_SCALE_MIN, Y_SCALE_MAX);
+                    interaction.lastY = e.clientY;
+                    scheduleRender(id);
+                }
+                return;
+            }
+
+            if (interaction.mode === 'yPan') {
+                const deltaY = e.clientY - interaction.lastY;
+                if (deltaY !== 0) {
+                    panYByPixels(id, deltaY);
+                    interaction.lastY = e.clientY;
+                }
+                return;
+            }
+
             const perBar = (canvas.clientWidth - 72) / st.count;
-            const deltaBars = Math.round((e.clientX - lastX) / perBar);
+            const deltaBars = Math.round((e.clientX - interaction.lastX) / perBar);
             if (deltaBars !== 0) {
                 st.offset = clamp(st.offset + deltaBars, 0, st.candles.length - st.count);
-                lastX = e.clientX;
+                interaction.lastX = e.clientX;
                 scheduleRender(id);
             }
         });
+
+        canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
         var container = canvas.parentElement;
         if (container && typeof ResizeObserver !== 'undefined') {
@@ -495,17 +646,22 @@ window.pgOneChart = (function () {
             showSuperTrend: showSuperTrend
         });
 
-        let count, offset;
+        let count, offset, yScale, yPan;
         if (prev && prev.timeframe === timeframe) {
             count = clamp(prev.count, 12, normalized.length);
             offset = clamp(prev.offset, 0, normalized.length - count);
+            yScale = prev.yScale != null ? prev.yScale : 1;
+            yPan = prev.yPan != null ? prev.yPan : 0;
         } else {
             count = normalized.length;
             offset = 0;
+            yScale = 1;
+            yPan = 0;
         }
 
         states[canvasId] = {
             canvas, candles: normalized, timeframe, count, offset,
+            yScale, yPan,
             levels: levels || [],
             pocToday: num(pocToday),
             showPoc: showPoc,
@@ -531,6 +687,8 @@ window.pgOneChart = (function () {
         if (!st) return;
         st.count = st.candles.length;
         st.offset = 0;
+        st.yScale = 1;
+        st.yPan = 0;
         scheduleRender(canvasId);
     }
 
@@ -554,7 +712,7 @@ window.pgOneChart = (function () {
 
         const width = cssW;
         const height = cssH;
-        const padding = { top: 10, right: 52, bottom: 22, left: 6 };
+        const padding = CHART_PADDING;
         const chartW = width - padding.left - padding.right;
         const chartH = height - padding.top - padding.bottom;
 
@@ -562,54 +720,14 @@ window.pgOneChart = (function () {
         ctx.fillStyle = '#121212';
         ctx.fillRect(0, 0, width, height);
 
-        const start = clamp(candles.length - st.offset - st.count, 0, Math.max(0, candles.length - 1));
-        const end = clamp(candles.length - st.offset, 1, candles.length);
-        const view = candles.slice(start, end);
+        const view = getChartView(st);
         if (view.length === 0) return;
 
-        const collect = (key) => view.map(c => c[key]).filter(v => v != null && !Number.isNaN(v));
-        const highs = view.map(c => c.high);
-        const lows = view.map(c => c.low);
-        const levelPrices = filterLevels(st).map(l => Number(l.price)).filter(v => !Number.isNaN(v));
-        var intradayPrices = [];
-        if (st.showIntradaCpr && st.intradayCprSegments) {
-            st.intradayCprSegments.forEach(function (s) {
-                intradayPrices.push(Number(s.tc), Number(s.pivot), Number(s.bc));
-            });
-        }
-        const extra = [];
-        if (st.showSuperTrend) {
-            extra.push.apply(extra, collect('superTrend'));
-        }
-        if (st.showSuperTrend725) {
-            view.forEach(function (c) {
-                var v = getSt725Value(c);
-                if (v != null) extra.push(v);
-            });
-        }
-        if (st.showKeltner) {
-            extra.push.apply(extra, collect('keltnerUpperOuter'));
-            extra.push.apply(extra, collect('keltnerLowerOuter'));
-        }
-        if (st.showVwap) {
-            view.forEach(function (c) {
-                var v = getVwapValue(c);
-                if (v != null) extra.push(v);
-            });
-        }
-        if (st.showEma20) {
-            view.forEach(function (c) {
-                var v = getEma20Value(c);
-                if (v != null) extra.push(v);
-            });
-        }
-        const maxPrice = Math.max(...highs, ...(extra.length ? extra : [Number.MIN_VALUE]), ...(levelPrices.length ? levelPrices : [Number.MIN_VALUE]), ...(intradayPrices.length ? intradayPrices : [Number.MIN_VALUE]));
-        const minPrice = Math.min(...lows, ...(extra.length ? extra : [Number.MAX_VALUE]), ...(levelPrices.length ? levelPrices : [Number.MAX_VALUE]), ...(intradayPrices.length ? intradayPrices : [Number.MAX_VALUE]));
-        const priceRange = (maxPrice - minPrice) || 1;
+        const { visibleMax, visibleMin, visibleRange } = getVisiblePriceBounds(st, view);
         const slot = chartW / view.length;
         const candleWidth = Math.max(1.5, slot - 2);
 
-        const toY = (price) => padding.top + ((maxPrice - price) / priceRange) * chartH;
+        const toY = (price) => padding.top + ((visibleMax - price) / visibleRange) * chartH;
         const toX = (i) => padding.left + slot * i + slot / 2;
 
         if (st.showPoc && st.pocToday && !st.showIntradaCpr) {
@@ -628,7 +746,7 @@ window.pgOneChart = (function () {
             ctx.lineTo(width - padding.right, y);
             ctx.stroke();
 
-            const price = maxPrice - (priceRange / 4) * i;
+            const price = visibleMax - (visibleRange / 4) * i;
             ctx.fillStyle = '#AAAAAA';
             ctx.font = '12px "Segoe UI", sans-serif';
             ctx.textAlign = 'left';
