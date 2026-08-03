@@ -415,6 +415,7 @@ public class DashboardViewModel : INotifyPropertyChanged
             }
 
             ChartVersion++;
+            Notify(nameof(ChartCandles));
             Notify(nameof(ChartVersion));
             Notify(nameof(CprSegments));
             IsChartFromZerodha = result.IsFromZerodha;

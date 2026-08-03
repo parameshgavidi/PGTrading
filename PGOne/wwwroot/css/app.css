@@ -1368,6 +1368,7 @@ html, body {
 .legend-color.keltner { background: rgba(120,144,255,0.7); }
 .legend-color.vwap { background: var(--gold); }
 .legend-color.ema20 { background: rgba(255, 152, 0, 0.9); }
+.legend-color.st725 { background: rgba(0, 188, 212, 0.95); }
 .legend-color.poc { background: linear-gradient(180deg, rgba(0,200,83,0.5) 50%, rgba(255,82,82,0.5) 50%); }
 .legend-color.pivot { background: rgba(212, 175, 55, 0.85); }
 .legend-color.camarilla { background: rgba(255, 150, 110, 0.75); }

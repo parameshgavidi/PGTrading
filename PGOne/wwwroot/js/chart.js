@@ -4,6 +4,27 @@ window.pgOneChart = (function () {
 
     function num(v) { return v == null ? null : Number(v); }
 
+  // Blazor interop may send camelCase or PascalCase property names.
+    function field(obj, key) {
+        if (!obj) return null;
+        var v = obj[key];
+        if (v != null) return v;
+        var alt = key.charAt(0).toUpperCase() + key.slice(1);
+        return alt !== key ? obj[alt] : null;
+    }
+
+    function overlayFlag(opts, camel, fallback) {
+        if (!opts) return fallback;
+        var v = opts[camel];
+        if (v === true || v === 1) return true;
+        if (v === false || v === 0) return false;
+        var pascal = camel.charAt(0).toUpperCase() + camel.slice(1);
+        v = opts[pascal];
+        if (v === true || v === 1) return true;
+        if (v === false || v === 0) return false;
+        return fallback;
+    }
+
     function ensureInteractions(canvas, id) {
         if (canvas.dataset.pgBound === '1') return;
         canvas.dataset.pgBound = '1';
@@ -249,17 +270,17 @@ window.pgOneChart = (function () {
 
         const prev = states[canvasId];
         const opts = overlayOptions || {};
-        const showPoc = opts.showPoc !== false;
-        const showPivot = opts.showPivot !== false;
-        const showCamarilla = opts.showCamarilla !== false;
-        const intradayCprSegments = opts.intradayCpr || [];
-        const showIntradaCpr = (opts.showIntradaCpr === true || opts.showIntradaCpr === 1)
+        const showPoc = overlayFlag(opts, 'showPoc', true);
+        const showPivot = overlayFlag(opts, 'showPivot', true);
+        const showCamarilla = overlayFlag(opts, 'showCamarilla', true);
+        const intradayCprSegments = opts.intradayCpr || opts.IntradayCpr || [];
+        const showIntradaCpr = overlayFlag(opts, 'showIntradaCpr', false)
             && intradayCprSegments.length > 0;
-        const showKeltner = opts.showKeltner === true;
-        const showVwap = opts.showVwap === true;
-        const showSuperTrend = opts.showSuperTrend === true;
-        const showSuperTrend725 = opts.showSuperTrend725 === true;
-        const showEma20 = opts.showEma20 === true;
+        const showKeltner = overlayFlag(opts, 'showKeltner', false);
+        const showVwap = overlayFlag(opts, 'showVwap', false);
+        const showSuperTrend = overlayFlag(opts, 'showSuperTrend', false);
+        const showSuperTrend725 = overlayFlag(opts, 'showSuperTrend725', false);
+        const showEma20 = overlayFlag(opts, 'showEma20', false);
         let count, offset;
         if (prev && prev.timeframe === timeframe) {
             count = clamp(prev.count, 12, candles.length);
@@ -331,9 +352,9 @@ window.pgOneChart = (function () {
         const view = candles.slice(start, end);
         if (view.length === 0) return;
 
-        const collect = (key) => view.map(c => num(c[key])).filter(v => v != null && !Number.isNaN(v));
-        const highs = view.map(c => Number(c.high));
-        const lows = view.map(c => Number(c.low));
+        const collect = (key) => view.map(c => num(field(c, key))).filter(v => v != null && !Number.isNaN(v));
+        const highs = view.map(c => Number(field(c, 'high')));
+        const lows = view.map(c => Number(field(c, 'low')));
         const levelPrices = filterLevels(st).map(l => Number(l.price)).filter(v => !Number.isNaN(v));
         var intradayPrices = [];
         if (st.showIntradaCpr && st.intradayCprSegments) {
@@ -421,7 +442,7 @@ window.pgOneChart = (function () {
             ctx.beginPath();
             let started = false;
             view.forEach((c, i) => {
-                const v = num(c[key]);
+                const v = num(field(c, key));
                 if (v == null || Number.isNaN(v)) { started = false; return; }
                 const x = toX(i), y = toY(v);
                 if (!started) { ctx.moveTo(x, y); started = true; }
@@ -431,34 +452,14 @@ window.pgOneChart = (function () {
             ctx.setLineDash([]);
         };
 
-        if (st.showKeltner) {
-            drawLine('keltnerUpperOuter', 'rgba(120,144,255,0.55)');
-            drawLine('keltnerUpperInner', 'rgba(120,144,255,0.35)');
-            drawLine('keltnerMid', 'rgba(120,144,255,0.45)', [4, 3]);
-            drawLine('keltnerLowerInner', 'rgba(120,144,255,0.35)');
-            drawLine('keltnerLowerOuter', 'rgba(120,144,255,0.55)');
-        }
-
-        if (st.showVwap) {
-            drawLine('vwap', '#D4AF37', [2, 2]);
-        }
-
-        if (st.showEma20) {
-            drawLine('ema20', 'rgba(255, 152, 0, 0.9)', [6, 3]);
-        }
-
-        if (st.showSuperTrend725) {
-            drawLine('superTrendEntry', 'rgba(0, 188, 212, 0.95)', [3, 3]);
-        }
-
         // Day CPR / POC / Camarilla — full-width dashed lines + labels on chart
         drawLevels(ctx, filterLevels(st), padding, width, toY);
 
         view.forEach((candle, i) => {
-            const open = Number(candle.open);
-            const close = Number(candle.close);
-            const high = Number(candle.high);
-            const low = Number(candle.low);
+            const open = Number(field(candle, 'open'));
+            const close = Number(field(candle, 'close'));
+            const high = Number(field(candle, 'high'));
+            const low = Number(field(candle, 'low'));
             const isUp = close >= open;
             const color = isUp ? '#00C853' : '#FF5252';
 
@@ -480,6 +481,27 @@ window.pgOneChart = (function () {
             drawIntradaCprLevels(ctx, view, st.intradayCprSegments, padding, chartH, slot, toY, toX);
         }
 
+        // Study overlays drawn after candles so lines stay visible on top of bodies.
+        if (st.showKeltner) {
+            drawLine('keltnerUpperOuter', 'rgba(120,144,255,0.55)');
+            drawLine('keltnerUpperInner', 'rgba(120,144,255,0.35)');
+            drawLine('keltnerMid', 'rgba(120,144,255,0.45)', [4, 3]);
+            drawLine('keltnerLowerInner', 'rgba(120,144,255,0.35)');
+            drawLine('keltnerLowerOuter', 'rgba(120,144,255,0.55)');
+        }
+
+        if (st.showVwap) {
+            drawLine('vwap', '#D4AF37', [2, 2]);
+        }
+
+        if (st.showEma20) {
+            drawLine('ema20', 'rgba(255, 152, 0, 0.9)', [6, 3]);
+        }
+
+        if (st.showSuperTrend725) {
+            drawLine('superTrendEntry', 'rgba(0, 188, 212, 0.95)', [3, 3]);
+        }
+
         if (st.showSuperTrend) {
             ctx.lineWidth = 1.75;
             let segment = null;
@@ -492,9 +514,9 @@ window.pgOneChart = (function () {
                 segment = null;
             };
             view.forEach((candle, i) => {
-                const stv = candle.superTrend != null ? Number(candle.superTrend) : null;
+                const stv = num(field(candle, 'superTrend'));
                 if (stv == null || Number.isNaN(stv)) { flush(); return; }
-                const close = Number(candle.close);
+                const close = Number(field(candle, 'close'));
                 const color = close >= stv ? '#00C853' : '#FF5252';
                 const point = { x: toX(i), y: toY(stv) };
                 if (!segment || segment.color !== color) { flush(); segment = { color: color, points: [point] }; }
@@ -504,8 +526,26 @@ window.pgOneChart = (function () {
         }
     }
 
+    function updateOverlayOptions(canvasId, overlayOptions) {
+        const st = states[canvasId];
+        if (!st) return;
+        const opts = overlayOptions || {};
+        st.showPoc = overlayFlag(opts, 'showPoc', st.showPoc);
+        st.showPivot = overlayFlag(opts, 'showPivot', st.showPivot);
+        st.showCamarilla = overlayFlag(opts, 'showCamarilla', st.showCamarilla);
+        st.showIntradaCpr = overlayFlag(opts, 'showIntradaCpr', false)
+            && (opts.intradayCpr || opts.IntradayCpr || st.intradayCprSegments || []).length > 0;
+        st.showKeltner = overlayFlag(opts, 'showKeltner', false);
+        st.showVwap = overlayFlag(opts, 'showVwap', false);
+        st.showSuperTrend = overlayFlag(opts, 'showSuperTrend', false);
+        st.showSuperTrend725 = overlayFlag(opts, 'showSuperTrend725', false);
+        st.showEma20 = overlayFlag(opts, 'showEma20', false);
+        render(canvasId);
+    }
+
     return {
         drawCandlestickChart: setData,
+        updateOverlayOptions: updateOverlayOptions,
         zoom: zoom,
         resetZoom: resetZoom
     };
