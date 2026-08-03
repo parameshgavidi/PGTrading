@@ -1,5 +1,6 @@
 @page "/auto-buy"
 @inject AutoBuyViewModel ViewModel
+@inject NavigationManager Navigation
 @implements IDisposable
 
 <div class="page-container auto-buy-page">
@@ -98,6 +99,7 @@
             <table class="data-table auto-buy-table">
                 <thead>
                     <tr>
+                        <th>#</th>
                         <th>Symbol</th>
                         <th>Timeframe</th>
                         <th>Qty</th>
@@ -110,10 +112,13 @@
                     </tr>
                 </thead>
                 <tbody>
+                    @{ var rowIndex = 0; }
                     @foreach (var row in ViewModel.Rows)
                     {
+                        rowIndex++;
                         <tr class="auto-buy-row @(row.AutomationEnabled ? "" : "dim-row")"
                             @onclick="async () => await OpenRowModal(row)">
+                            <td class="auto-buy-serial">@rowIndex</td>
                             <td><strong>@row.Symbol</strong></td>
                             <td>@row.Timeframe</td>
                             <td>@row.Lots</td>
@@ -129,7 +134,12 @@
                             </td>
                             <td class="@GetStatusClass(row.Status)">@row.Status</td>
                             <td class="auto-buy-detail">@row.Detail</td>
-                            <td @onclick:stopPropagation="true">
+                            <td @onclick:stopPropagation="true" class="auto-buy-actions">
+                                <button type="button"
+                                        class="btn btn-secondary btn-sm"
+                                        @onclick="() => ViewChart(row.Symbol)">
+                                    View chart
+                                </button>
                                 <button type="button"
                                         class="btn btn-secondary btn-sm"
                                         @onclick="() => RemoveRowAsync(row.Symbol)">
@@ -264,6 +274,14 @@
     private async Task RefreshSymbolsAsync() => await ViewModel.RefreshSymbolsAsync();
 
     private async Task RemoveRowAsync(string symbol) => await ViewModel.RemoveSymbolAsync(symbol);
+
+    private void ViewChart(string symbol)
+    {
+        if (string.IsNullOrWhiteSpace(symbol))
+            return;
+
+        Navigation.NavigateTo($"chart?symbol={Uri.EscapeDataString(symbol.Trim().ToUpperInvariant())}");
+    }
 
     private async Task OnMasterAutomationChanged(ChangeEventArgs e)
     {

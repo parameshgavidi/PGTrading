@@ -1,5 +1,6 @@
 @page "/chart"
 @inject DashboardViewModel ViewModel
+@inject NavigationManager Navigation
 
 <div class="page-container">
     <div class="card chart-full">
@@ -111,10 +112,38 @@
 </div>
 
 @code {
-  protected override void OnInitialized()
+  protected override async Task OnInitializedAsync()
   {
     ViewModel.PropertyChanged += (_, _) => InvokeAsync(StateHasChanged);
     if (!ViewModel.IsDashboardReady)
-      _ = ViewModel.InitializeAsync();
+      await ViewModel.InitializeAsync();
+
+    await ApplySymbolFromQueryAsync();
+  }
+
+  private async Task ApplySymbolFromQueryAsync()
+  {
+    var symbol = GetSymbolFromQuery();
+    if (string.IsNullOrWhiteSpace(symbol))
+      return;
+
+    await ViewModel.SelectInstrumentAsync(symbol);
+  }
+
+  private string? GetSymbolFromQuery()
+  {
+    var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+    var query = uri.Query;
+    if (string.IsNullOrEmpty(query) || query.Length < 2)
+      return null;
+
+    foreach (var part in query[1..].Split('&', StringSplitOptions.RemoveEmptyEntries))
+    {
+      var pair = part.Split('=', 2);
+      if (pair.Length == 2 && pair[0].Equals("symbol", StringComparison.OrdinalIgnoreCase))
+        return Uri.UnescapeDataString(pair[1]).Trim().ToUpperInvariant();
+    }
+
+    return null;
   }
 }
