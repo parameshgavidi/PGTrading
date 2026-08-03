@@ -2,7 +2,7 @@ using PGOne.Services;
 
 namespace PGOne.Models;
 
-/// <summary>Pre-flight checks before Auto Buy automation can place CNC orders.</summary>
+/// <summary>Shared system gates before Auto Buy can place CNC orders (per-row ST signal is separate).</summary>
 public static class AutoBuyReadiness
 {
     public sealed record Check(string Label, bool Passed, string Detail);
@@ -34,7 +34,8 @@ public static class AutoBuyReadiness
         var symbols = string.Join(", ", rows.Select(r => r.Symbol));
         checks.Add(new("NSE stocks in list", true, $"{rows.Count} — {symbols}"));
 
-        var enabledCount = rows.Count(r => r.AutomationEnabled);
+        var enabledRows = rows.Where(r => r.AutomationEnabled).ToList();
+        var enabledCount = enabledRows.Count;
         checks.Add(new("Row automation", enabledCount > 0,
             enabledCount > 0
                 ? $"{enabledCount} of {rows.Count} row(s) enabled"
@@ -43,31 +44,44 @@ public static class AutoBuyReadiness
         checks.Add(new("Long only — BUY CNC", true,
             $"Each row: ST(7,2.5) Buy trigger → {AutoBuyDefaults.EntrySide} only · never sell"));
 
-        var atMax = rows
+        checks.Add(new("Per-stock entry", true,
+            "Each enabled row places BUY when that stock's ST(7,2.5) turns Buy on its timeframe — other rows do not block it"));
+
+        if (enabledCount == 0)
+        {
+            checks.Add(new("Deploy capacity", false, "Enable automation on at least one row"));
+            return checks;
+        }
+
+        var atMax = enabledRows
             .Where(r => r.MaxDeployAmount > 0
                 && AutoBuyDeployHelper.IsMaxDeployReached(r.DeployedAmount, r.MaxDeployAmount))
             .Select(r => r.Symbol)
             .ToList();
 
-        if (atMax.Count > 0)
-            checks.Add(new("Below per-stock max deploy", false,
-                $"{string.Join(", ", atMax)} at or above cap"));
+        var canStillEnter = enabledRows.Count(r =>
+            r.MaxDeployAmount <= 0
+            || !AutoBuyDeployHelper.IsMaxDeployReached(r.DeployedAmount, r.MaxDeployAmount));
+
+        var cappedCount = enabledRows.Count(r => r.MaxDeployAmount > 0);
+
+        if (canStillEnter == 0 && cappedCount > 0)
+        {
+            checks.Add(new("Deploy capacity", false,
+                $"All enabled rows at max deploy — {string.Join(", ", atMax)}"));
+        }
+        else if (atMax.Count > 0)
+        {
+            checks.Add(new("Deploy capacity", true,
+                $"{canStillEnter} enabled row(s) can still enter · at cap: {string.Join(", ", atMax)}"));
+        }
         else
         {
-            var capped = rows.Count(r => r.MaxDeployAmount > 0);
-            checks.Add(new("Below per-stock max deploy", true,
-                capped > 0 ? $"{capped} row(s) with per-stock caps — all within limit" : "No per-stock caps set"));
+            checks.Add(new("Deploy capacity", true,
+                cappedCount > 0
+                    ? $"{cappedCount} row(s) with per-stock caps — room available"
+                    : "No per-stock caps set"));
         }
-
-        var signalRows = rows
-            .Where(r => r.Status is "Buy signal" or "Order placed" or "Ordered")
-            .Select(r => $"{r.Symbol} ({r.Timeframe})")
-            .ToList();
-
-        checks.Add(new("ST(7,2.5) buy signal", signalRows.Count > 0,
-            signalRows.Count > 0
-                ? string.Join(", ", signalRows)
-                : "Waiting for ST to turn Buy on each row's timeframe"));
 
         return checks;
     }

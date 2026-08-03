@@ -43,7 +43,10 @@
         }
 
         <div class="framework-panel auto-buy-readiness">
-            <div class="framework-panel-title">Deployment readiness (all must pass for live orders)</div>
+            <div class="framework-panel-title">System readiness (shared gates)</div>
+            <p class="text-secondary auto-buy-readiness-hint">
+                When these pass, automation can place orders. <strong>Each stock enters on its own</strong> ST(7,2.5) buy signal — see Status in the table below.
+            </p>
             <ul class="framework-conditions compact">
                 @foreach (var check in ViewModel.GetReadinessChecks())
                 {

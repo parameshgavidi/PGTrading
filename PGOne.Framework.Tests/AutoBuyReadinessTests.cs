@@ -71,6 +71,58 @@ public class AutoBuyReadinessTests
 
         Assert.Contains(checks, c => c.Label == "NSE stocks in list" && c.Passed && c.Detail.Contains("2"));
         Assert.Contains(checks, c => c.Label == "Row automation" && c.Passed);
-        Assert.Contains(checks, c => c.Label == "Below per-stock max deploy" && c.Passed);
+        Assert.Contains(checks, c => c.Label == "Deploy capacity" && c.Passed);
+        Assert.Contains(checks, c => c.Label == "Per-stock entry" && c.Passed);
+    }
+
+    [Fact]
+    public void Evaluate_deploy_capacity_passes_when_some_rows_at_max()
+    {
+        var rows = new List<AutoBuyRow>
+        {
+            new()
+            {
+                Symbol = "RELIANCE",
+                Exchange = "NSE",
+                AutomationEnabled = true,
+                MaxDeployAmount = 1000m,
+                DeployedAmount = 1000m
+            },
+            new()
+            {
+                Symbol = "TCS",
+                Exchange = "NSE",
+                AutomationEnabled = true,
+                MaxDeployAmount = 50000m,
+                DeployedAmount = 1000m
+            }
+        };
+
+        var checks = AutoBuyReadiness.Evaluate(true, rows, true, true, true);
+
+        var deploy = checks.First(c => c.Label == "Deploy capacity");
+        Assert.True(deploy.Passed);
+        Assert.Contains("TCS", deploy.Detail);
+        Assert.Contains("RELIANCE", deploy.Detail);
+    }
+
+    [Fact]
+    public void Evaluate_does_not_require_global_st_signal()
+    {
+        var rows = new List<AutoBuyRow>
+        {
+            new()
+            {
+                Symbol = "INFY",
+                Exchange = "NSE",
+                AutomationEnabled = true,
+                Status = "Waiting"
+            }
+        };
+
+        var checks = AutoBuyReadiness.Evaluate(true, rows, true, true, true);
+
+        Assert.DoesNotContain(checks, c => c.Label == "ST(7,2.5) buy signal");
+        Assert.Contains(checks, c => c.Label == "Per-stock entry" && c.Passed);
     }
 }
