@@ -258,6 +258,7 @@ window.pgOneChart = (function () {
         const showKeltner = opts.showKeltner === true;
         const showVwap = opts.showVwap === true;
         const showSuperTrend = opts.showSuperTrend === true;
+        const showSuperTrend725 = opts.showSuperTrend725 === true;
         const showEma20 = opts.showEma20 === true;
         let count, offset;
         if (prev && prev.timeframe === timeframe) {
@@ -280,6 +281,7 @@ window.pgOneChart = (function () {
             showKeltner: showKeltner,
             showVwap: showVwap,
             showSuperTrend: showSuperTrend,
+            showSuperTrend725: showSuperTrend725,
             showEma20: showEma20
         };
         ensureInteractions(canvas, canvasId);
@@ -342,6 +344,9 @@ window.pgOneChart = (function () {
         const extra = [];
         if (st.showSuperTrend) {
             extra.push.apply(extra, collect('superTrend'));
+        }
+        if (st.showSuperTrend725) {
+            extra.push.apply(extra, collect('superTrendEntry'));
         }
         if (st.showKeltner) {
             extra.push.apply(extra, collect('keltnerUpperOuter'));
@@ -440,6 +445,10 @@ window.pgOneChart = (function () {
 
         if (st.showEma20) {
             drawLine('ema20', 'rgba(255, 152, 0, 0.9)', [6, 3]);
+        }
+
+        if (st.showSuperTrend725) {
+            drawLine('superTrendEntry', 'rgba(0, 188, 212, 0.95)', [3, 3]);
         }
 
         // Day CPR / POC / Camarilla — full-width dashed lines + labels on chart

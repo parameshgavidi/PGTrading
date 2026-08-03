@@ -15,6 +15,7 @@ public class ChartPanelModel
     public bool ShowKeltnerOverlay { get; set; } = false;
     public bool ShowIntradayCprOverlay { get; set; } = false;
     public bool ShowSuperTrendOverlay { get; set; } = false;
+    public bool ShowSuperTrend725Overlay { get; set; } = false;
     public bool ShowEma20Overlay { get; set; } = false;
     public bool ShowVwapOverlay { get; set; } = false;
     public IReadOnlyList<IntradayCprSegment> CprSegments { get; set; } = Array.Empty<IntradayCprSegment>();
@@ -25,6 +26,7 @@ public class ChartPanelModel
     public TrendDirection ChartTrend { get; set; } = TrendDirection.Neutral;
 
     public bool SupportsIntradayCprOverlay => SelectedTimeframe is "1m" or "15m";
+    public bool SupportsIntradayStOverlays => SelectedTimeframe is "1m" or "5m" or "15m";
     public bool Supports5mStudyToggles => SelectedTimeframe == "5m";
     public string CprPositionLabel => AboveCpr ? "Above CPR" : "Below CPR";
     public string CprPositionClass => AboveCpr ? "above-cpr" : "below-cpr";

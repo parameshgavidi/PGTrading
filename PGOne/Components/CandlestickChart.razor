@@ -24,6 +24,7 @@
     [Parameter] public bool ShowKeltnerLevels { get; set; } = true;
     [Parameter] public bool ShowIntradayCprLevels { get; set; } = true;
     [Parameter] public bool ShowSuperTrendOverlay { get; set; }
+    [Parameter] public bool ShowSuperTrend725Overlay { get; set; }
     [Parameter] public bool ShowEma20Overlay { get; set; }
     [Parameter] public bool ShowVwapOverlay { get; set; }
     [Parameter] public string Timeframe { get; set; } = "5m";
@@ -40,6 +41,7 @@
     private bool _lastShowKeltner;
     private bool _lastShowIntradayCpr;
     private bool _lastShowSuperTrend;
+    private bool _lastShowSuperTrend725;
     private bool _lastShowEma20;
     private bool _lastShowVwapOverlay;
     private int _lastCprSegmentCount;
@@ -61,6 +63,7 @@
             && ShowKeltnerLevels == _lastShowKeltner
             && ShowIntradayCprLevels == _lastShowIntradayCpr
             && ShowSuperTrendOverlay == _lastShowSuperTrend
+            && ShowSuperTrend725Overlay == _lastShowSuperTrend725
             && ShowEma20Overlay == _lastShowEma20
             && ShowVwapOverlay == _lastShowVwapOverlay
             && CprSegments.Count == _lastCprSegmentCount
@@ -79,6 +82,7 @@
         _lastShowKeltner = ShowKeltnerLevels;
         _lastShowIntradayCpr = ShowIntradayCprLevels;
         _lastShowSuperTrend = ShowSuperTrendOverlay;
+        _lastShowSuperTrend725 = ShowSuperTrend725Overlay;
         _lastShowEma20 = ShowEma20Overlay;
         _lastShowVwapOverlay = ShowVwapOverlay;
         _lastCprSegmentCount = CprSegments.Count;
@@ -112,6 +116,8 @@
         var supportsIntradayCpr = Timeframe == "1m";
         var showIntradayCpr = supportsIntradayCpr && ShowIntradayCprLevels && segmentPayload.Count > 0;
 
+        var supportsIntradayStudies = Timeframe is "1m" or "5m" or "15m";
+
         var payload = Candles.Select(c => new
         {
             time = ChartJsTime.ToEpochMs(c.Timestamp),
@@ -120,6 +126,7 @@
             low = c.Low,
             close = c.Close,
             superTrend = c.SuperTrend,
+            superTrendEntry = c.SuperTrendEntry,
             keltnerUpperInner = c.KeltnerUpperInner,
             keltnerLowerInner = c.KeltnerLowerInner,
             keltnerUpperOuter = c.KeltnerUpperOuter,
@@ -143,7 +150,8 @@
             intradayCpr = segmentPayload,
             showKeltner = ShowKeltnerLevels,
             showVwap = Timeframe == "5m" && ShowVwapOverlay,
-            showSuperTrend = Timeframe == "5m" && ShowSuperTrendOverlay,
+            showSuperTrend = supportsIntradayStudies && ShowSuperTrendOverlay,
+            showSuperTrend725 = supportsIntradayStudies && ShowSuperTrend725Overlay,
             showEma20 = Timeframe == "5m" && ShowEma20Overlay
         };
 

@@ -10,6 +10,9 @@ public class Candle
     public long Volume { get; set; }
     public decimal? SuperTrend { get; set; }
 
+    /// <summary>SuperTrend ST(7, 2.5) — entry / trailing stop timeframe.</summary>
+    public decimal? SuperTrendEntry { get; set; }
+
     // Keltner Channels (populated on the 5m series only).
     public decimal? KeltnerMid { get; set; }
     public decimal? KeltnerUpperInner { get; set; }

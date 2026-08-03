@@ -172,6 +172,16 @@ public class MultiChartViewModel : INotifyPropertyChanged
         NotifyPanels();
     }
 
+    public void SetPanelShowSuperTrend725(ChartPanelModel panel, bool show)
+    {
+        if (panel.ShowSuperTrend725Overlay == show)
+            return;
+
+        panel.ShowSuperTrend725Overlay = show;
+        panel.OverlayVersion++;
+        NotifyPanels();
+    }
+
     public void SetPanelShowEma20(ChartPanelModel panel, bool show)
     {
         if (panel.ShowEma20Overlay == show)
