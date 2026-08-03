@@ -1945,6 +1945,18 @@ code {
     color: var(--text-secondary);
 }
 
+.auto-buy-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.auto-buy-serial {
+    width: 2.5rem;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
 .master-automation-toggle {
     font-weight: 600;
 }
