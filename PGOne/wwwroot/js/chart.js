@@ -25,6 +25,26 @@ window.pgOneChart = (function () {
         return fallback;
     }
 
+    function normalizeCandle(raw) {
+        if (!raw) return raw;
+        return {
+            time: field(raw, 'time'),
+            open: num(field(raw, 'open')),
+            high: num(field(raw, 'high')),
+            low: num(field(raw, 'low')),
+            close: num(field(raw, 'close')),
+            superTrend: num(field(raw, 'superTrend')),
+            superTrendEntry: num(field(raw, 'superTrendEntry')),
+            keltnerUpperInner: num(field(raw, 'keltnerUpperInner')),
+            keltnerLowerInner: num(field(raw, 'keltnerLowerInner')),
+            keltnerUpperOuter: num(field(raw, 'keltnerUpperOuter')),
+            keltnerLowerOuter: num(field(raw, 'keltnerLowerOuter')),
+            keltnerMid: num(field(raw, 'keltnerMid')),
+            vwap: num(field(raw, 'vwap')),
+            ema20: num(field(raw, 'ema20'))
+        };
+    }
+
     function ensureInteractions(canvas, id) {
         if (canvas.dataset.pgBound === '1') return;
         canvas.dataset.pgBound = '1';
@@ -266,8 +286,9 @@ window.pgOneChart = (function () {
 
     function setData(canvasId, candles, timeframe, levels, pocToday, overlayOptions) {
         const canvas = document.getElementById(canvasId);
-        if (!canvas || !candles || candles.length === 0) return;
+        if (!canvas || !candles || candles.length === 0) return false;
 
+        const normalized = candles.map(normalizeCandle);
         const prev = states[canvasId];
         const opts = overlayOptions || {};
         const showPoc = overlayFlag(opts, 'showPoc', true);
@@ -283,15 +304,15 @@ window.pgOneChart = (function () {
         const showEma20 = overlayFlag(opts, 'showEma20', false);
         let count, offset;
         if (prev && prev.timeframe === timeframe) {
-            count = clamp(prev.count, 12, candles.length);
-            offset = clamp(prev.offset, 0, candles.length - count);
+            count = clamp(prev.count, 12, normalized.length);
+            offset = clamp(prev.offset, 0, normalized.length - count);
         } else {
-            count = candles.length;
+            count = normalized.length;
             offset = 0;
         }
 
         states[canvasId] = {
-            canvas, candles, timeframe, count, offset,
+            canvas, candles: normalized, timeframe, count, offset,
             levels: levels || [],
             pocToday: num(pocToday),
             showPoc: showPoc,
@@ -307,6 +328,7 @@ window.pgOneChart = (function () {
         };
         ensureInteractions(canvas, canvasId);
         render(canvasId);
+        return true;
     }
 
     function zoom(canvasId, factor) { zoomAt(canvasId, factor); }
@@ -506,7 +528,7 @@ window.pgOneChart = (function () {
             ctx.lineWidth = 1.75;
             let segment = null;
             const flush = () => {
-                if (!segment || segment.points.length < 2) { segment = null; return; }
+                if (!segment || segment.points.length < 1) { segment = null; return; }
                 ctx.strokeStyle = segment.color;
                 ctx.beginPath();
                 segment.points.forEach((p, idx) => idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
@@ -514,9 +536,9 @@ window.pgOneChart = (function () {
                 segment = null;
             };
             view.forEach((candle, i) => {
-                const stv = num(field(candle, 'superTrend'));
+                const stv = candle.superTrend;
                 if (stv == null || Number.isNaN(stv)) { flush(); return; }
-                const close = Number(field(candle, 'close'));
+                const close = candle.close;
                 const color = close >= stv ? '#00C853' : '#FF5252';
                 const point = { x: toX(i), y: toY(stv) };
                 if (!segment || segment.color !== color) { flush(); segment = { color: color, points: [point] }; }
@@ -528,7 +550,7 @@ window.pgOneChart = (function () {
 
     function updateOverlayOptions(canvasId, overlayOptions) {
         const st = states[canvasId];
-        if (!st) return;
+        if (!st) return false;
         const opts = overlayOptions || {};
         st.showPoc = overlayFlag(opts, 'showPoc', st.showPoc);
         st.showPivot = overlayFlag(opts, 'showPivot', st.showPivot);
@@ -541,6 +563,7 @@ window.pgOneChart = (function () {
         st.showSuperTrend725 = overlayFlag(opts, 'showSuperTrend725', false);
         st.showEma20 = overlayFlag(opts, 'showEma20', false);
         render(canvasId);
+        return true;
     }
 
     return {

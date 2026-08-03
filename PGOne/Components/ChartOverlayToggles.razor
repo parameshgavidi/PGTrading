@@ -32,13 +32,16 @@
             Keltner
         </button>
     }
-    @if (ShowIntradayStToggles)
+    @if (ShowSt725Toggle)
     {
         <button type="button"
                 class="btn overlay-toggle @(ShowSuperTrend725 ? "active" : "")"
                 @onclick="ToggleSuperTrend725Async">
             ST 7,2.5
         </button>
+    }
+    @if (ShowIntradayStToggles)
+    {
         <button type="button"
                 class="btn overlay-toggle @(ShowSuperTrend ? "active" : "")"
                 @onclick="ToggleSuperTrendAsync">
@@ -69,6 +72,7 @@
     [Parameter] public bool ShowKeltnerToggle { get; set; }
     [Parameter] public bool ShowKeltner { get; set; }
     [Parameter] public bool ShowIntradayStToggles { get; set; }
+    [Parameter] public bool ShowSt725Toggle { get; set; }
     [Parameter] public bool Show5mStudyToggles { get; set; }
     [Parameter] public bool ShowSuperTrend { get; set; }
     [Parameter] public bool ShowSuperTrend725 { get; set; }

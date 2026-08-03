@@ -47,7 +47,8 @@ public class DashboardViewModel : INotifyPropertyChanged
     public bool ShowEma20Overlay { get; private set; } = false;
     public bool ShowVwapOverlay { get; private set; } = false;
     public bool Supports5mStudyToggles => SelectedTimeframe == "5m";
-    public bool SupportsIntradayStOverlays => SelectedTimeframe is "1m" or "5m" or "15m";
+    public bool SupportsIntradayStOverlays => SelectedTimeframe is not "1W";
+    public bool SupportsSt725Overlays => SelectedTimeframe is "1m" or "5m" or "15m";
     public IReadOnlyList<IntradayCprSegment> CprSegments { get; private set; } = Array.Empty<IntradayCprSegment>();
     public decimal CurrentIntradayTc { get; private set; }
     public decimal CurrentIntradayPivot { get; private set; }
@@ -174,6 +175,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         Notify(nameof(SupportsIntradayCprOverlay));
         Notify(nameof(Supports5mStudyToggles));
         Notify(nameof(SupportsIntradayStOverlays));
+        Notify(nameof(SupportsSt725Overlays));
         Notify(nameof(OverlayVersion));
         Notify();
     }
