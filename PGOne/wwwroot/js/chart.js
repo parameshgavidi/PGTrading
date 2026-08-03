@@ -138,14 +138,25 @@ window.pgOneChart = (function () {
 
     function ensureStudyIndicators(candles, flags) {
         if (!candles || candles.length === 0) return;
-        if (flags.showEma20 && studyFieldMissing(candles, 'ema20')) computeEma20(candles, 20);
-        if (flags.showVwap && studyFieldMissing(candles, 'vwap')) computeSessionVwap(candles);
-        if (flags.showSuperTrend725 && studyFieldMissing(candles, 'superTrendEntry')) {
-            computeSuperTrendSeries(candles, 7, 2.5, 'superTrendEntry');
-        }
-        if (flags.showSuperTrend && studyFieldMissing(candles, 'superTrend')) {
-            computeSuperTrendSeries(candles, 10, 3, 'superTrend');
-        }
+        // Always compute when overlay is enabled so toggling ON never hits empty series.
+        if (flags.showEma20) computeEma20(candles, 20);
+        if (flags.showVwap) computeSessionVwap(candles);
+        if (flags.showSuperTrend725) computeSuperTrendSeries(candles, 7, 2.5, 'superTrendEntry');
+        if (flags.showSuperTrend) computeSuperTrendSeries(candles, 10, 3, 'superTrend');
+    }
+
+    function intOverlayFlag(v) {
+        return v === true || v === 1 || v === '1' || v === 'true';
+    }
+
+    function mergeOverlayInts(opts, ints) {
+        if (!ints) return opts || {};
+        var merged = Object.assign({}, opts || {});
+        if (ints.showVwap != null) merged.showVwap = intOverlayFlag(ints.showVwap) ? 1 : 0;
+        if (ints.showEma20 != null) merged.showEma20 = intOverlayFlag(ints.showEma20) ? 1 : 0;
+        if (ints.showSuperTrend725 != null) merged.showSuperTrend725 = intOverlayFlag(ints.showSuperTrend725) ? 1 : 0;
+        if (ints.showSuperTrend != null) merged.showSuperTrend = intOverlayFlag(ints.showSuperTrend) ? 1 : 0;
+        return merged;
     }
 
     function ensureInteractions(canvas, id) {
@@ -675,10 +686,10 @@ window.pgOneChart = (function () {
         }
     }
 
-    function updateOverlayOptions(canvasId, overlayOptions) {
+    function updateOverlayOptions(canvasId, overlayOptions, overlayInts) {
         const st = states[canvasId];
         if (!st) return false;
-        const opts = overlayOptions || {};
+        const opts = mergeOverlayInts(overlayOptions, overlayInts);
         st.showPoc = overlayFlag(opts, 'showPoc', st.showPoc);
         st.showPivot = overlayFlag(opts, 'showPivot', st.showPivot);
         st.showCamarilla = overlayFlag(opts, 'showCamarilla', st.showCamarilla);
@@ -689,9 +700,38 @@ window.pgOneChart = (function () {
         st.showSuperTrend = overlayFlag(opts, 'showSuperTrend', false);
         st.showSuperTrend725 = overlayFlag(opts, 'showSuperTrend725', false);
         st.showEma20 = overlayFlag(opts, 'showEma20', false);
+        ensureStudyIndicators(st.candles, {
+            showVwap: st.showVwap,
+            showEma20: st.showEma20,
+            showSuperTrend725: st.showSuperTrend725,
+            showSuperTrend: st.showSuperTrend
+        });
         scheduleRender(canvasId);
         return true;
     }
+
+    function setStudyOverlays(canvasId, showVwap, showEma20, showSt725, showSt103) {
+        const st = states[canvasId];
+        if (!st) return false;
+        st.showVwap = intOverlayFlag(showVwap);
+        st.showEma20 = intOverlayFlag(showEma20);
+        st.showSuperTrend725 = intOverlayFlag(showSt725);
+        st.showSuperTrend = intOverlayFlag(showSt103);
+        ensureStudyIndicators(st.candles, {
+            showVwap: st.showVwap,
+            showEma20: st.showEma20,
+            showSuperTrend725: st.showSuperTrend725,
+            showSuperTrend: st.showSuperTrend
+        });
+        scheduleRender(canvasId);
+        return true;
+    }
+
+    function hasState(canvasId) {
+        return !!states[canvasId];
+    }
+
+    window.pgOneMergeOverlayInts = mergeOverlayInts;
 
     function isReady() {
         return typeof setData === 'function';
@@ -701,6 +741,8 @@ window.pgOneChart = (function () {
         isReady: isReady,
         drawCandlestickChart: setData,
         updateOverlayOptions: updateOverlayOptions,
+        setStudyOverlays: setStudyOverlays,
+        hasState: hasState,
         zoom: zoom,
         resetZoom: resetZoom
     };
@@ -710,12 +752,43 @@ window.pgOneChartReady = function () {
     return window.pgOneChart && typeof window.pgOneChart.drawCandlestickChart === 'function';
 };
 
-window.pgOneDrawCandles = function (canvasId, candlesJson, timeframe, levelsJson, pocToday, overlaysJson) {
+window.pgOneChartHasState = function (canvasId) {
+    return window.pgOneChart && window.pgOneChart.hasState(canvasId);
+};
+
+window.pgOneSetStudyOverlays = function (canvasId, showVwap, showEma20, showSt725, showSt103) {
+    try {
+        if (!window.pgOneChartReady()) return false;
+        return window.pgOneChart.setStudyOverlays(canvasId, showVwap, showEma20, showSt725, showSt103);
+    } catch (err) {
+        console.error('pgOneSetStudyOverlays failed', err);
+        return false;
+    }
+};
+
+window.pgOneDrawCandles = function (
+    canvasId,
+    candlesJson,
+    timeframe,
+    levelsJson,
+    pocToday,
+    overlaysJson,
+    showVwapInt,
+    showEma20Int,
+    showSt725Int,
+    showSt103Int
+) {
     try {
         if (!window.pgOneChartReady()) return false;
         var candles = typeof candlesJson === 'string' ? JSON.parse(candlesJson) : candlesJson;
         var levels = typeof levelsJson === 'string' ? JSON.parse(levelsJson) : (levelsJson || []);
         var overlayOptions = typeof overlaysJson === 'string' ? JSON.parse(overlaysJson) : (overlaysJson || {});
+        overlayOptions = window.pgOneMergeOverlayInts(overlayOptions, {
+            showVwap: showVwapInt,
+            showEma20: showEma20Int,
+            showSuperTrend725: showSt725Int,
+            showSuperTrend: showSt103Int
+        });
         return window.pgOneChart.drawCandlestickChart(canvasId, candles, timeframe, levels, pocToday, overlayOptions);
     } catch (err) {
         console.error('pgOneDrawCandles failed', err);
