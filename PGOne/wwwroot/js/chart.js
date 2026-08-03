@@ -15,13 +15,12 @@ window.pgOneChart = (function () {
 
     function overlayFlag(opts, camel, fallback) {
         if (!opts) return fallback;
-        var v = opts[camel];
-        if (v === true || v === 1) return true;
-        if (v === false || v === 0) return false;
-        var pascal = camel.charAt(0).toUpperCase() + camel.slice(1);
-        v = opts[pascal];
-        if (v === true || v === 1) return true;
-        if (v === false || v === 0) return false;
+        var keys = [camel, camel.charAt(0).toUpperCase() + camel.slice(1)];
+        for (var i = 0; i < keys.length; i++) {
+            var v = opts[keys[i]];
+            if (v === true || v === 1 || v === '1' || v === 'true') return true;
+            if (v === false || v === 0 || v === '0' || v === 'false') return false;
+        }
         return fallback;
     }
 
@@ -69,9 +68,21 @@ window.pgOneChart = (function () {
             if (deltaBars !== 0) {
                 st.offset = clamp(st.offset + deltaBars, 0, st.candles.length - st.count);
                 lastX = e.clientX;
-                render(id);
+                scheduleRender(id);
             }
         });
+
+        var container = canvas.parentElement;
+        if (container && typeof ResizeObserver !== 'undefined') {
+            var ro = new ResizeObserver(function () {
+                if (states[id]) scheduleRender(id);
+            });
+            ro.observe(container);
+        }
+    }
+
+    function scheduleRender(id) {
+        requestAnimationFrame(function () { render(id); });
     }
 
     function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -82,7 +93,7 @@ window.pgOneChart = (function () {
         const newCount = clamp(Math.round(st.count / factor), 12, st.candles.length);
         st.count = newCount;
         st.offset = clamp(st.offset, 0, st.candles.length - st.count);
-        render(id);
+        scheduleRender(id);
     }
 
     function levelColor(level) {
@@ -327,7 +338,7 @@ window.pgOneChart = (function () {
             showEma20: showEma20
         };
         ensureInteractions(canvas, canvasId);
-        render(canvasId);
+        scheduleRender(canvasId);
         return true;
     }
 
@@ -338,7 +349,7 @@ window.pgOneChart = (function () {
         if (!st) return;
         st.count = st.candles.length;
         st.offset = 0;
-        render(canvasId);
+        scheduleRender(canvasId);
     }
 
     function render(id) {
@@ -374,9 +385,9 @@ window.pgOneChart = (function () {
         const view = candles.slice(start, end);
         if (view.length === 0) return;
 
-        const collect = (key) => view.map(c => num(field(c, key))).filter(v => v != null && !Number.isNaN(v));
-        const highs = view.map(c => Number(field(c, 'high')));
-        const lows = view.map(c => Number(field(c, 'low')));
+        const collect = (key) => view.map(c => c[key]).filter(v => v != null && !Number.isNaN(v));
+        const highs = view.map(c => c.high);
+        const lows = view.map(c => c.low);
         const levelPrices = filterLevels(st).map(l => Number(l.price)).filter(v => !Number.isNaN(v));
         var intradayPrices = [];
         if (st.showIntradaCpr && st.intradayCprSegments) {
@@ -457,14 +468,14 @@ window.pgOneChart = (function () {
             ctx.fillText(label, x, height - 10);
         }
 
-        const drawLine = (key, color, dash) => {
+        const drawLine = (key, color, dash, width) => {
             ctx.strokeStyle = color;
-            ctx.lineWidth = 1.25;
+            ctx.lineWidth = width || 2;
             ctx.setLineDash(dash || []);
             ctx.beginPath();
             let started = false;
             view.forEach((c, i) => {
-                const v = num(field(c, key));
+                const v = c[key];
                 if (v == null || Number.isNaN(v)) { started = false; return; }
                 const x = toX(i), y = toY(v);
                 if (!started) { ctx.moveTo(x, y); started = true; }
@@ -474,14 +485,37 @@ window.pgOneChart = (function () {
             ctx.setLineDash([]);
         };
 
+        const drawSuperTrendSegments = (valueKey, lineWidth) => {
+            ctx.lineWidth = lineWidth || 2;
+            let segment = null;
+            const flush = () => {
+                if (!segment || segment.points.length < 1) { segment = null; return; }
+                ctx.strokeStyle = segment.color;
+                ctx.beginPath();
+                segment.points.forEach((p, idx) => idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+                ctx.stroke();
+                segment = null;
+            };
+            view.forEach((candle, i) => {
+                const stv = candle[valueKey];
+                if (stv == null || Number.isNaN(stv)) { flush(); return; }
+                const close = candle.close;
+                const color = close >= stv ? '#00C853' : '#FF5252';
+                const point = { x: toX(i), y: toY(stv) };
+                if (!segment || segment.color !== color) { flush(); segment = { color: color, points: [point] }; }
+                else segment.points.push(point);
+            });
+            flush();
+        };
+
         // Day CPR / POC / Camarilla — full-width dashed lines + labels on chart
         drawLevels(ctx, filterLevels(st), padding, width, toY);
 
         view.forEach((candle, i) => {
-            const open = Number(field(candle, 'open'));
-            const close = Number(field(candle, 'close'));
-            const high = Number(field(candle, 'high'));
-            const low = Number(field(candle, 'low'));
+            const open = candle.open;
+            const close = candle.close;
+            const high = candle.high;
+            const low = candle.low;
             const isUp = close >= open;
             const color = isUp ? '#00C853' : '#FF5252';
 
@@ -513,38 +547,19 @@ window.pgOneChart = (function () {
         }
 
         if (st.showVwap) {
-            drawLine('vwap', '#D4AF37', [2, 2]);
+            drawLine('vwap', '#D4AF37', [4, 3], 2.25);
         }
 
         if (st.showEma20) {
-            drawLine('ema20', 'rgba(255, 152, 0, 0.9)', [6, 3]);
+            drawLine('ema20', 'rgba(255, 152, 0, 0.95)', [8, 4], 2.25);
         }
 
         if (st.showSuperTrend725) {
-            drawLine('superTrendEntry', 'rgba(0, 188, 212, 0.95)', [3, 3]);
+            drawSuperTrendSegments('superTrendEntry', 2);
         }
 
         if (st.showSuperTrend) {
-            ctx.lineWidth = 1.75;
-            let segment = null;
-            const flush = () => {
-                if (!segment || segment.points.length < 1) { segment = null; return; }
-                ctx.strokeStyle = segment.color;
-                ctx.beginPath();
-                segment.points.forEach((p, idx) => idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-                ctx.stroke();
-                segment = null;
-            };
-            view.forEach((candle, i) => {
-                const stv = candle.superTrend;
-                if (stv == null || Number.isNaN(stv)) { flush(); return; }
-                const close = candle.close;
-                const color = close >= stv ? '#00C853' : '#FF5252';
-                const point = { x: toX(i), y: toY(stv) };
-                if (!segment || segment.color !== color) { flush(); segment = { color: color, points: [point] }; }
-                else segment.points.push(point);
-            });
-            flush();
+            drawSuperTrendSegments('superTrend', 2.25);
         }
     }
 
@@ -562,11 +577,16 @@ window.pgOneChart = (function () {
         st.showSuperTrend = overlayFlag(opts, 'showSuperTrend', false);
         st.showSuperTrend725 = overlayFlag(opts, 'showSuperTrend725', false);
         st.showEma20 = overlayFlag(opts, 'showEma20', false);
-        render(canvasId);
+        scheduleRender(canvasId);
         return true;
     }
 
+    function isReady() {
+        return typeof setData === 'function';
+    }
+
     return {
+        isReady: isReady,
         drawCandlestickChart: setData,
         updateOverlayOptions: updateOverlayOptions,
         zoom: zoom,

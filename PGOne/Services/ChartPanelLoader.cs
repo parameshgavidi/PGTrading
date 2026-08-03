@@ -39,6 +39,8 @@ public static class ChartPanelLoader
                 panel.ChartCandles = result.Candles;
             }
 
+            marketData.ApplyChartIndicators(panel.ChartCandles, panel.SelectedTimeframe);
+
             panel.ChartVersion++;
             panel.IsChartFromZerodha = result.IsFromZerodha;
             panel.ChartDataMessage = result.IsFromZerodha
