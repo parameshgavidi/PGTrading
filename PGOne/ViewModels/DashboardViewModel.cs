@@ -453,10 +453,11 @@ public class DashboardViewModel : INotifyPropertyChanged
         if (ChartCandles.Count == 0 || SelectedTimeframe != "5m")
             return null;
 
+        var st103 = ChartCandles.Count(c => c.SuperTrend.HasValue);
         var st725 = ChartCandles.Count(c => c.SuperTrendEntry.HasValue);
         var ema = ChartCandles.Count(c => c.Ema20.HasValue);
         var vwap = ChartCandles.Count(c => c.Vwap.HasValue);
-        return $" · ST7 {st725}/{ChartCandles.Count} EMA {ema}/{ChartCandles.Count} VWAP {vwap}/{ChartCandles.Count}";
+        return $" · ST10 {st103}/{ChartCandles.Count} ST7 {st725}/{ChartCandles.Count} EMA {ema}/{ChartCandles.Count} VWAP {vwap}/{ChartCandles.Count}";
     }
 
     private static DateTime GetChartSessionDate()

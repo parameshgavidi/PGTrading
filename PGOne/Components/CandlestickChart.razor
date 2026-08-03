@@ -125,6 +125,14 @@
             && ShowIntradayCprLevels == _lastShowIntradayCpr;
     }
 
+    private bool IsSt725OverlayToggleOnly()
+    {
+        return ShowSuperTrend725Overlay != _lastShowSuperTrend725
+            && ShowSuperTrendOverlay == _lastShowSuperTrend
+            && ShowEma20Overlay == _lastShowEma20
+            && ShowVwapOverlay == _lastShowVwapOverlay;
+    }
+
     private void ScheduleRenderRetry()
     {
         if (_pendingRenderRetries >= 12)
@@ -172,6 +180,13 @@
 
         if (IsOverlayOnlyChange() && IsStudyOverlayToggleOnly())
         {
+            if (IsSt725OverlayToggleOnly())
+            {
+                var st725On = BuildStudyOverlayInts().ShowSt725;
+                if (await TrySetSt725OverlayAsync(st725On))
+                    return true;
+            }
+
             if (await TrySetStudyOverlaysAsync(studyFlags))
                 return true;
         }
@@ -214,6 +229,7 @@
             volume = (double)c.Volume,
             superTrend = ToJsDouble(c.SuperTrend),
             superTrendEntry = ToJsDouble(c.SuperTrendEntry),
+            st725 = ToJsDouble(c.SuperTrendEntry),
             keltnerUpperInner = ToJsDouble(c.KeltnerUpperInner),
             keltnerLowerInner = ToJsDouble(c.KeltnerLowerInner),
             keltnerUpperOuter = ToJsDouble(c.KeltnerUpperOuter),
@@ -269,6 +285,27 @@
             supports5mStudies && ShowEma20Overlay ? 1 : 0,
             supportsSt725 && ShowSuperTrend725Overlay ? 1 : 0,
             ShowSuperTrendOverlay ? 1 : 0);
+    }
+
+    private async Task<bool> TrySetSt725OverlayAsync(int showSt725)
+    {
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            try
+            {
+                var hasState = await JS.InvokeAsync<bool>("pgOneChartHasState", CanvasId);
+                if (!hasState)
+                    return false;
+
+                return await JS.InvokeAsync<bool>("pgOneSetSt725Overlay", CanvasId, showSt725);
+            }
+            catch when (attempt < 5)
+            {
+                await Task.Delay(80 + attempt * 60);
+            }
+        }
+
+        return false;
     }
 
     private async Task<bool> TrySetStudyOverlaysAsync((int ShowVwap, int ShowEma20, int ShowSt725, int ShowSt103) flags)
