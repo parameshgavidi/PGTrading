@@ -118,14 +118,15 @@ public class DashboardViewModel : INotifyPropertyChanged
         try
         {
             StartupError = null;
-            await LoadChartAsync();
+            var chartTask = LoadChartAsync();
+            var watchlistTask = _watchlist.RefreshTopWeightageAsync();
+            await chartTask;
             await UpdatePriceAsync();
             Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
-            CurrentSignal = await _signal.GenerateSignalAsync(SelectedSymbol);
+            CurrentSignal = await _signal.GenerateSignalFromAnalysisAsync(SelectedSymbol, Analysis);
             OverlayVersion++;
             UpdateSelectedTrend();
-            await _watchlist.RefreshTopWeightageAsync();
-            SyncWatchlists();
+            await watchlistTask;
             await _settings.LoadAsync();
             await RefreshRiskControlsAsync();
             _marketData.StartStreaming(SelectedInstrument);
@@ -152,7 +153,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         await LoadChartAsync();
         await UpdatePriceAsync();
         Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
-        CurrentSignal = await _signal.GenerateSignalAsync(SelectedSymbol);
+        CurrentSignal = await _signal.GenerateSignalFromAnalysisAsync(SelectedSymbol, Analysis);
         OverlayVersion++;
         UpdateSelectedTrend();
         _marketData.StartStreaming(SelectedInstrument);
@@ -182,12 +183,12 @@ public class DashboardViewModel : INotifyPropertyChanged
     {
         await LoadChartAsync();
         await UpdatePriceAsync();
+        var watchlistTask = _watchlist.RefreshTopWeightageAsync();
         Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
-        CurrentSignal = await _signal.GenerateSignalAsync(SelectedSymbol);
+        CurrentSignal = await _signal.GenerateSignalFromAnalysisAsync(SelectedSymbol, Analysis);
         OverlayVersion++;
         UpdateSelectedTrend();
-        await _watchlist.RefreshTopWeightageAsync();
-        SyncWatchlists();
+        await watchlistTask;
         await RefreshRiskControlsAsync();
         Notify();
     }

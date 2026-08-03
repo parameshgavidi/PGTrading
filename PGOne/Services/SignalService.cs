@@ -5,6 +5,7 @@ namespace PGOne.Services;
 public interface ISignalService
 {
     Task<Signal> GenerateSignalAsync(string instrument = "NIFTY");
+    Task<Signal> GenerateSignalFromAnalysisAsync(string instrument, MultiTimeframeAnalysis analysis);
     Task<MultiTimeframeAnalysis> AnalyzeAsync(string instrument = "NIFTY");
     Task<MultiTimeframeAnalysis> AnalyzeForFrameworkAsync(string instrument);
     /// <summary>Phase-1 intraday screen: 1H + 5m only. Returns prefetch when Step 1 passes (bullish bias).</summary>
@@ -278,6 +279,11 @@ public class SignalService : ISignalService
     public async Task<Signal> GenerateSignalAsync(string instrument = "NIFTY")
     {
         var analysis = await AnalyzeAsync(instrument);
+        return await GenerateSignalFromAnalysisAsync(instrument, analysis);
+    }
+
+    public async Task<Signal> GenerateSignalFromAnalysisAsync(string instrument, MultiTimeframeAnalysis analysis)
+    {
         var price = await _marketData.GetCurrentPriceAsync(MapInstrument(instrument));
         var strikeStep = GetStrikeStep(instrument);
         var strike = (int)(Math.Round(price / strikeStep) * strikeStep);

@@ -9,5 +9,5 @@ public interface IWatchlistService
     List<WatchItem> TopWeightageItems { get; }
     bool IsLoading { get; }
     event Action? WatchlistUpdated;
-    Task RefreshTopWeightageAsync();
+    Task RefreshTopWeightageAsync(bool waitForFullList = false);
 }

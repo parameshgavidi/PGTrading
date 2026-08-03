@@ -72,7 +72,8 @@ public class WatchlistViewModel : INotifyPropertyChanged, IDisposable
         _longTermExit.Updated += OnLongTermExitUpdated;
     }
 
-    public async Task RefreshTopWeightageAsync() => await _watchlist.RefreshTopWeightageAsync();
+    public async Task RefreshTopWeightageAsync() =>
+        await _watchlist.RefreshTopWeightageAsync(waitForFullList: true);
 
     public async Task ScanIntradayAsync() => await _intradayScanner.ScanAsync();
 

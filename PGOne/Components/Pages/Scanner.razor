@@ -68,7 +68,7 @@
   {
     _scanning = true;
     StateHasChanged();
-    await WatchlistService.RefreshTopWeightageAsync();
+    await WatchlistService.RefreshTopWeightageAsync(waitForFullList: true);
 
     _results = new List<ScanResult>();
     foreach (var item in WatchlistService.TopWeightageItems)
