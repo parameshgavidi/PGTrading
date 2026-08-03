@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using PGOne.Models;
 
 namespace PGOne.Services;
@@ -109,7 +108,7 @@ public class WatchlistService : IWatchlistService
     });
 
     await Task.WhenAll(tasks);
-    return snapshots;
+    return new Dictionary<string, WatchlistMarketSnapshot>(snapshots, StringComparer.OrdinalIgnoreCase);
   }
 
   private async Task<WatchlistMarketSnapshot> BuildMarketSnapshotAsync(string symbol)
