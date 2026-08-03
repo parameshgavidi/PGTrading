@@ -56,7 +56,6 @@ public class DashboardViewModel : INotifyPropertyChanged
     public bool AboveCpr { get; private set; }
     public string CprPositionLabel => AboveCpr ? "Above CPR" : "Below CPR";
     public string CprPositionClass => AboveCpr ? "above-cpr" : "below-cpr";
-    public bool Is1mCprChart => SelectedTimeframe == "1m";
     /// <summary>15m-pivot intraday CPR bands on 1m chart only.</summary>
     public bool SupportsIntradayCprOverlay => SelectedTimeframe == "1m";
     public bool IsChartFromZerodha { get; private set; }
@@ -171,25 +170,12 @@ public class DashboardViewModel : INotifyPropertyChanged
         await UpdatePriceAsync();
         UpdateSelectedTrend();
         Notify(nameof(SelectedTimeframe));
-        Notify(nameof(Is1mCprChart));
         Notify(nameof(SupportsIntradayCprOverlay));
         Notify(nameof(Supports5mStudyToggles));
         Notify(nameof(SupportsIntradayStOverlays));
         Notify(nameof(SupportsSt725Overlays));
         Notify(nameof(OverlayVersion));
         Notify();
-    }
-
-    /// <summary>1m CPR page: load 1m chart and enable 1m CPR overlay.</summary>
-    public async Task Ensure1mCprPageAsync()
-    {
-        if (!IsDashboardReady)
-            await InitializeAsync();
-
-        if (SelectedTimeframe != "1m")
-            await ChangeTimeframeAsync("1m");
-
-        SetShowIntradayCprOverlay(true);
     }
 
     public async Task RefreshAsync()
@@ -676,7 +662,6 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AboveCpr)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CprPositionLabel)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CprPositionClass)));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Is1mCprChart)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SupportsIntradayCprOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsMarketOpen)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(MarketStatus)));

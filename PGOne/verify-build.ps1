@@ -20,8 +20,7 @@ $paths = @(
     "$root\wwwroot\index.html",
     "$root\wwwroot\_framework\blazor.webview.js",
     "$root\wwwroot\css\app.css",
-    "$root\wwwroot\js\chart.js",
-    "$root\wwwroot\js\chart-cpr.js"
+    "$root\wwwroot\js\chart.js"
 )
 
 $allOk = $true
