@@ -116,7 +116,7 @@
     [Parameter] public string[] Timeframes { get; set; } = DefaultTimeframes;
 
     private string ChartSurfaceKey =>
-        $"{CanvasId}|{ViewModel.SelectedSymbol}|{ViewModel.SelectedTimeframe}|{ViewModel.ChartVersion}";
+        $"{CanvasId}|{ViewModel.SelectedSymbol}|{ViewModel.SelectedTimeframe}";
 
     private Task ChangeTimeframeAsync(string timeframe) => ViewModel.ChangeTimeframeAsync(timeframe);
 }

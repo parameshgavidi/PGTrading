@@ -418,6 +418,7 @@ public class DashboardViewModel : INotifyPropertyChanged
 
             _marketData.ApplyChartIndicators(ChartCandles, SelectedTimeframe);
 
+            var overlayDiag = BuildOverlayDiagnostic();
             ChartVersion++;
             Notify(nameof(ChartCandles));
             Notify(nameof(ChartVersion));
@@ -431,6 +432,8 @@ public class DashboardViewModel : INotifyPropertyChanged
                     _ => $"Zerodha {SelectedTimeframe} candles ({ChartCandles.Count} bars)"
                 }
                 : result.Error ?? "Demo candle data";
+            if (!string.IsNullOrEmpty(overlayDiag))
+                ChartDataMessage += overlayDiag;
             LastCandleSummary = BuildLastCandleSummary();
             UpdateIntradayCprState();
         }
@@ -443,6 +446,17 @@ public class DashboardViewModel : INotifyPropertyChanged
             CurrentIntradayBc = 0;
             AboveCpr = false;
         }
+    }
+
+    private string? BuildOverlayDiagnostic()
+    {
+        if (ChartCandles.Count == 0 || SelectedTimeframe != "5m")
+            return null;
+
+        var st725 = ChartCandles.Count(c => c.SuperTrendEntry.HasValue);
+        var ema = ChartCandles.Count(c => c.Ema20.HasValue);
+        var vwap = ChartCandles.Count(c => c.Vwap.HasValue);
+        return $" · ST7 {st725}/{ChartCandles.Count} EMA {ema}/{ChartCandles.Count} VWAP {vwap}/{ChartCandles.Count}";
     }
 
     private static DateTime GetChartSessionDate()

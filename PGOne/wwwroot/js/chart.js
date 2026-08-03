@@ -40,8 +40,112 @@ window.pgOneChart = (function () {
             keltnerLowerOuter: num(field(raw, 'keltnerLowerOuter')),
             keltnerMid: num(field(raw, 'keltnerMid')),
             vwap: num(field(raw, 'vwap')),
-            ema20: num(field(raw, 'ema20'))
+            ema20: num(field(raw, 'ema20')),
+            volume: num(field(raw, 'volume'))
         };
+    }
+
+    function studyFieldMissing(candles, key, minCount) {
+        var found = 0;
+        for (var i = 0; i < candles.length; i++) {
+            var v = candles[i][key];
+            if (v != null && !Number.isNaN(v)) found++;
+        }
+        return found < (minCount || Math.min(3, Math.floor(candles.length / 4)));
+    }
+
+    function computeEma20(candles, period) {
+        period = period || 20;
+        if (candles.length < period) return;
+        var k = 2 / (period + 1);
+        var sum = 0;
+        for (var i = 0; i < period; i++) sum += candles[i].close;
+        var ema = sum / period;
+        candles[period - 1].ema20 = ema;
+        for (var j = period; j < candles.length; j++) {
+            ema = candles[j].close * k + ema * (1 - k);
+            candles[j].ema20 = ema;
+        }
+    }
+
+    function computeSessionVwap(candles) {
+        var dayKey = null, cumPv = 0, cumVol = 0, cumTyp = 0, cnt = 0;
+        for (var i = 0; i < candles.length; i++) {
+            var c = candles[i];
+            var t = c.time ? new Date(c.time) : null;
+            var dk = t ? (t.getFullYear() + '-' + t.getMonth() + '-' + t.getDate()) : String(i);
+            if (dayKey !== dk) {
+                dayKey = dk;
+                cumPv = 0;
+                cumVol = 0;
+                cumTyp = 0;
+                cnt = 0;
+            }
+            var typical = (c.high + c.low + c.close) / 3;
+            var vol = c.volume || 0;
+            cumPv += typical * vol;
+            cumVol += vol;
+            cumTyp += typical;
+            cnt++;
+            c.vwap = cumVol > 0 ? cumPv / cumVol : cumTyp / cnt;
+        }
+    }
+
+    function computeSuperTrendSeries(candles, period, multiplier, key) {
+        var n = candles.length;
+        if (n < period + 1) return;
+        var atr = new Array(n).fill(0);
+        var tr = new Array(n);
+        tr[0] = candles[0].high - candles[0].low;
+        for (var i = 1; i < n; i++) {
+            var hl = candles[i].high - candles[i].low;
+            var hc = Math.abs(candles[i].high - candles[i - 1].close);
+            var lc = Math.abs(candles[i].low - candles[i - 1].close);
+            tr[i] = Math.max(hl, hc, lc);
+        }
+        var sum = 0;
+        for (var p = 0; p < period; p++) sum += tr[p];
+        atr[period - 1] = sum / period;
+        for (var a = period; a < n; a++) {
+            atr[a] = (atr[a - 1] * (period - 1) + tr[a]) / period;
+        }
+        var prevUpper = 0, prevLower = 0, prevSt = 0, started = false;
+        for (var i = 0; i < n; i++) {
+            if (atr[i] <= 0) continue;
+            var hl2 = (candles[i].high + candles[i].low) / 2;
+            var upper = hl2 + multiplier * atr[i];
+            var lower = hl2 - multiplier * atr[i];
+            if (!started) {
+                prevUpper = upper;
+                prevLower = lower;
+                prevSt = upper;
+                candles[i][key] = prevSt;
+                started = true;
+                continue;
+            }
+            var prevClose = candles[i - 1].close;
+            lower = (lower > prevLower || prevClose < prevLower) ? lower : prevLower;
+            upper = (upper < prevUpper || prevClose > prevUpper) ? upper : prevUpper;
+            var wasDown = prevSt === prevUpper;
+            var isUp = wasDown ? candles[i].close > upper : !(candles[i].close < lower);
+            var st = isUp ? lower : upper;
+            candles[i][key] = st;
+            prevUpper = upper;
+            prevLower = lower;
+            prevSt = st;
+        }
+    }
+
+    function ensureStudyIndicators(candles, flags) {
+        if (!candles || candles.length === 0) return;
+        if (flags.showEma20 && studyFieldMissing(candles, 'ema20')) computeEma20(candles, 20);
+        if (flags.showVwap && studyFieldMissing(candles, 'vwap')) computeSessionVwap(candles);
+        if (flags.showSuperTrend725 && studyFieldMissing(candles, 'superTrendEntry')) {
+            computeSuperTrendSeries(candles, 7, 2.5, 'superTrendEntry');
+        }
+        if (flags.showSuperTrend && studyFieldMissing(candles, 'superTrend')) {
+            computeSuperTrendSeries(candles, 10, 3, 'superTrend');
+        }
     }
 
     function ensureInteractions(canvas, id) {
@@ -313,6 +417,14 @@ window.pgOneChart = (function () {
         const showSuperTrend = overlayFlag(opts, 'showSuperTrend', false);
         const showSuperTrend725 = overlayFlag(opts, 'showSuperTrend725', false);
         const showEma20 = overlayFlag(opts, 'showEma20', false);
+
+        ensureStudyIndicators(normalized, {
+            showVwap: showVwap,
+            showEma20: showEma20,
+            showSuperTrend725: showSuperTrend725,
+            showSuperTrend: showSuperTrend
+        });
+
         let count, offset;
         if (prev && prev.timeframe === timeframe) {
             count = clamp(prev.count, 12, normalized.length);
@@ -593,3 +705,20 @@ window.pgOneChart = (function () {
         resetZoom: resetZoom
     };
 })();
+
+window.pgOneChartReady = function () {
+    return window.pgOneChart && typeof window.pgOneChart.drawCandlestickChart === 'function';
+};
+
+window.pgOneDrawCandles = function (canvasId, candlesJson, timeframe, levelsJson, pocToday, overlaysJson) {
+    try {
+        if (!window.pgOneChartReady()) return false;
+        var candles = typeof candlesJson === 'string' ? JSON.parse(candlesJson) : candlesJson;
+        var levels = typeof levelsJson === 'string' ? JSON.parse(levelsJson) : (levelsJson || []);
+        var overlayOptions = typeof overlaysJson === 'string' ? JSON.parse(overlaysJson) : (overlaysJson || {});
+        return window.pgOneChart.drawCandlestickChart(canvasId, candles, timeframe, levels, pocToday, overlayOptions);
+    } catch (err) {
+        console.error('pgOneDrawCandles failed', err);
+        return false;
+    }
+};
