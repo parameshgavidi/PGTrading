@@ -511,52 +511,36 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             var getTrend = _superTrend.GetTrend;
             var istNow = MarketHours.GetIstNow();
 
+            // Only the last completed bar: Sell→Buy cross (e.g. 5m candle close).
             var lastBarTime = SuperTrendFlipHelper.GetLastClosedBarTime(candles, row.Timeframe, istNow);
-            var currentBarKey = lastBarTime.HasValue
-                ? BuildBarKey(row.Symbol, row.Timeframe, lastBarTime.Value)
-                : null;
+            if (!lastBarTime.HasValue)
+            {
+                row.Status = "No data";
+                row.Detail = "No closed candle for ST(7,2.5)";
+                return;
+            }
 
+            var barKey = BuildBarKey(row.Symbol, row.Timeframe, lastBarTime.Value);
             var stBuyTrigger = SuperTrendFlipHelper.IsBuyTriggerOnLastClosedBar(
                 candles, stPeriod, stMult, getTrend, row.Timeframe, istNow);
 
-            // Also catch flips earlier in this session (or previous session before open)
-            // so a missed monitor tick / after-hours gap still queues an entry once.
+            // Drop pending from older bars once a new candle has closed.
+            ClearStalePendingBuys(row.Symbol, row.Timeframe, barKey);
+
+            if (_orderedBarKeys.Contains(barKey))
+            {
+                _pendingBuyBarKeys.Remove(barKey);
+                row.Status = "Ordered";
+                row.Detail = "BUY already sent for this ST(7,2.5) cross — wait for next Sell→Buy";
+                return;
+            }
+
             if (!stBuyTrigger)
             {
-                var sessionFlipTime = SuperTrendFlipHelper.FindLatestSessionBullishFlipTime(
-                    candles, stPeriod, stMult, getTrend, row.Timeframe, istNow);
-                if (sessionFlipTime.HasValue)
-                {
-                    var sessionKey = BuildBarKey(row.Symbol, row.Timeframe, sessionFlipTime.Value);
-                    if (!_orderedBarKeys.Contains(sessionKey))
-                    {
-                        _pendingBuyBarKeys.Add(sessionKey);
-                        stBuyTrigger = true;
-                        currentBarKey = sessionKey;
-                    }
-                }
-            }
+                _pendingBuyBarKeys.Remove(barKey);
 
-            var pendingBarKey = FindPendingBuyKey(row.Symbol, row.Timeframe);
-            var signalBarKey = currentBarKey ?? pendingBarKey;
-
-            if (stBuyTrigger && currentBarKey is not null)
-            {
-                _pendingBuyBarKeys.Add(currentBarKey);
-                pendingBarKey = currentBarKey;
-                signalBarKey = currentBarKey;
-            }
-
-            var hasPendingBuy = pendingBarKey is not null;
-            var alreadyOrdered = signalBarKey is not null && _orderedBarKeys.Contains(signalBarKey);
-
-            if (!stBuyTrigger && !hasPendingBuy)
-            {
                 var stNow = SuperTrendFlipHelper.GetTrendOnLastClosedBar(
                     candles, stPeriod, stMult, getTrend, row.Timeframe, istNow);
-
-                if (stNow == TrendDirection.Sell)
-                    ClearPendingBuysForSymbol(row.Symbol, row.Timeframe);
 
                 var deployNote = row.MaxDeployAmount > 0
                     ? $" · deployed ₹{row.DeployedAmount:N0} / ₹{row.MaxDeployAmount:N0}"
@@ -564,19 +548,13 @@ public class AutoBuyService : IAutoBuyService, IDisposable
 
                 row.Status = "Waiting";
                 row.Detail = stNow == TrendDirection.Buy
-                    ? $"{row.Timeframe} ST(7,2.5) already Buy — waiting for next buy trigger{deployNote}"
-                    : $"{row.Timeframe} ST(7,2.5) is {TrendUi.GetBiasLabel(stNow)} — waiting for buy signal{deployNote}";
+                    ? $"{row.Timeframe} ST(7,2.5) already Buy — waiting for next Sell→Buy cross{deployNote}"
+                    : $"{row.Timeframe} ST(7,2.5) is {TrendUi.GetBiasLabel(stNow)} — waiting for Buy cross{deployNote}";
                 return;
             }
 
-            if (alreadyOrdered)
-            {
-                if (signalBarKey is not null)
-                    _pendingBuyBarKeys.Remove(signalBarKey);
-                row.Status = "Ordered";
-                row.Detail = "BUY already sent for this ST buy signal";
-                return;
-            }
+            // Fresh cross on this closed bar — queue until we can place (once only).
+            _pendingBuyBarKeys.Add(barKey);
 
             var quantity = Math.Max(1, row.Lots);
             var limitPrice = await _zerodha.GetLtpAsync(instrument);
@@ -594,13 +572,13 @@ public class AutoBuyService : IAutoBuyService, IDisposable
                 if (!MarketHours.IsOpen(istNow))
                 {
                     row.Status = "Buy signal (market closed)";
-                    row.Detail = "ST(7,2.5) turned Buy — will place BUY CNC when market opens";
+                    row.Detail = "ST(7,2.5) crossed Buy on last closed bar — will place once when market opens";
                     row.LastTriggeredAt = DateTime.Now;
                 }
                 else if (!_settings.Settings.AutoTradingEnabled)
                 {
                     row.Status = "Buy signal";
-                    row.Detail = "ST(7,2.5) turned Buy — enable Auto Trading in Settings to place orders";
+                    row.Detail = "ST(7,2.5) crossed Buy — enable Auto Trading in Settings to place orders";
                     row.LastTriggeredAt = DateTime.Now;
                 }
                 else if (AutoBuyDeployHelper.WouldExceedMax(
@@ -608,11 +586,8 @@ public class AutoBuyService : IAutoBuyService, IDisposable
                 {
                     row.Status = "Max reached";
                     row.Detail = $"Order ₹{quantity * limitPrice:N0} exceeds max ₹{row.MaxDeployAmount:N0}";
-                    if (signalBarKey is not null)
-                    {
-                        _orderedBarKeys.Add(signalBarKey);
-                        _pendingBuyBarKeys.Remove(signalBarKey);
-                    }
+                    _orderedBarKeys.Add(barKey);
+                    _pendingBuyBarKeys.Remove(barKey);
                     await TryDisableAutomationForMaxAsync(row);
                 }
                 else if (AutoBuyDeployHelper.IsMaxDeployReached(row.DeployedAmount, row.MaxDeployAmount))
@@ -628,6 +603,11 @@ public class AutoBuyService : IAutoBuyService, IDisposable
                 return;
             }
 
+            // Claim this bar BEFORE placing so the 20s monitor loop cannot fire again
+            // while this cross is still the last closed bar (~until next 5m close).
+            _orderedBarKeys.Add(barKey);
+            _pendingBuyBarKeys.Remove(barKey);
+
             var result = await _zerodha.PlaceOrderAsync(
                 row.Exchange,
                 row.Symbol,
@@ -641,14 +621,8 @@ public class AutoBuyService : IAutoBuyService, IDisposable
 
             if (result.IsSuccess)
             {
-                if (signalBarKey is not null)
-                {
-                    _orderedBarKeys.Add(signalBarKey);
-                    _pendingBuyBarKeys.Remove(signalBarKey);
-                }
-
                 row.Status = "Order placed";
-                row.Detail = $"BUY {quantity} CNC @ LIMIT {limitPrice:N2} — long entry · order {result.OrderId}";
+                row.Detail = $"BUY {quantity} CNC @ LIMIT {limitPrice:N2} — ST(7,2.5) cross · order {result.OrderId}";
                 StatusMessage = $"Auto Buy: order placed for {row.Symbol}";
 
                 row.DeployedAmount = AutoBuyDeployHelper.GetDeployedAmount(
@@ -661,7 +635,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             else
             {
                 row.Status = "Order failed";
-                row.Detail = result.ErrorMessage ?? "Order rejected";
+                row.Detail = $"{result.ErrorMessage ?? "Order rejected"} — will not retry this bar (wait for next Sell→Buy cross)";
                 StatusMessage = $"Auto Buy: failed for {row.Symbol} — {row.Detail}";
             }
         }
@@ -672,21 +646,19 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         }
     }
 
-    private static string BuildBarKey(string symbol, string timeframe, DateTime barTime) =>
-        $"{symbol}|{timeframe}|{barTime:O}";
-
-    private string? FindPendingBuyKey(string symbol, string timeframe)
+    /// <summary>Stable bar id — date+time only so Kind/offset differences never re-fire the same candle.</summary>
+    private static string BuildBarKey(string symbol, string timeframe, DateTime barTime)
     {
-        var prefix = $"{symbol}|{timeframe}|";
-        return _pendingBuyBarKeys.FirstOrDefault(k =>
-            k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+        var t = DateTime.SpecifyKind(barTime, DateTimeKind.Unspecified);
+        return $"{symbol.ToUpperInvariant()}|{timeframe}|{t:yyyy-MM-ddTHH:mm:ss}";
     }
 
-    private void ClearPendingBuysForSymbol(string symbol, string timeframe)
+    private void ClearStalePendingBuys(string symbol, string timeframe, string currentBarKey)
     {
-        var prefix = $"{symbol}|{timeframe}|";
+        var prefix = $"{symbol.ToUpperInvariant()}|{timeframe}|";
         _pendingBuyBarKeys.RemoveWhere(k =>
-            k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+            k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(k, currentBarKey, StringComparison.OrdinalIgnoreCase));
     }
 
     private void LastRefreshMessage()

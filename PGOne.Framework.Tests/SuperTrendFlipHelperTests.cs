@@ -62,12 +62,10 @@ public class SuperTrendFlipHelperTests
     }
 
     [Fact]
-    public void FindLatestSessionBullishFlip_finds_flip_not_only_on_last_bar()
+    public void IsBuyTrigger_false_when_flip_is_not_on_last_closed_bar()
     {
         var candles = BuildForcedSellThenBuyFlip();
-        var flipTime = candles[^1].Timestamp;
 
-        // Add more buy bars so flip is no longer on last closed
         for (var i = 1; i <= 3; i++)
         {
             var last = candles[^1];
@@ -82,7 +80,7 @@ public class SuperTrendFlipHelperTests
         }
 
         var afterHours = new DateTime(2026, 8, 4, 16, 0, 0);
-        var found = SuperTrendFlipHelper.FindLatestSessionBullishFlipTime(
+        var trigger = SuperTrendFlipHelper.IsBuyTriggerOnLastClosedBar(
             candles,
             TrailingStopDefaults.Period,
             TrailingStopDefaults.Multiplier,
@@ -90,17 +88,22 @@ public class SuperTrendFlipHelperTests
             "5m",
             afterHours);
 
-        Assert.Equal(flipTime, found);
+        Assert.False(trigger);
     }
 
     [Fact]
-    public void GetActiveSessionDate_before_open_uses_previous_weekday()
+    public void IsBuyTrigger_true_only_on_exact_cross_bar()
     {
-        var tueMorning = new DateTime(2026, 8, 4, 8, 47, 0); // Tuesday before open
-        Assert.Equal(new DateTime(2026, 8, 3), SuperTrendFlipHelper.GetActiveSessionDate(tueMorning));
+        var candles = BuildForcedSellThenBuyFlip();
+        var afterHours = new DateTime(2026, 8, 4, 16, 0, 0);
 
-        var monMorning = new DateTime(2026, 8, 3, 8, 0, 0); // Monday before open
-        Assert.Equal(new DateTime(2026, 7, 31), SuperTrendFlipHelper.GetActiveSessionDate(monMorning));
+        Assert.True(SuperTrendFlipHelper.IsBuyTriggerOnLastClosedBar(
+            candles,
+            TrailingStopDefaults.Period,
+            TrailingStopDefaults.Multiplier,
+            _st.GetTrend,
+            "5m",
+            afterHours));
     }
 
     private static List<Candle> BuildRisingThenFlip(int count)

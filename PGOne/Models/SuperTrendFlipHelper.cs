@@ -138,41 +138,6 @@ public static class SuperTrendFlipHelper
         return lastClosedIndex >= 0 ? candles[lastClosedIndex].Timestamp : null;
     }
 
-    /// <summary>
-    /// Most recent Sell→Buy flip among closed bars in the active trading session.
-    /// Before open / after close, uses the previous session's candles.
-    /// </summary>
-    public static DateTime? FindLatestSessionBullishFlipTime(
-        IReadOnlyList<Candle> candles,
-        int period,
-        double multiplier,
-        Func<List<Candle>, int, double, TrendDirection> getTrend,
-        string timeframe = "5m",
-        DateTime? istNow = null,
-        int maxLookbackBars = 36)
-    {
-        var lastClosedIndex = GetLastClosedBarIndex(candles, timeframe, istNow);
-        if (lastClosedIndex < 1)
-            return null;
-
-        var now = istNow ?? GetIstNow();
-        var sessionDate = GetActiveSessionDate(now);
-        var start = Math.Max(period + 1, lastClosedIndex - maxLookbackBars);
-
-        for (var i = lastClosedIndex; i >= start; i--)
-        {
-            if (candles[i].Timestamp.Date != sessionDate)
-                continue;
-
-            var prevTrend = GetTrendAtBarClose(candles, i - 1, period, multiplier, getTrend);
-            var lastTrend = GetTrendAtBarClose(candles, i, period, multiplier, getTrend);
-            if (prevTrend == TrendDirection.Sell && lastTrend == TrendDirection.Buy)
-                return candles[i].Timestamp;
-        }
-
-        return null;
-    }
-
     public static decimal GetLastClosedBarClose(
         IReadOnlyList<Candle> candles,
         string timeframe = "5m",
@@ -180,18 +145,6 @@ public static class SuperTrendFlipHelper
     {
         var lastClosedIndex = GetLastClosedBarIndex(candles, timeframe, istNow);
         return lastClosedIndex >= 0 ? candles[lastClosedIndex].Close : 0m;
-    }
-
-    /// <summary>Trading session date for Auto Buy lookback (previous session when before open).</summary>
-    public static DateTime GetActiveSessionDate(DateTime istNow)
-    {
-        if (istNow.DayOfWeek is DayOfWeek.Saturday)
-            return istNow.Date.AddDays(-1);
-        if (istNow.DayOfWeek is DayOfWeek.Sunday)
-            return istNow.Date.AddDays(-2);
-        if (istNow.TimeOfDay < new TimeSpan(9, 15, 0))
-            return istNow.Date.AddDays(istNow.DayOfWeek == DayOfWeek.Monday ? -3 : -1);
-        return istNow.Date;
     }
 
     private static DateTime GetIstNow()
