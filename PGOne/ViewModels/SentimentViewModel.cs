@@ -74,25 +74,26 @@ public class SentimentViewModel : INotifyPropertyChanged, IDisposable
         if (quantity <= 0)
             return (false, "Quantity must be at least 1.");
 
-        if (row.Prediction == SentimentPrediction.Neutral)
-            return (false, "Cannot place order for neutral sentiment.");
+        // Sentiment orders are long CNC only (delivery buy) — no MIS, no shorts.
+        if (row.Prediction != SentimentPrediction.Bullish)
+            return (false, "Sentiment Place Order is long CNC only — available on Bullish stocks.");
 
         var ltp = await _zerodha.GetLtpAsync($"NSE:{row.Symbol}");
         if (ltp <= 0)
             return (false, "Could not fetch price for limit order.");
 
-        var transactionType = row.Prediction == SentimentPrediction.Bullish ? "BUY" : "SELL";
+        var limitPrice = OrderPriceHelper.RoundToTick(ltp, "NSE");
         var result = await _zerodha.PlaceOrderAsync(
             "NSE",
             row.Symbol,
-            transactionType,
+            "BUY",
             quantity,
             "LIMIT",
-            ltp,
-            "MIS");
+            limitPrice,
+            "CNC");
 
         row.OrderMessage = result.IsSuccess
-            ? $"{transactionType} {quantity} @ ₹{ltp:N2} — order {result.OrderId}"
+            ? $"BUY CNC {quantity} @ ₹{limitPrice:N2} — order {result.OrderId}"
             : result.ErrorMessage ?? "Order placement failed.";
 
         OnPropertyChanged(nameof(Results));

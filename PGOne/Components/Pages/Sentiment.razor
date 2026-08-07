@@ -39,6 +39,7 @@
             <strong>Google News</strong> RSS feeds, matches mentioned stocks against the live
             <strong>NSE equity list</strong>, and classifies sentiment using
             <strong>FinBERT</strong> (ProsusAI/finbert) — the leading free financial NLP model.
+            Orders from this page are <strong>Buy CNC only</strong> (long delivery) on Bullish stocks.
         </p>
 
         @if (!string.IsNullOrEmpty(ViewModel.ProgressMessage))
@@ -153,12 +154,12 @@
                                 }
                             </td>
                             <td class="sentiment-order-cell">
-                                @if (row.Prediction != SentimentPrediction.Neutral)
+                                @if (row.Prediction == SentimentPrediction.Bullish)
                                 {
                                     <button class="btn btn-primary btn-sm"
                                             disabled="@(!ViewModel.IsConnected)"
                                             @onclick="() => OpenOrderModal(row)">
-                                        Place Order
+                                        Buy CNC
                                     </button>
                                 }
                                 else
@@ -191,7 +192,7 @@
     <div class="modal-overlay" @onclick="CloseOrderModal">
         <div class="modal-card" @onclick:stopPropagation="true">
             <div class="modal-header">
-                <h3>Place Limit Order</h3>
+                <h3>Place Buy CNC</h3>
                 <button class="modal-close" @onclick="CloseOrderModal">×</button>
             </div>
             <div class="modal-body">
@@ -201,13 +202,11 @@
                 </div>
                 <div class="modal-detail-row">
                     <span class="label">Side</span>
-                    <span class="value @GetPredictionClass(_selectedRow.Prediction)">
-                        @(_selectedRow.Prediction == SentimentPrediction.Bullish ? "BUY" : "SELL")
-                    </span>
+                    <span class="value buy">BUY</span>
                 </div>
                 <div class="modal-detail-row">
                     <span class="label">Type</span>
-                    <span class="value">LIMIT MIS (NSE)</span>
+                    <span class="value">LIMIT CNC (NSE delivery)</span>
                 </div>
                 <div class="form-row">
                     <label for="order-qty">Quantity</label>
@@ -228,7 +227,7 @@
                 <button class="btn btn-primary"
                         disabled="@_isPlacingOrder"
                         @onclick="SubmitOrderAsync">
-                    @(_isPlacingOrder ? "Placing..." : "Place Order")
+                    @(_isPlacingOrder ? "Placing..." : "Place Buy CNC")
                 </button>
             </div>
         </div>
@@ -260,6 +259,9 @@
 
     private void OpenOrderModal(StockSentimentResult row)
     {
+        if (row.Prediction != SentimentPrediction.Bullish)
+            return;
+
         _selectedRow = row;
         _orderQuantity = 1;
         _orderMessage = string.Empty;
