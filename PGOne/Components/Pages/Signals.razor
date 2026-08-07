@@ -1,11 +1,12 @@
 @page "/signals"
 @inject SignalViewModel ViewModel
+@implements IDisposable
 
-<div class="page-container">
+<div class="page-container signals-page @(ViewModel.IsOptionPanelOpen ? "panel-open" : "")">
     <div class="card signal-card">
         <div class="card-header">
             <h2>Live Trade Signal</h2>
-            <button class="btn btn-secondary" @onclick="() => ViewModel.RefreshAsync()">Refresh</button>
+            <button class="btn btn-secondary" @onclick="RefreshAsync">Refresh</button>
         </div>
 
         <div class="signal-details">
@@ -49,31 +50,203 @@
             }
         </div>
 
-        <button class="btn btn-primary btn-large" @onclick="PlaceTrade">Place Trade</button>
+        <button class="btn btn-primary btn-large" @onclick="OpenPanelAsync">
+            Place Trade
+        </button>
 
-        @if (!string.IsNullOrEmpty(ViewModel.PlaceOrderMessage))
+        @if (!string.IsNullOrEmpty(ViewModel.PlaceOrderMessage) && !ViewModel.IsOptionPanelOpen)
         {
             <div class="status-message">@ViewModel.PlaceOrderMessage</div>
         }
     </div>
+
+    @if (ViewModel.IsOptionPanelOpen)
+    {
+        <aside class="card signal-options-panel">
+            <div class="card-header">
+                <h2>Index Options</h2>
+                <button type="button" class="modal-close" title="Close" @onclick="ClosePanel">×</button>
+            </div>
+
+            <p class="text-secondary signal-options-hint">
+                Select a CE/PE, choose Buy or Sell, then place a MIS limit order.
+            </p>
+
+            <div class="signal-options-controls">
+                <div class="form-row">
+                    <label for="signal-underlying">Underlying</label>
+                    <select id="signal-underlying"
+                            class="form-input"
+                            value="@ViewModel.OptionUnderlying"
+                            @onchange="OnUnderlyingChanged">
+                        @foreach (var u in ViewModel.AvailableUnderlyings)
+                        {
+                            <option value="@u">@u</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="signal-options-meta">
+                    <span>Spot: @(ViewModel.SpotPrice > 0 ? ViewModel.SpotPrice.ToString("N2") : "—")</span>
+                    <span>Expiry: @(ViewModel.OptionExpiry?.ToString("dd-MMM-yyyy") ?? "—")</span>
+                </div>
+
+                <button type="button"
+                        class="btn btn-secondary btn-sm"
+                        disabled="@ViewModel.IsLoadingOptions"
+                        @onclick="() => ViewModel.LoadOptionChainAsync()">
+                    @(ViewModel.IsLoadingOptions ? "Loading…" : "Refresh chain")
+                </button>
+            </div>
+
+            @if (ViewModel.IsLoadingOptions)
+            {
+                <div class="chart-meta">Loading NFO option chain…</div>
+            }
+            else if (ViewModel.OptionRows.Count == 0)
+            {
+                <div class="empty-state">No options loaded. Connect Zerodha and refresh.</div>
+            }
+            else
+            {
+                <div class="signal-options-table-wrap">
+                    <table class="data-table signal-options-table">
+                        <thead>
+                            <tr>
+                                <th>Strike</th>
+                                <th>Type</th>
+                                <th>LTP</th>
+                                <th>Symbol</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in ViewModel.OptionRows)
+                            {
+                                var selected = ViewModel.SelectedOption?.TradingSymbol == row.TradingSymbol;
+                                <tr class="@(selected ? "selected" : "") @(row.IsAtm ? "atm-row" : "")"
+                                    @onclick="() => ViewModel.SelectOption(row)">
+                                    <td>
+                                        <strong>@row.Strike.ToString("0")</strong>
+                                        @if (row.IsAtm)
+                                        {
+                                            <span class="summary-pill">ATM</span>
+                                        }
+                                    </td>
+                                    <td class="@(row.OptionType == "CE" ? "buy" : "sell")">@row.OptionType</td>
+                                    <td>@(row.Ltp > 0 ? $"₹{row.Ltp:N2}" : "—")</td>
+                                    <td class="mono">@row.TradingSymbol</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            <div class="signal-order-box">
+                <div class="signal-order-selected">
+                    @if (ViewModel.SelectedOption is null)
+                    {
+                        <span class="text-secondary">No option selected</span>
+                    }
+                    else
+                    {
+                        <strong>@ViewModel.SelectedOption.DisplayName</strong>
+                        <span class="mono">@ViewModel.SelectedOption.TradingSymbol</span>
+                    }
+                </div>
+
+                <div class="signal-side-toggle">
+                    <button type="button"
+                            class="btn side-btn buy @(ViewModel.OrderSide == "BUY" ? "active" : "")"
+                            @onclick="() => ViewModel.SetOrderSide("BUY")">
+                        Buy
+                    </button>
+                    <button type="button"
+                            class="btn side-btn sell @(ViewModel.OrderSide == "SELL" ? "active" : "")"
+                            @onclick="() => ViewModel.SetOrderSide("SELL")">
+                        Sell
+                    </button>
+                </div>
+
+                <div class="form-row">
+                    <label for="signal-lots">Lots</label>
+                    <input id="signal-lots"
+                           type="number"
+                           min="1"
+                           class="form-input"
+                           value="@ViewModel.OrderLots"
+                           @onchange="OnLotsChanged" />
+                    <span class="text-secondary form-hint">
+                        Qty @ViewModel.OrderQuantity
+                        @if (ViewModel.EstimatedOrderValue > 0)
+                        {
+                            <text> · ≈ ₹@ViewModel.EstimatedOrderValue.ToString("N0")</text>
+                        }
+                    </span>
+                </div>
+
+                <button type="button"
+                        class="btn btn-primary btn-large"
+                        disabled="@(!ViewModel.CanPlaceSelectedOrder)"
+                        @onclick="PlaceOrderAsync">
+                    @(ViewModel.IsPlacingOrder
+                        ? "Placing…"
+                        : $"Place {ViewModel.OrderSide} Order")
+                </button>
+
+                @if (!string.IsNullOrEmpty(ViewModel.PlaceOrderMessage))
+                {
+                    <div class="status-message">@ViewModel.PlaceOrderMessage</div>
+                }
+            </div>
+        </aside>
+    }
 </div>
 
 @code {
-  protected override async Task OnInitializedAsync() => await ViewModel.RefreshAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        await ViewModel.RefreshAsync();
+    }
 
-  private async Task PlaceTrade() => await ViewModel.PlaceTradeAsync();
+    private async Task RefreshAsync() => await ViewModel.RefreshAsync();
 
-  private static string GetTrendClass(TrendDirection trend) => trend switch
-  {
-    TrendDirection.Buy => "buy",
-    TrendDirection.Sell => "sell",
-    _ => "neutral"
-  };
+    private async Task OpenPanelAsync() => await ViewModel.OpenOptionPanelAsync();
 
-  private static string GetTrendIcon(TrendDirection trend) => trend switch
-  {
-    TrendDirection.Buy => "🟢",
-    TrendDirection.Sell => "🔴",
-    _ => "⚪"
-  };
+    private void ClosePanel() => ViewModel.CloseOptionPanel();
+
+    private async Task OnUnderlyingChanged(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        if (!string.IsNullOrWhiteSpace(value))
+            await ViewModel.SetOptionUnderlyingAsync(value);
+    }
+
+    private void OnLotsChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var lots))
+            ViewModel.SetOrderLots(lots);
+    }
+
+    private async Task PlaceOrderAsync() => await ViewModel.PlaceSelectedOptionOrderAsync();
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+        InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+
+    private static string GetTrendClass(TrendDirection trend) => trend switch
+    {
+        TrendDirection.Buy => "buy",
+        TrendDirection.Sell => "sell",
+        _ => "neutral"
+    };
+
+    private static string GetTrendIcon(TrendDirection trend) => trend switch
+    {
+        TrendDirection.Buy => "🟢",
+        TrendDirection.Sell => "🔴",
+        _ => "⚪"
+    };
 }

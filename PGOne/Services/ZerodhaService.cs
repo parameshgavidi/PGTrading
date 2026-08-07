@@ -27,6 +27,8 @@ public interface IZerodhaService
     Task<OrderPlacementResult> PlaceOrderAsync(string exchange, string tradingsymbol, string transactionType, int quantity, string orderType, decimal? price = null, string product = "MIS");
     Task<OrderPlacementResult> ExitPositionAsync(Position position);
     Task<NfoOptionInstrument?> ResolveOptionSymbolAsync(string underlying, decimal strike, string optionType);
+    /// <summary>Nearest-expiry CE/PE chain around ATM for an index underlying (NIFTY, BANKNIFTY, …).</summary>
+    Task<IReadOnlyList<NfoOptionInstrument>> GetIndexOptionChainAsync(string underlying, int strikeCountEachSide = 8);
     Task<string?> ResolveNearestFutureKeyAsync(string underlying);
     Task<IReadOnlyList<string>> GetNseEquitySymbolsAsync();
     void Disconnect();
@@ -804,6 +806,62 @@ public class ZerodhaService : IZerodhaService
             .ThenBy(o => o.TradingSymbol, StringComparer.Ordinal)
             .FirstOrDefault();
     }
+
+    public async Task<IReadOnlyList<NfoOptionInstrument>> GetIndexOptionChainAsync(
+        string underlying,
+        int strikeCountEachSide = 8)
+    {
+        if (!IsConnected)
+            return Array.Empty<NfoOptionInstrument>();
+
+        var options = await LoadNfoOptionsAsync();
+        if (options.Count == 0)
+            return Array.Empty<NfoOptionInstrument>();
+
+        var normalized = underlying.Trim().ToUpperInvariant();
+        var today = DateTime.Today;
+        var underlierOptions = options
+            .Where(o => o.Expiry.Date >= today && MatchesUnderlying(o.TradingSymbol, normalized))
+            .ToList();
+
+        if (underlierOptions.Count == 0)
+            return Array.Empty<NfoOptionInstrument>();
+
+        var nearestExpiry = underlierOptions.Min(o => o.Expiry.Date);
+        var expiryOptions = underlierOptions
+            .Where(o => o.Expiry.Date == nearestExpiry)
+            .ToList();
+
+        var spot = await GetLtpAsync(InstrumentMapper.ToZerodhaKey(normalized));
+        var strikeStep = GetIndexStrikeStep(normalized);
+        var atm = spot > 0
+            ? Math.Round(spot / strikeStep, MidpointRounding.AwayFromZero) * strikeStep
+            : expiryOptions.Select(o => o.Strike).OrderBy(s => s).Skip(expiryOptions.Count / 2).FirstOrDefault();
+
+        var strikes = expiryOptions
+            .Select(o => o.Strike)
+            .Distinct()
+            .OrderBy(s => Math.Abs(s - atm))
+            .ThenBy(s => s)
+            .Take(Math.Max(1, strikeCountEachSide * 2 + 1))
+            .OrderBy(s => s)
+            .ToHashSet();
+
+        return expiryOptions
+            .Where(o => strikes.Contains(o.Strike))
+            .OrderBy(o => o.Strike)
+            .ThenBy(o => o.OptionType)
+            .ToList();
+    }
+
+    private static decimal GetIndexStrikeStep(string underlying) => underlying switch
+    {
+        "BANKNIFTY" => 100m,
+        "FINNIFTY" => 50m,
+        "MIDCPNIFTY" => 25m,
+        "SENSEX" => 100m,
+        _ => 50m
+    };
 
     private async Task<List<NfoOptionInstrument>> LoadNfoOptionsAsync()
     {
