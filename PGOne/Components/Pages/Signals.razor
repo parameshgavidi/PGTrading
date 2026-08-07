@@ -158,12 +158,12 @@
                 <div class="signal-side-toggle">
                     <button type="button"
                             class="btn side-btn buy @(ViewModel.OrderSide == "BUY" ? "active" : "")"
-                            @onclick="() => ViewModel.SetOrderSide("BUY")">
+                            @onclick="SetBuySide">
                         Buy
                     </button>
                     <button type="button"
                             class="btn side-btn sell @(ViewModel.OrderSide == "SELL" ? "active" : "")"
-                            @onclick="() => ViewModel.SetOrderSide("SELL")">
+                            @onclick="SetSellSide">
                         Sell
                     </button>
                 </div>
