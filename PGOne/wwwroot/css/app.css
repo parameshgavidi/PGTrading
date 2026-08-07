@@ -481,11 +481,9 @@ html, body {
 }
 
 .insight-drawer-wrap {
-    background: var(--card);
-    border: 1px solid var(--card-border);
-    border-radius: var(--card-radius);
-    padding: 12px;
-    box-shadow: var(--card-shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 @keyframes drawer-attach-in {
