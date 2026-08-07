@@ -231,6 +231,10 @@
 
     private async Task PlaceOrderAsync() => await ViewModel.PlaceSelectedOptionOrderAsync();
 
+    private void SetBuySide() => ViewModel.SetOrderSide("BUY");
+
+    private void SetSellSide() => ViewModel.SetOrderSide("SELL");
+
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
         InvokeAsync(StateHasChanged);
 
