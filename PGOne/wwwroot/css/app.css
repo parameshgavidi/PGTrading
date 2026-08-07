@@ -1332,6 +1332,15 @@ html, body {
     overflow: hidden;
 }
 
+.signal-options-panel > .card-header,
+.signal-options-panel > .signal-options-hint,
+.signal-options-panel > .signal-options-controls,
+.signal-options-panel > .chart-meta,
+.signal-options-panel > .empty-state,
+.signal-options-panel > .signal-order-box {
+    flex-shrink: 0;
+}
+
 .signal-options-hint {
     margin: 0 0 12px;
     font-size: 13px;
@@ -1353,13 +1362,13 @@ html, body {
 }
 
 .signal-options-table-wrap {
-    flex: 1;
+    flex: 1 1 auto;
     overflow: auto;
     border: 1px solid var(--card-border);
     border-radius: 6px;
     margin-bottom: 12px;
-    min-height: 180px;
-    max-height: 360px;
+    min-height: 120px;
+    max-height: none;
 }
 
 .signal-options-table {
@@ -1396,6 +1405,8 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    background: var(--card-bg, #121212);
+    z-index: 2;
 }
 
 .signal-order-selected {
