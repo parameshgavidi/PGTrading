@@ -3,16 +3,34 @@
 @implements IDisposable
 
 <div class="page-container">
-    @if (ViewModel.Results.Count > 0)
+    @if (ViewModel.IsLoadingTopLiveNews || ViewModel.TopLiveHeadlines.Count > 0)
     {
         <div class="card" style="margin-bottom: 12px;">
-            <div class="card-header">Market Headlines</div>
+            <div class="card-header">
+                <span>Top Live News</span>
+                <button class="btn btn-secondary btn-sm"
+                        disabled="@ViewModel.IsLoadingTopLiveNews"
+                        @onclick="RefreshTopLiveNewsAsync">
+                    @(ViewModel.IsLoadingTopLiveNews ? "Loading…" : "Refresh")
+                </button>
+            </div>
             <div class="news-list">
-                @foreach (var headline in GetTopHeadlines())
+                @if (ViewModel.IsLoadingTopLiveNews && ViewModel.TopLiveHeadlines.Count == 0)
                 {
-                    <div class="news-item">
-                        @GetHeadlineIcon(headline.Label) @headline.Headline
-                    </div>
+                    <div class="news-item text-secondary loading-inline">Fetching live headlines…</div>
+                }
+                else
+                {
+                    @foreach (var headline in ViewModel.TopLiveHeadlines.Take(5))
+                    {
+                        <div class="news-item">
+                            @GetHeadlineIcon(headline.Label) @headline.Headline
+                            @if (headline.RelatedSymbols.Count > 0)
+                            {
+                                <span class="text-secondary"> · @string.Join(", ", headline.RelatedSymbols.Take(3))</span>
+                            }
+                        </div>
+                    }
                 }
             </div>
         </div>
@@ -249,6 +267,7 @@
     {
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         _filter = ViewModel.Filter;
+        _ = RefreshTopLiveNewsAsync();
     }
 
     private void OnFilterChanged()
@@ -259,6 +278,7 @@
     private async Task ScanNewsFeedsAsync() => await ViewModel.ScanNewsFeedsAsync();
     private async Task ScanSymbolsAsync() => await ViewModel.ScanSymbolsAsync();
     private async Task ScanTopTenAsync() => await ViewModel.ScanTopTenAsync();
+    private async Task RefreshTopLiveNewsAsync() => await ViewModel.RefreshTopLiveNewsAsync();
 
     private void OpenOrderModal(StockSentimentResult row)
     {
@@ -332,11 +352,6 @@
     };
 
     private static string FormatScore(double score) => $"{Math.Round(score * 100)}%";
-
-    private IEnumerable<NewsSentimentItem> GetTopHeadlines() =>
-        ViewModel.Results
-            .SelectMany(r => r.Headlines)
-            .Take(8);
 
     public void Dispose() => ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
 }

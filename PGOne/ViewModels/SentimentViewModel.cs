@@ -38,6 +38,8 @@ public class SentimentViewModel : INotifyPropertyChanged, IDisposable
     public bool IsScanning => _sentiment.IsScanning;
     public string? ProgressMessage => _sentiment.ProgressMessage;
     public IReadOnlyList<StockSentimentResult> Results => _sentiment.Results;
+    public IReadOnlyList<LiveNewsHeadline> TopLiveHeadlines => _sentiment.TopLiveHeadlines;
+    public bool IsLoadingTopLiveNews => _sentiment.IsLoadingTopLiveNews;
     public bool IsConnected => _zerodha.IsConnected;
 
     public SentimentFilter Filter
@@ -72,6 +74,9 @@ public class SentimentViewModel : INotifyPropertyChanged, IDisposable
 
     public async Task ScanTopTenAsync() =>
         await _sentiment.ScanSymbolsAsync(NiftyConstituents.Top10Weightage);
+
+    /// <summary>Load top 5 live market-affecting headlines and run sentiment analysis.</summary>
+    public Task RefreshTopLiveNewsAsync() => _sentiment.RefreshTopLiveNewsAsync();
 
     public async Task<(bool Success, string Message)> PlaceOrderAsync(StockSentimentResult row, int quantity)
     {
@@ -121,6 +126,8 @@ public class SentimentViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(BullishCount));
         OnPropertyChanged(nameof(BearishCount));
         OnPropertyChanged(nameof(NeutralCount));
+        OnPropertyChanged(nameof(TopLiveHeadlines));
+        OnPropertyChanged(nameof(IsLoadingTopLiveNews));
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>

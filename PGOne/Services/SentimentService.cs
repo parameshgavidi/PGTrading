@@ -12,9 +12,20 @@ public interface ISentimentService
     bool IsScanning { get; }
     string? ProgressMessage { get; }
     IReadOnlyList<StockSentimentResult> Results { get; }
+
+    /// <summary>Top live market headlines (importance-ranked) with sentiment labels.</summary>
+    IReadOnlyList<LiveNewsHeadline> TopLiveHeadlines { get; }
+    bool IsLoadingTopLiveNews { get; }
+
     event Action? Updated;
     Task ScanNewsFeedsAsync(CancellationToken cancellationToken = default);
     Task ScanSymbolsAsync(IReadOnlyList<string>? symbols = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Fetches live RSS news async, picks the top 5 most important / market-affecting stories,
+    /// then runs a separate sentiment-analysis pass for those headlines.
+    /// </summary>
+    Task RefreshTopLiveNewsAsync(CancellationToken cancellationToken = default);
 }
 
 public class SentimentService : ISentimentService
@@ -32,6 +43,8 @@ public class SentimentService : ISentimentService
     private const int EntriesPerFeed = 10;
     private const int HeadlinesPerStock = 5;
     private const int MaxRetries = 3;
+    private const int TopLiveNewsCount = 5;
+    private const int LiveNewsCandidatesPerFeed = 12;
 
     /// <summary>Minimum average positive/negative score to call a stock directional.</summary>
     private const double MinDirectionalScore = 0.40;
@@ -43,10 +56,14 @@ public class SentimentService : ISentimentService
     private readonly INseSymbolResolver _nseSymbols;
     private readonly HttpClient _http;
     private readonly List<StockSentimentResult> _results = new();
+    private readonly List<LiveNewsHeadline> _topLiveHeadlines = new();
+    private readonly object _topLiveGate = new();
 
     public bool IsScanning { get; private set; }
     public string? ProgressMessage { get; private set; }
     public IReadOnlyList<StockSentimentResult> Results => _results;
+    public IReadOnlyList<LiveNewsHeadline> TopLiveHeadlines => _topLiveHeadlines;
+    public bool IsLoadingTopLiveNews { get; private set; }
     public event Action? Updated;
 
     public SentimentService(ISettingsService settings, INseSymbolResolver nseSymbols)
@@ -63,6 +80,142 @@ public class SentimentService : ISentimentService
 
     public Task ScanSymbolsAsync(IReadOnlyList<string>? symbols = null, CancellationToken cancellationToken = default) =>
         RunScanAsync(ScanMode.Symbols, symbols ?? NiftyConstituents.TopWeightage, cancellationToken);
+
+    public async Task RefreshTopLiveNewsAsync(CancellationToken cancellationToken = default)
+    {
+        lock (_topLiveGate)
+        {
+            if (IsLoadingTopLiveNews)
+                return;
+            IsLoadingTopLiveNews = true;
+        }
+
+        NotifyUpdated();
+
+        try
+        {
+            await _settings.LoadAsync();
+            await _nseSymbols.EnsureLoadedAsync(cancellationToken);
+
+            var candidates = await FetchLiveNewsCandidatesAsync(cancellationToken);
+            var top = candidates
+                .OrderByDescending(c => c.ImportanceScore)
+                .ThenByDescending(c => c.RelatedSymbols.Count)
+                .Take(TopLiveNewsCount)
+                .ToList();
+
+            // Separate method: sentiment analysis for the top affected / most important live news.
+            var analyzed = await AnalyzeTopLiveNewsSentimentAsync(top, cancellationToken);
+
+            _topLiveHeadlines.Clear();
+            _topLiveHeadlines.AddRange(analyzed);
+        }
+        catch (OperationCanceledException)
+        {
+            // Caller cancelled — keep prior headlines if any.
+        }
+        catch
+        {
+            // Network/parse failures: leave previous headlines; dashboard shows empty-state if none.
+        }
+        finally
+        {
+            IsLoadingTopLiveNews = false;
+            NotifyUpdated();
+        }
+    }
+
+    /// <summary>
+    /// Runs FinBERT (or keyword fallback) on the selected top live headlines.
+    /// Kept separate from stock-universe scanning so dashboard news stays fast and focused.
+    /// </summary>
+    internal async Task<List<LiveNewsHeadline>> AnalyzeTopLiveNewsSentimentAsync(
+        IReadOnlyList<LiveNewsCandidate> candidates,
+        CancellationToken cancellationToken)
+    {
+        if (candidates.Count == 0)
+            return [];
+
+        var texts = candidates
+            .Select(c => SentimentTextHelper.PrepareAnalysisText(c.Title, bodySnippet: null))
+            .ToList();
+
+        var analysis = await AnalyzeTextsAsync(texts, cancellationToken);
+        var results = new List<LiveNewsHeadline>(candidates.Count);
+
+        for (var i = 0; i < candidates.Count; i++)
+        {
+            var candidate = candidates[i];
+            var scores = i < analysis.Scores.Count ? analysis.Scores[i] : null;
+            var vector = scores ?? SentimentTextHelper.ScoreWithKeywords(texts[i]);
+            var (label, score) = vector.TopLabel();
+
+            results.Add(new LiveNewsHeadline
+            {
+                Headline = SentimentTextHelper.CleanBoilerplate(candidate.Title),
+                Source = candidate.Source,
+                Link = candidate.Link,
+                Label = label,
+                Score = score,
+                PositiveScore = vector.Positive,
+                NegativeScore = vector.Negative,
+                NeutralScore = vector.Neutral,
+                ImportanceScore = candidate.ImportanceScore,
+                RelatedSymbols = candidate.RelatedSymbols.ToList()
+            });
+        }
+
+        return results;
+    }
+
+    private async Task<List<LiveNewsCandidate>> FetchLiveNewsCandidatesAsync(CancellationToken cancellationToken)
+    {
+        var byTitle = new Dictionary<string, LiveNewsCandidate>(StringComparer.Ordinal);
+
+        foreach (var (sourceName, feedUrl) in NewsFeeds)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var entries = await FetchFeedEntriesAsync(feedUrl, cancellationToken);
+
+            foreach (var entry in entries.Take(LiveNewsCandidatesPerFeed))
+            {
+                var key = LiveNewsImportance.NormalizeTitleKey(entry.Title);
+                if (string.IsNullOrWhiteSpace(key) || key.Length < 12)
+                    continue;
+
+                var symbols = _nseSymbols.ResolveSymbolsInText(entry.Title).ToList();
+                var importance = LiveNewsImportance.Score(entry.Title, sourceName, symbols);
+
+                if (byTitle.TryGetValue(key, out var existing))
+                {
+                    if (importance > existing.ImportanceScore)
+                    {
+                        byTitle[key] = new LiveNewsCandidate
+                        {
+                            Title = entry.Title,
+                            Source = sourceName,
+                            Link = entry.Link,
+                            RelatedSymbols = symbols,
+                            ImportanceScore = importance
+                        };
+                    }
+
+                    continue;
+                }
+
+                byTitle[key] = new LiveNewsCandidate
+                {
+                    Title = entry.Title,
+                    Source = sourceName,
+                    Link = entry.Link,
+                    RelatedSymbols = symbols,
+                    ImportanceScore = importance
+                };
+            }
+        }
+
+        return byTitle.Values.ToList();
+    }
 
     private async Task RunScanAsync(
         ScanMode mode,
@@ -688,5 +841,15 @@ public class SentimentService : ISentimentService
         public string Source { get; init; } = string.Empty;
         public string? Link { get; init; }
         public string FeedUrl { get; init; } = string.Empty;
+    }
+
+    /// <summary>Feed candidate before sentiment labeling — ranked by <see cref="LiveNewsImportance"/>.</summary>
+    internal sealed class LiveNewsCandidate
+    {
+        public string Title { get; init; } = string.Empty;
+        public string Source { get; init; } = string.Empty;
+        public string? Link { get; init; }
+        public List<string> RelatedSymbols { get; init; } = new();
+        public double ImportanceScore { get; init; }
     }
 }

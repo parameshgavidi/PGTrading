@@ -25,6 +25,7 @@
     <Compile Include="../PGOne/Services/IndicatorService.cs" Link="Services/IndicatorService.cs" />
     <Compile Include="../PGOne/Services/SuperTrendService.cs" Link="Services/SuperTrendService.cs" />
     <Compile Include="../PGOne/Services/SentimentTextHelper.cs" Link="Services/SentimentTextHelper.cs" />
+    <Compile Include="../PGOne/Services/LiveNewsImportance.cs" Link="Services/LiveNewsImportance.cs" />
     <Compile Include="../PGOne/Services/NiftyIndexService.cs" Link="Services/NiftyIndexService.cs" />
   </ItemGroup>
 
