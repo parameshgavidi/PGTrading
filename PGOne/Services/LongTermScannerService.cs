@@ -117,12 +117,13 @@ public class LongTermScannerService : ILongTermScannerService
     {
         var outcome = await _orders.PlaceAsync(new OrderIntent
         {
-            Exchange = string.IsNullOrWhiteSpace(row.Exchange) ? ExchangeCodes.Nse : row.Exchange,
+            Exchange = row.Exchange,
             TradingSymbol = row.Symbol,
             Side = OrderSides.Buy,
             Quantity = row.Quantity,
             UiProduct = ProductTypes.Cnc,
-            Pricing = LimitPricingMode.AtLtp,
+            // Raw LTP — same as pre-refactor (no tick rounding).
+            Pricing = LimitPricingMode.RawLtp,
             HintPrice = row.LastPrice > 0 ? row.LastPrice : null
         });
 

@@ -7,5 +7,10 @@ public enum LimitPricingMode
     AtLtp = 0,
 
     /// <summary>BUY one tick above LTP, SELL one tick below (options fill reliability).</summary>
-    AggressiveOffset = 1
+    AggressiveOffset = 1,
+
+    /// <summary>
+    /// Use LTP as-is with no tick rounding — preserves legacy scanner / Auto Buy pricing.
+    /// </summary>
+    RawLtp = 2
 }

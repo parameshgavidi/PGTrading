@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using PGOne.Models;
 using PGOne.Models.Trading;
+using PGOne.Models.Ui;
 using PGOne.Services;
 
 namespace PGOne.ViewModels;
@@ -74,6 +75,13 @@ public class SentimentViewModel : INotifyPropertyChanged, IDisposable
 
     public async Task<(bool Success, string Message)> PlaceOrderAsync(StockSentimentResult row, int quantity)
     {
+        // Guard order matches pre-refactor SentimentViewModel (connect → qty → bullish).
+        if (!_zerodha.IsConnected)
+            return (false, BrokerUiMessages.ConnectRequired);
+
+        if (quantity <= 0)
+            return (false, BrokerUiMessages.QuantityInvalid);
+
         // Sentiment orders are long CNC only (delivery buy) — no MIS, no shorts.
         if (row.Prediction != SentimentPrediction.Bullish)
             return (false, "Sentiment Place Order is long CNC only — available on Bullish stocks.");
@@ -88,14 +96,16 @@ public class SentimentViewModel : INotifyPropertyChanged, IDisposable
             Pricing = LimitPricingMode.AtLtp
         });
 
-        // Keep success message concise for the row label (matches prior format).
+        // Keep success / failure row labels identical to the previous direct Zerodha path.
         if (outcome.Success && outcome.LimitPrice is decimal px)
         {
             row.OrderMessage = $"BUY CNC {quantity} @ ₹{px:N2} — order {outcome.OrderId}";
         }
         else
         {
-            row.OrderMessage = outcome.Message;
+            row.OrderMessage = string.IsNullOrWhiteSpace(outcome.Message)
+                ? BrokerUiMessages.OrderPlacementFailed
+                : outcome.Message;
         }
 
         OnPropertyChanged(nameof(Results));

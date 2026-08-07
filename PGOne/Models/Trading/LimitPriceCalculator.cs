@@ -14,6 +14,9 @@ public static class LimitPriceCalculator
 
         var normalizedSide = OrderSides.Normalize(side);
 
+        if (mode == LimitPricingMode.RawLtp)
+            return ltp;
+
         if (mode == LimitPricingMode.AtLtp)
             return OrderPriceHelper.RoundToTick(ltp, exchange);
 

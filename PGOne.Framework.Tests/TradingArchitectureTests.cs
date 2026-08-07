@@ -47,6 +47,13 @@ public class LimitPriceCalculatorTests
         var price = LimitPriceCalculator.Compute(ExchangeCodes.Nfo, OrderSides.Sell, 140.80m, LimitPricingMode.AggressiveOffset);
         Assert.Equal(140.75m, price);
     }
+
+    [Fact]
+    public void RawLtp_preserves_exact_price_without_rounding()
+    {
+        var price = LimitPriceCalculator.Compute(ExchangeCodes.Nse, OrderSides.Buy, 100.124m, LimitPricingMode.RawLtp);
+        Assert.Equal(100.124m, price);
+    }
 }
 
 public class OrderPriceHelperTradingTests

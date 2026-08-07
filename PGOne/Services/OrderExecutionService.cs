@@ -24,11 +24,12 @@ public sealed class OrderExecutionService : IOrderExecutionService
 
     public async Task<OrderExecutionOutcome> PlaceAsync(OrderIntent intent)
     {
+        // Keep wording identical to ZerodhaService.PlaceOrderAsync for call-site parity.
         if (!_zerodha.IsConnected)
-            return OrderExecutionOutcome.Fail(BrokerUiMessages.ConnectBeforeOrder);
+            return OrderExecutionOutcome.Fail(BrokerUiMessages.BrokerNotConnected);
 
         if (intent.Quantity <= 0)
-            return OrderExecutionOutcome.Fail(BrokerUiMessages.QuantityInvalid);
+            return OrderExecutionOutcome.Fail(BrokerUiMessages.OrderQuantityInvalid);
 
         string side;
         string uiProduct;
@@ -81,7 +82,7 @@ public sealed class OrderExecutionService : IOrderExecutionService
         if (!intent.FallbackToMarket)
         {
             return OrderExecutionOutcome.Fail(
-                result.ErrorMessage ?? "Order placement failed.");
+                result.ErrorMessage ?? BrokerUiMessages.OrderPlacementFailed);
         }
 
         var marketResult = await _zerodha.PlaceOrderAsync(

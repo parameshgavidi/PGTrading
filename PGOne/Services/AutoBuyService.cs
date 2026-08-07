@@ -1,6 +1,7 @@
 using Microsoft.Maui.Storage;
 using PGOne.Models;
 using PGOne.Models.Trading;
+using PGOne.Models.Ui;
 
 namespace PGOne.Services;
 
@@ -614,12 +615,13 @@ public class AutoBuyService : IAutoBuyService, IDisposable
 
             var outcome = await _orders.PlaceAsync(new OrderIntent
             {
-                Exchange = string.IsNullOrWhiteSpace(row.Exchange) ? ExchangeCodes.Nse : row.Exchange,
+                Exchange = row.Exchange,
                 TradingSymbol = row.Symbol,
                 Side = AutoBuyOrderPolicy.EntrySideOrThrow(AutoBuyDefaults.EntrySide),
                 Quantity = quantity,
                 UiProduct = AutoBuyDefaults.Product,
-                Pricing = LimitPricingMode.AtLtp,
+                // Raw LTP — same as pre-refactor Auto Buy (no tick rounding).
+                Pricing = LimitPricingMode.RawLtp,
                 HintPrice = limitPrice > 0 ? limitPrice : null
             });
 
@@ -627,22 +629,25 @@ public class AutoBuyService : IAutoBuyService, IDisposable
 
             if (outcome.Success)
             {
-                var fillPrice = outcome.LimitPrice ?? limitPrice;
                 row.Status = "Order placed";
-                row.Detail = $"BUY {quantity} CNC @ LIMIT {fillPrice:N2} — ST(7,2.5) cross · order {outcome.OrderId}";
+                row.Detail = $"BUY {quantity} CNC @ LIMIT {limitPrice:N2} — ST(7,2.5) cross · order {outcome.OrderId}";
                 StatusMessage = $"Auto Buy: order placed for {row.Symbol}";
 
                 row.DeployedAmount = AutoBuyDeployHelper.GetDeployedAmount(
                     row.Symbol,
                     holdings,
                     cncPositions);
-                row.DeployedAmount += quantity * fillPrice;
+                row.DeployedAmount += quantity * limitPrice;
                 await TryDisableAutomationForMaxAsync(row);
             }
             else
             {
+                // Match prior Zerodha OrderPlacementResult null-fallback wording.
+                var error = outcome.Message == BrokerUiMessages.OrderPlacementFailed
+                    ? BrokerUiMessages.OrderRejected
+                    : outcome.Message;
                 row.Status = "Order failed";
-                row.Detail = $"{outcome.Message} — will not retry this bar (wait for next Sell→Buy cross)";
+                row.Detail = $"{error} — will not retry this bar (wait for next Sell→Buy cross)";
                 StatusMessage = $"Auto Buy: failed for {row.Symbol} — {row.Detail}";
             }
         }
