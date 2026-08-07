@@ -1,5 +1,6 @@
 using Microsoft.Maui.Storage;
 using PGOne.Models;
+using PGOne.Models.Trading;
 
 namespace PGOne.Services;
 
@@ -37,6 +38,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
     private readonly IMarketDataService _marketData;
     private readonly ISuperTrendService _superTrend;
     private readonly ISettingsService _settings;
+    private readonly IOrderExecutionService _orders;
 
     private readonly List<AutoBuyRow> _rows = new();
     private List<string> _nseSymbols = new();
@@ -63,12 +65,14 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         IZerodhaService zerodha,
         IMarketDataService marketData,
         ISuperTrendService superTrend,
-        ISettingsService settings)
+        ISettingsService settings,
+        IOrderExecutionService orders)
     {
         _zerodha = zerodha;
         _marketData = marketData;
         _superTrend = superTrend;
         _settings = settings;
+        _orders = orders;
         _zerodha.ConnectionChanged += OnZerodhaConnectionChanged;
         _settings.SettingsChanged += OnSettingsChanged;
         _ = EnsureBootstrappedAsync();
@@ -608,34 +612,37 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             _orderedBarKeys.Add(barKey);
             _pendingBuyBarKeys.Remove(barKey);
 
-            var result = await _zerodha.PlaceOrderAsync(
-                row.Exchange,
-                row.Symbol,
-                AutoBuyOrderPolicy.EntrySideOrThrow(AutoBuyDefaults.EntrySide),
-                quantity,
-                "LIMIT",
-                limitPrice,
-                AutoBuyDefaults.Product);
+            var outcome = await _orders.PlaceAsync(new OrderIntent
+            {
+                Exchange = string.IsNullOrWhiteSpace(row.Exchange) ? ExchangeCodes.Nse : row.Exchange,
+                TradingSymbol = row.Symbol,
+                Side = AutoBuyOrderPolicy.EntrySideOrThrow(AutoBuyDefaults.EntrySide),
+                Quantity = quantity,
+                UiProduct = AutoBuyDefaults.Product,
+                Pricing = LimitPricingMode.AtLtp,
+                HintPrice = limitPrice > 0 ? limitPrice : null
+            });
 
             row.LastTriggeredAt = DateTime.Now;
 
-            if (result.IsSuccess)
+            if (outcome.Success)
             {
+                var fillPrice = outcome.LimitPrice ?? limitPrice;
                 row.Status = "Order placed";
-                row.Detail = $"BUY {quantity} CNC @ LIMIT {limitPrice:N2} — ST(7,2.5) cross · order {result.OrderId}";
+                row.Detail = $"BUY {quantity} CNC @ LIMIT {fillPrice:N2} — ST(7,2.5) cross · order {outcome.OrderId}";
                 StatusMessage = $"Auto Buy: order placed for {row.Symbol}";
 
                 row.DeployedAmount = AutoBuyDeployHelper.GetDeployedAmount(
                     row.Symbol,
                     holdings,
                     cncPositions);
-                row.DeployedAmount += quantity * limitPrice;
+                row.DeployedAmount += quantity * fillPrice;
                 await TryDisableAutomationForMaxAsync(row);
             }
             else
             {
                 row.Status = "Order failed";
-                row.Detail = $"{result.ErrorMessage ?? "Order rejected"} — will not retry this bar (wait for next Sell→Buy cross)";
+                row.Detail = $"{outcome.Message} — will not retry this bar (wait for next Sell→Buy cross)";
                 StatusMessage = $"Auto Buy: failed for {row.Symbol} — {row.Detail}";
             }
         }

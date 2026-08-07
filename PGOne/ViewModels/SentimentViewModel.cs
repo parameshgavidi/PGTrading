@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using PGOne.Models;
+using PGOne.Models.Trading;
 using PGOne.Services;
 
 namespace PGOne.ViewModels;
@@ -17,14 +18,19 @@ public class SentimentViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly ISentimentService _sentiment;
     private readonly IZerodhaService _zerodha;
+    private readonly IOrderExecutionService _orders;
     private SentimentFilter _filter = SentimentFilter.All;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public SentimentViewModel(ISentimentService sentiment, IZerodhaService zerodha)
+    public SentimentViewModel(
+        ISentimentService sentiment,
+        IZerodhaService zerodha,
+        IOrderExecutionService orders)
     {
         _sentiment = sentiment;
         _zerodha = zerodha;
+        _orders = orders;
         _sentiment.Updated += OnSentimentUpdated;
     }
 
@@ -68,36 +74,32 @@ public class SentimentViewModel : INotifyPropertyChanged, IDisposable
 
     public async Task<(bool Success, string Message)> PlaceOrderAsync(StockSentimentResult row, int quantity)
     {
-        if (!_zerodha.IsConnected)
-            return (false, "Please connect to Zerodha first.");
-
-        if (quantity <= 0)
-            return (false, "Quantity must be at least 1.");
-
         // Sentiment orders are long CNC only (delivery buy) — no MIS, no shorts.
         if (row.Prediction != SentimentPrediction.Bullish)
             return (false, "Sentiment Place Order is long CNC only — available on Bullish stocks.");
 
-        var ltp = await _zerodha.GetLtpAsync($"NSE:{row.Symbol}");
-        if (ltp <= 0)
-            return (false, "Could not fetch price for limit order.");
+        var outcome = await _orders.PlaceAsync(new OrderIntent
+        {
+            Exchange = ExchangeCodes.Nse,
+            TradingSymbol = row.Symbol,
+            Side = OrderSides.Buy,
+            Quantity = quantity,
+            UiProduct = ProductTypes.Cnc,
+            Pricing = LimitPricingMode.AtLtp
+        });
 
-        var limitPrice = OrderPriceHelper.RoundToTick(ltp, "NSE");
-        var result = await _zerodha.PlaceOrderAsync(
-            "NSE",
-            row.Symbol,
-            "BUY",
-            quantity,
-            "LIMIT",
-            limitPrice,
-            "CNC");
-
-        row.OrderMessage = result.IsSuccess
-            ? $"BUY CNC {quantity} @ ₹{limitPrice:N2} — order {result.OrderId}"
-            : result.ErrorMessage ?? "Order placement failed.";
+        // Keep success message concise for the row label (matches prior format).
+        if (outcome.Success && outcome.LimitPrice is decimal px)
+        {
+            row.OrderMessage = $"BUY CNC {quantity} @ ₹{px:N2} — order {outcome.OrderId}";
+        }
+        else
+        {
+            row.OrderMessage = outcome.Message;
+        }
 
         OnPropertyChanged(nameof(Results));
-        return (result.IsSuccess, row.OrderMessage);
+        return (outcome.Success, row.OrderMessage);
     }
 
     private void OnSentimentUpdated()

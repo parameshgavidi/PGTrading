@@ -1,23 +1,24 @@
 @page "/orders"
-@inject IZerodhaService ZerodhaService
+@inject OrdersViewModel ViewModel
+@implements IDisposable
 
 <div class="page-container">
     <div class="card">
         <div class="card-header">
             <h2>Orders</h2>
-            <button class="btn btn-secondary" @onclick="LoadOrders">Refresh</button>
+            <button class="btn btn-secondary" disabled="@ViewModel.IsLoading" @onclick="RefreshAsync">Refresh</button>
         </div>
 
-        @if (!_connected)
+        @if (!ViewModel.IsConnected)
         {
             <div class="empty-state">
-                <p>Broker offline — connect Zerodha to view today’s orders.</p>
+                <p>@ViewModel.OfflineMessage</p>
                 <div class="button-row">
                     <a href="settings" class="btn btn-primary">Open Settings</a>
                 </div>
             </div>
         }
-        else if (_orders.Count == 0)
+        else if (ViewModel.Orders.Count == 0)
         {
             <div class="empty-state">No orders today.</div>
         }
@@ -36,12 +37,12 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var order in _orders)
+                    @foreach (var order in ViewModel.Orders)
                     {
                         <tr>
                             <td>@order.OrderId</td>
                             <td><strong>@order.Symbol</strong></td>
-                            <td class="@(order.TransactionType == "BUY" ? "buy" : "sell")">@order.TransactionType</td>
+                            <td class="@(order.TransactionType == OrderSides.Buy ? "buy" : "sell")">@order.TransactionType</td>
                             <td>@order.Quantity</td>
                             <td>@order.Price.ToString("N2")</td>
                             <td><span class="status-badge">@order.Status</span></td>
@@ -55,15 +56,16 @@
 </div>
 
 @code {
-  private List<Order> _orders = new();
-  private bool _connected;
+    protected override async Task OnInitializedAsync()
+    {
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        await ViewModel.RefreshAsync();
+    }
 
-  protected override async Task OnInitializedAsync() => await LoadOrders();
+    private async Task RefreshAsync() => await ViewModel.RefreshAsync();
 
-  private async Task LoadOrders()
-  {
-    _connected = ZerodhaService.IsConnected;
-    _orders = await ZerodhaService.GetOrdersAsync();
-    await InvokeAsync(StateHasChanged);
-  }
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) =>
+        InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
 }

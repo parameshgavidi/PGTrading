@@ -41,6 +41,7 @@ public static class MauiProgram
 
         builder.Services.AddSingleton<ISettingsService, SettingsService>();
         builder.Services.AddSingleton<IZerodhaService, ZerodhaService>();
+        builder.Services.AddSingleton<IOrderExecutionService, OrderExecutionService>();
         builder.Services.AddSingleton<IMarketDataService, MarketDataService>();
         builder.Services.AddSingleton<ISuperTrendService, SuperTrendService>();
         builder.Services.AddSingleton<IIndicatorService, IndicatorService>();
@@ -72,6 +73,8 @@ public static class MauiProgram
         builder.Services.AddSingleton<SentimentViewModel>();
         builder.Services.AddSingleton<MultiChartViewModel>();
         builder.Services.AddSingleton<AutoBuyViewModel>();
+        builder.Services.AddSingleton<PositionsViewModel>();
+        builder.Services.AddSingleton<OrdersViewModel>();
 
         return builder.Build();
     }

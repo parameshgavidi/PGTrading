@@ -157,12 +157,12 @@
 
                 <div class="signal-side-toggle">
                     <button type="button"
-                            class="btn side-btn buy @(ViewModel.OrderSide == "BUY" ? "active" : "")"
+                            class="btn side-btn buy @(ViewModel.OrderSide == OrderSides.Buy ? "active" : "")"
                             @onclick="SetBuySide">
                         Buy
                     </button>
                     <button type="button"
-                            class="btn side-btn sell @(ViewModel.OrderSide == "SELL" ? "active" : "")"
+                            class="btn side-btn sell @(ViewModel.OrderSide == OrderSides.Sell ? "active" : "")"
                             @onclick="SetSellSide">
                         Sell
                     </button>
@@ -170,12 +170,12 @@
 
                 <div class="signal-side-toggle">
                     <button type="button"
-                            class="btn side-btn product @(ViewModel.OrderProduct == "MIS" ? "active" : "")"
+                            class="btn side-btn product @(ViewModel.OrderProduct == ProductTypes.Mis ? "active" : "")"
                             @onclick="SetMisProduct">
                         MIS
                     </button>
                     <button type="button"
-                            class="btn side-btn product @(ViewModel.OrderProduct == "CNC" ? "active" : "")"
+                            class="btn side-btn product @(ViewModel.OrderProduct == ProductTypes.Cnc ? "active" : "")"
                             @onclick="SetCncProduct">
                         CNC
                     </button>

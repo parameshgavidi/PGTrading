@@ -1,4 +1,5 @@
 using PGOne.Models;
+using PGOne.Models.Trading;
 
 namespace PGOne.Services;
 
@@ -21,17 +22,23 @@ public class IntradayScannerService : IIntradayScannerService
     private readonly IZerodhaService _zerodha;
     private readonly ISignalService _signal;
     private readonly INiftyIndexService _niftyIndex;
+    private readonly IOrderExecutionService _orders;
 
     public event Action? Updated;
     public IReadOnlyList<StockScanRow> Items { get; private set; } = Array.Empty<StockScanRow>();
     public bool IsScanning { get; private set; }
     public string? ProgressMessage { get; private set; }
 
-    public IntradayScannerService(IZerodhaService zerodha, ISignalService signal, INiftyIndexService niftyIndex)
+    public IntradayScannerService(
+        IZerodhaService zerodha,
+        ISignalService signal,
+        INiftyIndexService niftyIndex,
+        IOrderExecutionService orders)
     {
         _zerodha = zerodha;
         _signal = signal;
         _niftyIndex = niftyIndex;
+        _orders = orders;
     }
 
     public async Task ScanAsync()
@@ -191,15 +198,20 @@ public class IntradayScannerService : IIntradayScannerService
 
     public async Task<OrderPlacementResult> PlaceOrderAsync(StockScanRow row)
     {
-        var limitPrice = row.LastPrice;
-        if (limitPrice <= 0)
-            limitPrice = await _zerodha.GetLtpAsync($"{row.Exchange}:{row.Symbol}");
+        var outcome = await _orders.PlaceAsync(new OrderIntent
+        {
+            Exchange = string.IsNullOrWhiteSpace(row.Exchange) ? ExchangeCodes.Nse : row.Exchange,
+            TradingSymbol = row.Symbol,
+            Side = OrderSides.Buy,
+            Quantity = row.Quantity,
+            UiProduct = ProductTypes.Mis,
+            Pricing = LimitPricingMode.AtLtp,
+            HintPrice = row.LastPrice > 0 ? row.LastPrice : null
+        });
 
-        if (limitPrice <= 0)
-            return OrderPlacementResult.Fail("Could not fetch price for limit order.");
-
-        return await _zerodha.PlaceOrderAsync(
-            row.Exchange, row.Symbol, "BUY", row.Quantity, "LIMIT", limitPrice, "MIS");
+        return outcome.Success
+            ? OrderPlacementResult.Ok(outcome.OrderId!)
+            : OrderPlacementResult.Fail(outcome.Message);
     }
 
     private async Task<Dictionary<string, decimal>> FetchQuotesBatchedAsync(IReadOnlyList<string> symbols)

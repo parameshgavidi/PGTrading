@@ -1,23 +1,24 @@
 @page "/positions"
-@inject IZerodhaService ZerodhaService
+@inject PositionsViewModel ViewModel
+@implements IDisposable
 
 <div class="page-container">
     <div class="card">
         <div class="card-header">
             <h2>Positions</h2>
-            <button class="btn btn-secondary" @onclick="LoadPositions">Refresh</button>
+            <button class="btn btn-secondary" disabled="@ViewModel.IsLoading" @onclick="RefreshAsync">Refresh</button>
         </div>
 
-        @if (!_connected)
+        @if (!ViewModel.IsConnected)
         {
             <div class="empty-state">
-                <p>Broker offline — connect Zerodha to view live positions.</p>
+                <p>@ViewModel.OfflineMessage</p>
                 <div class="button-row">
                     <a href="settings" class="btn btn-primary">Open Settings</a>
                 </div>
             </div>
         }
-        else if (_positions.Count == 0)
+        else if (ViewModel.Positions.Count == 0)
         {
             <div class="empty-state">No open positions.</div>
         }
@@ -35,7 +36,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var pos in _positions)
+                    @foreach (var pos in ViewModel.Positions)
                     {
                         <tr>
                             <td><strong>@pos.Symbol</strong></td>
@@ -53,22 +54,23 @@
 </div>
 
 @code {
-  private List<Position> _positions = new();
-  private bool _connected;
+    protected override async Task OnInitializedAsync()
+    {
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        await ViewModel.RefreshAsync();
+    }
 
-  protected override async Task OnInitializedAsync() => await LoadPositions();
+    private async Task RefreshAsync() => await ViewModel.RefreshAsync();
 
-  private async Task LoadPositions()
-  {
-    _connected = ZerodhaService.IsConnected;
-    _positions = await ZerodhaService.GetPositionsAsync();
-    await InvokeAsync(StateHasChanged);
-  }
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) =>
+        InvokeAsync(StateHasChanged);
 
-  private static string GetTrendClass(TrendDirection trend) => trend switch
-  {
-    TrendDirection.Buy => "buy",
-    TrendDirection.Sell => "sell",
-    _ => "neutral"
-  };
+    private static string GetTrendClass(TrendDirection trend) => trend switch
+    {
+        TrendDirection.Buy => "buy",
+        TrendDirection.Sell => "sell",
+        _ => "neutral"
+    };
+
+    public void Dispose() => ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
 }

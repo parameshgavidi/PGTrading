@@ -1,9 +1,11 @@
+using PGOne.Models.Trading;
+
 namespace PGOne.Models;
 
 public static class OrderPriceHelper
 {
     public static decimal GetTickSize(string exchange) =>
-        exchange is "NFO" or "BFO" or "CDS" or "MCX" ? 0.05m : 0.01m;
+        ExchangeCodes.IsDerivatives(exchange) ? 0.05m : 0.01m;
 
     public static decimal RoundToTick(decimal price, string exchange)
     {
@@ -15,5 +17,5 @@ public static class OrderPriceHelper
     }
 
     public static string BuildInstrumentKey(Position position) =>
-        $"{position.Exchange}:{position.Symbol}";
+        ExchangeCodes.InstrumentKey(position.Exchange, position.Symbol);
 }
