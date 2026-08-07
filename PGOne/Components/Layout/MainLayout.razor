@@ -15,19 +15,36 @@
         <div class="sidebar-footer">
             <div class="connection-status @(_isConnected ? "connected" : "disconnected")">
                 <span class="status-dot"></span>
-                @(_isConnected ? "Connected" : "Disconnected")
+                @(_isConnected ? "Broker linked" : "Broker offline")
             </div>
         </div>
     </aside>
 
     <main class="main-content">
         <header class="top-bar">
-            <h1 class="page-title">@_pageTitle</h1>
+            <div class="top-bar-left">
+                <h1 class="page-title">@_pageTitle</h1>
+                @if (!string.IsNullOrEmpty(_pageSubtitle))
+                {
+                    <p class="page-subtitle">@_pageSubtitle</p>
+                }
+            </div>
             <div class="top-bar-right">
-                <span class="connection-badge @(_isConnected ? "connected" : "disconnected")">
-                    @(_isConnected ? "🟢 Connected" : "🔴 Disconnected")
-                </span>
-                <span class="clock">@_currentTime</span>
+                @if (_isConnected)
+                {
+                    <span class="connection-badge connected" title="Zerodha connected">
+                        <span class="status-dot"></span>
+                        Connected
+                    </span>
+                }
+                else
+                {
+                    <a class="connection-badge disconnected connection-cta" href="settings" title="Connect Zerodha in Settings">
+                        <span class="status-dot"></span>
+                        Connect broker
+                    </a>
+                }
+                <span class="clock" title="Local time">@_currentTime</span>
             </div>
         </header>
         <article class="content-area">
@@ -40,6 +57,7 @@
     private bool _isConnected;
     private string _currentTime = DateTime.Now.ToString("hh:mm:ss tt");
     private string _pageTitle = "Dashboard";
+    private string _pageSubtitle = string.Empty;
     private System.Timers.Timer? _timer;
 
     protected override void OnInitialized()
@@ -81,22 +99,23 @@
     private void UpdatePageTitle()
     {
         var path = Navigation.ToBaseRelativePath(Navigation.Uri).Trim('/').ToLowerInvariant();
-        _pageTitle = path switch
+        (_pageTitle, _pageSubtitle) = path switch
         {
-            "" or "dashboard" => "Dashboard",
-            "framework" => "Framework",
-            "chart" => "Live Market",
-            "scanner" => "Scanner",
-            "sentiment" => "Sentiment",
-            "signals" => "Signals",
-            "positions" => "Positions",
-            "orders" => "Orders",
-            "watchlist" => "Watchlist",
-            "auto-buy" => "Auto Buy",
-            "settings" => "Settings",
-            "holdings" => "Holdings",
-            "strategy" => "Strategy",
-            _ => "PG One"
+            "" or "dashboard" => ("Dashboard", "Market overview & chart"),
+            "framework" => ("Framework", "Playbook & bias checklist"),
+            "chart" => ("Live Market", "Realtime chart & overlays"),
+            "multi-chart" => ("Multi Chart", "Compare symbols side by side"),
+            "scanner" => ("Scanner", "Intraday & long-term scans"),
+            "sentiment" => ("Sentiment", "News-driven bias · Buy CNC"),
+            "signals" => ("Signals", "Setup readiness & index options"),
+            "positions" => ("Positions", "Open MIS / NRML risk"),
+            "orders" => ("Orders", "Today’s order book"),
+            "watchlist" => ("Watchlist", "Tracked symbols"),
+            "auto-buy" => ("Auto Buy", "Long CNC automation"),
+            "settings" => ("Settings", "Broker & API configuration"),
+            "holdings" => ("Holdings", "Delivery portfolio"),
+            "strategy" => ("Strategy", "Rules & risk notes"),
+            _ => ("PG One", string.Empty)
         };
     }
 

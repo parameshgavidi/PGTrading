@@ -8,7 +8,8 @@
         <div class="card-header">
             <h2>Settings</h2>
             <span class="connection-badge @(ViewModel.IsConnected ? "connected" : "disconnected")">
-                @(ViewModel.IsConnected ? "🟢 Connected to Zerodha" : "🔴 Not Connected")
+                <span class="status-dot"></span>
+                @(ViewModel.IsConnected ? "Connected to Zerodha" : "Not connected")
             </span>
         </div>
 

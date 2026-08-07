@@ -49,7 +49,10 @@
 
         @if (!ViewModel.IsConnected && ViewModel.Results.Count > 0)
         {
-            <div class="holdings-banner warning">Connect to Zerodha in Settings to place orders.</div>
+            <div class="holdings-banner warning">
+                <span>Connect Zerodha to place Buy CNC orders from Bullish results.</span>
+                <a href="settings">Open Settings</a>
+            </div>
         }
 
         @if (ViewModel.Results.Count > 0)

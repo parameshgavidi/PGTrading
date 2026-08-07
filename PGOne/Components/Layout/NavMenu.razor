@@ -1,40 +1,53 @@
 @namespace PGOne.Components.Layout
 
 <div class="nav-menu">
+    <div class="nav-section-label">Monitor</div>
     <NavLink class="nav-item" href="" Match="NavLinkMatch.All">
-        <span class="nav-icon">🏠</span> Dashboard
+        <span class="nav-mark" aria-hidden="true">D</span> Dashboard
     </NavLink>
     <NavLink class="nav-item" href="framework">
-        <span class="nav-icon">📋</span> Framework
+        <span class="nav-mark" aria-hidden="true">F</span> Framework
     </NavLink>
     <NavLink class="nav-item" href="chart">
-        <span class="nav-icon">📈</span> Live Market
+        <span class="nav-mark" aria-hidden="true">L</span> Live Market
     </NavLink>
     <NavLink class="nav-item" href="multi-chart">
-        <span class="nav-icon">📊</span> Multi Chart
+        <span class="nav-mark" aria-hidden="true">M</span> Multi Chart
     </NavLink>
     <NavLink class="nav-item" href="scanner">
-        <span class="nav-icon">🔍</span> Scanner
+        <span class="nav-mark" aria-hidden="true">C</span> Scanner
     </NavLink>
     <NavLink class="nav-item" href="sentiment">
-        <span class="nav-icon">😊</span> Sentiment
+        <span class="nav-mark" aria-hidden="true">T</span> Sentiment
     </NavLink>
+
+    <div class="nav-section-label">Trade</div>
     <NavLink class="nav-item" href="signals">
-        <span class="nav-icon">⚡</span> Signals
-    </NavLink>
-    <NavLink class="nav-item" href="positions">
-        <span class="nav-icon">💼</span> Positions
-    </NavLink>
-    <NavLink class="nav-item" href="orders">
-        <span class="nav-icon">📑</span> Orders
-    </NavLink>
-    <NavLink class="nav-item" href="watchlist">
-        <span class="nav-icon">⭐</span> Watchlist
+        <span class="nav-mark" aria-hidden="true">X</span> Signals
     </NavLink>
     <NavLink class="nav-item" href="auto-buy">
-        <span class="nav-icon">🤖</span> Auto Buy
+        <span class="nav-mark" aria-hidden="true">A</span> Auto Buy
+    </NavLink>
+    <NavLink class="nav-item" href="watchlist">
+        <span class="nav-mark" aria-hidden="true">W</span> Watchlist
+    </NavLink>
+
+    <div class="nav-section-label">Portfolio</div>
+    <NavLink class="nav-item" href="positions">
+        <span class="nav-mark" aria-hidden="true">P</span> Positions
+    </NavLink>
+    <NavLink class="nav-item" href="orders">
+        <span class="nav-mark" aria-hidden="true">O</span> Orders
+    </NavLink>
+    <NavLink class="nav-item" href="holdings">
+        <span class="nav-mark" aria-hidden="true">H</span> Holdings
+    </NavLink>
+
+    <div class="nav-section-label">System</div>
+    <NavLink class="nav-item" href="strategy">
+        <span class="nav-mark" aria-hidden="true">Y</span> Strategy
     </NavLink>
     <NavLink class="nav-item" href="settings">
-        <span class="nav-icon">⚙</span> Settings
+        <span class="nav-mark" aria-hidden="true">S</span> Settings
     </NavLink>
 </div>

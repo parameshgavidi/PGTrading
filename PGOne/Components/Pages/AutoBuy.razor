@@ -32,7 +32,10 @@
 
         @if (!ViewModel.IsConnected)
         {
-            <div class="holdings-banner warning">Connect to Zerodha in Settings to search symbols and place orders.</div>
+            <div class="holdings-banner warning">
+                <span>Connect Zerodha to search symbols and place Auto Buy CNC orders.</span>
+                <a href="settings">Open Settings</a>
+            </div>
         }
 
         @if (!ViewModel.IsAutoTradingEnabled)
