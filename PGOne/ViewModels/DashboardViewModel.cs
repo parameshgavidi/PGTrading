@@ -167,7 +167,14 @@ public class DashboardViewModel : INotifyPropertyChanged
 
         SelectedTimeframe = timeframe;
         await LoadChartAsync();
-        OverlayVersion++;
+
+        // 1m CPR bands are only for the 1m chart — turn the overlay on when entering 1m
+        // so TC/CPR/BC show without hunting for the toggle (dedicated 1min CPR page was removed).
+        if (SelectedTimeframe == "1m" && !ShowIntradayCprOverlay)
+            SetShowIntradayCprOverlay(true);
+        else
+            OverlayVersion++;
+
         await UpdatePriceAsync();
         UpdateSelectedTrend();
         Notify(nameof(SelectedTimeframe));
