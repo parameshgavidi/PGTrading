@@ -1427,6 +1427,12 @@ html, body {
     color: var(--sell);
 }
 
+.signal-side-toggle .side-btn.product.active {
+    background: rgba(212, 175, 55, 0.18);
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
 @media (max-width: 980px) {
     .signals-page {
         flex-direction: column;

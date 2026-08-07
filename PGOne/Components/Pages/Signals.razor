@@ -69,7 +69,7 @@
             </div>
 
             <p class="text-secondary signal-options-hint">
-                Select a CE/PE, choose Buy or Sell, then place a MIS limit order.
+                Select a CE/PE, choose Buy or Sell and MIS/CNC, then place the order.
             </p>
 
             <div class="signal-options-controls">
@@ -168,6 +168,20 @@
                     </button>
                 </div>
 
+                <div class="signal-side-toggle">
+                    <button type="button"
+                            class="btn side-btn product @(ViewModel.OrderProduct == "MIS" ? "active" : "")"
+                            @onclick="SetMisProduct">
+                        MIS
+                    </button>
+                    <button type="button"
+                            class="btn side-btn product @(ViewModel.OrderProduct == "CNC" ? "active" : "")"
+                            @onclick="SetCncProduct">
+                        CNC
+                    </button>
+                </div>
+                <span class="text-secondary form-hint">@ViewModel.ProductHint</span>
+
                 <div class="form-row">
                     <label for="signal-lots">Lots</label>
                     <input id="signal-lots"
@@ -191,7 +205,7 @@
                         @onclick="PlaceOrderAsync">
                     @(ViewModel.IsPlacingOrder
                         ? "Placing…"
-                        : $"Place {ViewModel.OrderSide} Order")
+                        : $"Place {ViewModel.OrderSide} {ViewModel.OrderProduct}")
                 </button>
 
                 @if (!string.IsNullOrEmpty(ViewModel.PlaceOrderMessage))
@@ -234,6 +248,10 @@
     private void SetBuySide() => ViewModel.SetOrderSide("BUY");
 
     private void SetSellSide() => ViewModel.SetOrderSide("SELL");
+
+    private void SetMisProduct() => ViewModel.SetOrderProduct("MIS");
+
+    private void SetCncProduct() => ViewModel.SetOrderProduct("CNC");
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
         InvokeAsync(StateHasChanged);

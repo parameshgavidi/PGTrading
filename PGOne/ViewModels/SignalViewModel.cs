@@ -26,23 +26,39 @@ public class SignalViewModel : INotifyPropertyChanged
     public IReadOnlyList<SignalOptionRow> OptionRows { get; private set; } = Array.Empty<SignalOptionRow>();
     public SignalOptionRow? SelectedOption { get; private set; }
     public string OrderSide { get; private set; } = "BUY";
+    /// <summary>UI product: MIS (intraday) or CNC (mapped to NRML for NFO overnight).</summary>
+    public string OrderProduct { get; private set; } = "MIS";
     public int OrderLots { get; private set; } = 1;
     public DateTime? OptionExpiry { get; private set; }
     public decimal SpotPrice { get; private set; }
+
+    public IReadOnlyList<string> AvailableProducts { get; } = ["MIS", "CNC"];
 
     public int OrderQuantity =>
         SelectedOption is null ? 0 : Math.Max(1, SelectedOption.LotSize) * Math.Max(1, OrderLots);
 
     public decimal EstimatedOrderValue =>
-        SelectedOption is null ? 0m : SelectedOption.Ltp * OrderQuantity;
+        SelectedOption is null || SelectedOption.Ltp <= 0
+            ? 0m
+            : SelectedOption.Ltp * OrderQuantity;
+
+    /// <summary>Zerodha product sent on the wire — CNC on NFO becomes NRML (F&amp;O carry).</summary>
+    public string BrokerProduct =>
+        OrderProduct.Equals("CNC", StringComparison.OrdinalIgnoreCase) ? "NRML" : "MIS";
+
+    public string ProductHint =>
+        OrderProduct.Equals("CNC", StringComparison.OrdinalIgnoreCase)
+            ? "CNC → NRML on NFO (carry overnight)"
+            : "MIS intraday (auto square-off)";
 
     public bool CanPlaceSelectedOrder =>
         _zerodha.IsConnected
         && SelectedOption is not null
         && OrderQuantity > 0
-        && SelectedOption.Ltp > 0
         && !IsPlacingOrder
-        && (OrderSide is "BUY" or "SELL");
+        && !IsLoadingOptions
+        && (OrderSide is "BUY" or "SELL")
+        && (OrderProduct is "MIS" or "CNC");
 
     public SignalViewModel(ISignalService signal, IZerodhaService zerodha, ISettingsService settings)
     {
@@ -74,8 +90,13 @@ public class SignalViewModel : INotifyPropertyChanged
 
         // Prefill side from signal when available; user can still change Buy/Sell.
         OrderSide = CurrentSignal.Trend == TrendDirection.Sell ? "SELL" : "BUY";
+        OrderProduct = "MIS";
         Notify(nameof(OrderLots));
         Notify(nameof(OrderSide));
+        Notify(nameof(OrderProduct));
+        Notify(nameof(BrokerProduct));
+        Notify(nameof(ProductHint));
+        Notify(nameof(CanPlaceSelectedOrder));
 
         if (string.IsNullOrWhiteSpace(OptionUnderlying))
             OptionUnderlying = string.IsNullOrWhiteSpace(CurrentSignal.Instrument)
@@ -125,7 +146,24 @@ public class SignalViewModel : INotifyPropertyChanged
             return;
 
         OrderSide = next;
+        PlaceOrderMessage = string.Empty;
         Notify(nameof(OrderSide));
+        Notify(nameof(PlaceOrderMessage));
+        Notify(nameof(CanPlaceSelectedOrder));
+    }
+
+    public void SetOrderProduct(string product)
+    {
+        var next = product.Trim().ToUpperInvariant();
+        if (next is not ("MIS" or "CNC"))
+            return;
+
+        OrderProduct = next;
+        PlaceOrderMessage = string.Empty;
+        Notify(nameof(OrderProduct));
+        Notify(nameof(BrokerProduct));
+        Notify(nameof(ProductHint));
+        Notify(nameof(PlaceOrderMessage));
         Notify(nameof(CanPlaceSelectedOrder));
     }
 
@@ -231,15 +269,44 @@ public class SignalViewModel : INotifyPropertyChanged
 
     public async Task PlaceSelectedOptionOrderAsync()
     {
-        if (!CanPlaceSelectedOrder || SelectedOption is null)
+        if (SelectedOption is null)
         {
-            PlaceOrderMessage = "Select an option and Buy/Sell before placing the order.";
+            PlaceOrderMessage = "Select an option first.";
             Notify(nameof(PlaceOrderMessage));
             return;
         }
 
+        if (!_zerodha.IsConnected)
+        {
+            PlaceOrderMessage = "Connect to Zerodha in Settings before placing an order.";
+            Notify(nameof(PlaceOrderMessage));
+            return;
+        }
+
+        if (OrderSide is not ("BUY" or "SELL"))
+        {
+            PlaceOrderMessage = "Choose Buy or Sell.";
+            Notify(nameof(PlaceOrderMessage));
+            return;
+        }
+
+        if (OrderQuantity <= 0)
+        {
+            PlaceOrderMessage = "Lots / quantity must be at least 1.";
+            Notify(nameof(PlaceOrderMessage));
+            return;
+        }
+
+        var side = OrderSide;
+        var product = BrokerProduct;
+        var productLabel = OrderProduct.Equals("CNC", StringComparison.OrdinalIgnoreCase)
+            ? "CNC (NRML)"
+            : "MIS";
+        var option = SelectedOption;
+        var quantity = OrderQuantity;
+
         IsPlacingOrder = true;
-        PlaceOrderMessage = string.Empty;
+        PlaceOrderMessage = $"Placing {side} {productLabel}…";
         Notify(nameof(IsPlacingOrder));
         Notify(nameof(CanPlaceSelectedOrder));
         Notify(nameof(PlaceOrderMessage));
@@ -248,33 +315,64 @@ public class SignalViewModel : INotifyPropertyChanged
         {
             await _settings.LoadAsync();
 
-            var limitPrice = SelectedOption.Ltp;
-            if (limitPrice <= 0)
-                limitPrice = await _zerodha.GetLtpAsync($"NFO:{SelectedOption.TradingSymbol}");
+            var liveLtp = await _zerodha.GetLtpAsync($"NFO:{option.TradingSymbol}");
+            if (liveLtp <= 0)
+                liveLtp = option.Ltp;
 
-            if (limitPrice <= 0)
+            if (liveLtp <= 0)
             {
-                PlaceOrderMessage = "Could not fetch option LTP for limit order.";
+                PlaceOrderMessage = "Could not fetch option LTP. Refresh the chain and try again.";
                 return;
             }
 
+            option.Ltp = liveLtp;
+            Notify(nameof(SelectedOption));
+            Notify(nameof(EstimatedOrderValue));
+
+            // SELL limits fill more reliably slightly below LTP; BUY slightly above.
+            var tick = OrderPriceHelper.GetTickSize("NFO");
+            var rawPrice = side == "SELL" ? liveLtp - tick : liveLtp + tick;
+            if (rawPrice <= 0)
+                rawPrice = liveLtp;
+
+            var limitPrice = OrderPriceHelper.RoundToTick(rawPrice, "NFO");
+            if (limitPrice <= 0)
+                limitPrice = OrderPriceHelper.RoundToTick(liveLtp, "NFO");
+
             var result = await _zerodha.PlaceOrderAsync(
                 "NFO",
-                SelectedOption.TradingSymbol,
-                OrderSide,
-                OrderQuantity,
+                option.TradingSymbol,
+                side,
+                quantity,
                 "LIMIT",
                 limitPrice,
-                "MIS");
+                product);
 
             if (!result.IsSuccess)
             {
-                PlaceOrderMessage = result.ErrorMessage ?? "Order placement failed.";
+                var marketResult = await _zerodha.PlaceOrderAsync(
+                    "NFO",
+                    option.TradingSymbol,
+                    side,
+                    quantity,
+                    "MARKET",
+                    price: null,
+                    product);
+
+                if (!marketResult.IsSuccess)
+                {
+                    PlaceOrderMessage =
+                        $"{side} failed — Limit: {result.ErrorMessage ?? "rejected"}; Market: {marketResult.ErrorMessage ?? "rejected"}.";
+                    return;
+                }
+
+                PlaceOrderMessage =
+                    $"{side} {quantity} x {option.TradingSymbol} MARKET ({productLabel}). Order ID: {marketResult.OrderId}.";
                 return;
             }
 
             PlaceOrderMessage =
-                $"{OrderSide} {OrderQuantity} x {SelectedOption.TradingSymbol} @ ₹{limitPrice:N2} (MIS). Order ID: {result.OrderId}.";
+                $"{side} {quantity} x {option.TradingSymbol} @ ₹{limitPrice:N2} ({productLabel}). Order ID: {result.OrderId}.";
         }
         catch (Exception ex)
         {
