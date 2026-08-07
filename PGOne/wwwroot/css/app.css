@@ -488,12 +488,6 @@ html, body {
     box-shadow: var(--card-shadow);
 }
 
-.card-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
 @keyframes drawer-attach-in {
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
