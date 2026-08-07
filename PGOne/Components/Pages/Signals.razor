@@ -245,13 +245,13 @@
 
     private async Task PlaceOrderAsync() => await ViewModel.PlaceSelectedOptionOrderAsync();
 
-    private void SetBuySide() => ViewModel.SetOrderSide("BUY");
+    private void SetBuySide() => ViewModel.SetOrderSide(OrderSides.Buy);
 
-    private void SetSellSide() => ViewModel.SetOrderSide("SELL");
+    private void SetSellSide() => ViewModel.SetOrderSide(OrderSides.Sell);
 
-    private void SetMisProduct() => ViewModel.SetOrderProduct("MIS");
+    private void SetMisProduct() => ViewModel.SetOrderProduct(ProductTypes.Mis);
 
-    private void SetCncProduct() => ViewModel.SetOrderProduct("CNC");
+    private void SetCncProduct() => ViewModel.SetOrderProduct(ProductTypes.Cnc);
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
         InvokeAsync(StateHasChanged);
