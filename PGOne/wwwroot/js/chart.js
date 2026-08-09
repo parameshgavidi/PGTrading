@@ -509,9 +509,10 @@ window.pgOneChart = (function () {
             return 'rgba(190, 190, 230, 0.8)';
         }
         if (g === 'cpr') {
-            if (kind === 'sell') return 'rgba(255, 193, 7, 0.75)';
-            if (kind === 'buy') return 'rgba(100, 181, 246, 0.75)';
-            return theme.accentStrong;
+            // Stronger alpha so TC / CPR / BC stay readable on classic white charts.
+            if (kind === 'sell') return 'rgba(245, 166, 35, 0.95)';
+            if (kind === 'buy') return 'rgba(33, 150, 243, 0.95)';
+            return cssVar('--accent', theme.accentStrong) || theme.accentStrong;
         }
         return 'rgba(200, 200, 200, 0.55)';
     }
@@ -576,9 +577,10 @@ window.pgOneChart = (function () {
 
     function drawCprStyleLine(ctx, x0, x1, y, label, kind) {
         var color = levelColor({ group: 'cpr', kind: kind });
+        // High-contrast on classic (white) charts — thin dashed lines were easy to miss.
         ctx.strokeStyle = color;
-        ctx.lineWidth = 1;
-        ctx.setLineDash([8, 4]);
+        ctx.lineWidth = 2;
+        ctx.setLineDash([7, 4]);
         ctx.beginPath();
         ctx.moveTo(x0, y);
         ctx.lineTo(x1, y);
@@ -598,10 +600,55 @@ window.pgOneChart = (function () {
         };
     }
 
+    function utcDayStartMs(date) {
+        return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+    }
+
+    /** When CPR windows were built for the wrong calendar day (weekend), shift onto the candle session. */
+    function alignCprSegmentsToView(segments, view) {
+        if (!segments || !segments.length || !view || !view.length) return segments || [];
+
+        var hasOverlap = false;
+        for (var s = 0; s < segments.length && !hasOverlap; s++) {
+            var start = parseTime(segments[s].start);
+            var end = parseTime(segments[s].end);
+            if (!start || !end) continue;
+            for (var i = 0; i < view.length; i++) {
+                var t = parseTime(view[i].time);
+                if (t && t >= start && t < end) {
+                    hasOverlap = true;
+                    break;
+                }
+            }
+        }
+        if (hasOverlap) return segments;
+
+        var candleTime = parseTime(view[view.length - 1].time);
+        var segTime = parseTime(segments[0].start);
+        if (!candleTime || !segTime) return segments;
+
+        var offsetMs = utcDayStartMs(candleTime) - utcDayStartMs(segTime);
+        if (!offsetMs) return segments;
+
+        return segments.map(function (seg) {
+            var start = parseTime(seg.start);
+            var end = parseTime(seg.end);
+            return {
+                start: start ? start.getTime() + offsetMs : seg.start,
+                end: end ? end.getTime() + offsetMs : seg.end,
+                pivot: seg.pivot,
+                tc: seg.tc,
+                bc: seg.bc
+            };
+        });
+    }
+
     function drawIntradaCprLevels(ctx, view, segments, padding, chartH, slot, toY, toX) {
         if (!segments || segments.length === 0 || !view.length) return;
 
-        segments.forEach(function (seg) {
+        var aligned = alignCprSegmentsToView(segments, view);
+
+        aligned.forEach(function (seg) {
             if (!segmentHasPivot(seg)) return;
 
             var start = parseTime(seg.start);
@@ -622,18 +669,21 @@ window.pgOneChart = (function () {
 
             var x0 = toX(iStart) - slot / 2;
             var x1 = toX(iEnd) + slot / 2;
+            var tc = Number(seg.tc);
+            var pivot = Number(seg.pivot);
+            var bc = Number(seg.bc);
+            if (!Number.isNaN(tc) && tc > 0) drawCprStyleLine(ctx, x0, x1, toY(tc), 'TC', 'sell');
+            if (!Number.isNaN(pivot) && pivot > 0) drawCprStyleLine(ctx, x0, x1, toY(pivot), 'CPR', 'neutral');
+            if (!Number.isNaN(bc) && bc > 0) drawCprStyleLine(ctx, x0, x1, toY(bc), 'BC', 'buy');
 
-            drawCprStyleLine(ctx, x0, x1, toY(Number(seg.tc)), 'TC', 'sell');
-            drawCprStyleLine(ctx, x0, x1, toY(Number(seg.pivot)), 'CPR', 'neutral');
-            drawCprStyleLine(ctx, x0, x1, toY(Number(seg.bc)), 'BC', 'buy');
-
-            ctx.strokeStyle = 'rgba(0, 200, 83, 0.25)';
+            ctx.strokeStyle = 'rgba(56, 126, 209, 0.35)';
             ctx.lineWidth = 1;
-            ctx.setLineDash([]);
+            ctx.setLineDash([2, 3]);
             ctx.beginPath();
             ctx.moveTo(x0, padding.top);
             ctx.lineTo(x0, padding.top + chartH);
             ctx.stroke();
+            ctx.setLineDash([]);
         });
     }
 

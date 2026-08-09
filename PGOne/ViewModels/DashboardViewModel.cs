@@ -443,13 +443,24 @@ public class DashboardViewModel : INotifyPropertyChanged
 
             if (SelectedTimeframe == "1m")
             {
-                var sessionDate = GetChartSessionDate();
+                var sessionDate = MarketHours.GetChartSessionDate();
                 var candles15m = await _marketData.GetCandlesResultAsync(SelectedInstrument, "15m", 80);
                 CprSegments = _intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
 
                 var sessionCandles = result.Candles
                     .Where(c => c.Timestamp.Date == sessionDate)
                     .ToList();
+
+                // If filter missed (holiday / data lag), align CPR windows to the last bar's session.
+                if (sessionCandles.Count == 0 && result.Candles.Count > 0)
+                {
+                    sessionDate = result.Candles[^1].Timestamp.Date;
+                    CprSegments = _intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
+                    sessionCandles = result.Candles
+                        .Where(c => c.Timestamp.Date == sessionDate)
+                        .ToList();
+                }
+
                 ChartCandles = sessionCandles.Count > 0 ? sessionCandles : result.Candles;
             }
             else
@@ -508,15 +519,6 @@ public class DashboardViewModel : INotifyPropertyChanged
         var ema20 = ChartCandles.Count(c => c.Ema20.HasValue);
         var vwap = ChartCandles.Count(c => c.Vwap.HasValue);
         return $" · ST10 {st103}/{ChartCandles.Count} ST7 {st725}/{ChartCandles.Count} EMA20 {ema20}/{ChartCandles.Count} VWAP {vwap}/{ChartCandles.Count}";
-    }
-
-    private static DateTime GetChartSessionDate()
-    {
-        var now = MarketHours.GetIstNow();
-        if (!MarketHours.IsOpen(now) && now.TimeOfDay < MarketHours.OpenTime)
-            return now.Date.AddDays(now.DayOfWeek == DayOfWeek.Monday ? -3 : -1);
-
-        return now.Date;
     }
 
     private void UpdateIntradayCprState()
