@@ -414,7 +414,10 @@ window.pgOneChart = (function () {
 
     function cssVar(name, fallback) {
         try {
-            var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+            var root = document.querySelector('.app-shell') || document.documentElement;
+            var v = getComputedStyle(root).getPropertyValue(name).trim();
+            if (!v)
+                v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
             return v || fallback;
         } catch (e) {
             return fallback;
