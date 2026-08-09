@@ -60,7 +60,10 @@ window.pgOneChart = (function () {
             ema50Line: getNormalizedStudy(field(raw, 'ema50Line'), field(raw, 'ema50')),
             ema200: getNormalizedStudy(field(raw, 'ema200'), field(raw, 'ema200Line')),
             ema200Line: getNormalizedStudy(field(raw, 'ema200Line'), field(raw, 'ema200')),
-            volume: num(field(raw, 'volume'))
+            volume: num(field(raw, 'volume')),
+            patternCode: field(raw, 'patternCode') || null,
+            patternLabel: field(raw, 'patternLabel') || null,
+            patternBias: field(raw, 'patternBias') || null
         };
     }
 
@@ -256,6 +259,7 @@ window.pgOneChart = (function () {
         if (ints.showEma20 != null) merged.showEma20 = intOverlayFlag(ints.showEma20) ? 1 : 0;
         if (ints.showEma50 != null) merged.showEma50 = intOverlayFlag(ints.showEma50) ? 1 : 0;
         if (ints.showEma200 != null) merged.showEma200 = intOverlayFlag(ints.showEma200) ? 1 : 0;
+        if (ints.showPatterns != null) merged.showPatterns = intOverlayFlag(ints.showPatterns) ? 1 : 0;
         if (ints.showSuperTrend725 != null) merged.showSuperTrend725 = intOverlayFlag(ints.showSuperTrend725) ? 1 : 0;
         if (ints.showSuperTrend != null) merged.showSuperTrend = intOverlayFlag(ints.showSuperTrend) ? 1 : 0;
         return merged;
@@ -680,6 +684,65 @@ window.pgOneChart = (function () {
         });
     }
 
+    function patternColor(bias) {
+        if (bias === 'buy') return '#00C853';
+        if (bias === 'sell') return '#FF5252';
+        return '#FFB300';
+    }
+
+    function drawPatternMarkers(ctx, view, padding, chartH, toX, toY, candleWidth) {
+        if (!view || view.length === 0) return;
+        var labelH = 12;
+        ctx.save();
+        ctx.font = 'bold 10px "Segoe UI", sans-serif';
+        ctx.textBaseline = 'middle';
+        for (var i = 0; i < view.length; i++) {
+            var c = view[i];
+            var label = c.patternLabel || c.patternCode;
+            if (!label) continue;
+            var bias = (c.patternBias || 'neutral').toLowerCase();
+            var color = patternColor(bias);
+            var x = toX(i);
+            var above = bias === 'sell';
+            var tipY = above ? toY(c.high) - 6 : toY(c.low) + 6;
+            var textY = above ? tipY - 12 : tipY + 12;
+
+            // Keep labels inside chart area
+            if (above && textY < padding.top + 8) textY = padding.top + 8;
+            if (!above && textY > padding.top + chartH - 8) textY = padding.top + chartH - 8;
+
+            // Marker triangle
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            if (above) {
+                ctx.moveTo(x, tipY);
+                ctx.lineTo(x - 4, tipY - 7);
+                ctx.lineTo(x + 4, tipY - 7);
+            } else {
+                ctx.moveTo(x, tipY);
+                ctx.lineTo(x - 4, tipY + 7);
+                ctx.lineTo(x + 4, tipY + 7);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            // Compact label chip
+            var text = String(label);
+            var tw = ctx.measureText(text).width;
+            var bx = x - tw / 2 - 3;
+            var by = textY - labelH / 2;
+            ctx.fillStyle = chartTheme().labelBg;
+            ctx.fillRect(bx, by, tw + 6, labelH);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(bx, by, tw + 6, labelH);
+            ctx.fillStyle = color;
+            ctx.textAlign = 'center';
+            ctx.fillText(text, x, textY);
+        }
+        ctx.restore();
+    }
+
     function filterLevels(st) {
         return (st.levels || []).filter(function (lv) {
             if (lv.group === 'cam' && !st.showCamarilla) return false;
@@ -710,6 +773,7 @@ window.pgOneChart = (function () {
         const showEma20 = overlayFlag(opts, 'showEma20', false);
         const showEma50 = overlayFlag(opts, 'showEma50', false);
         const showEma200 = overlayFlag(opts, 'showEma200', false);
+        const showPatterns = overlayFlag(opts, 'showPatterns', false);
 
         ensureStudyIndicators(normalized, {
             showVwap: showVwap,
@@ -751,7 +815,8 @@ window.pgOneChart = (function () {
             showEma9: showEma9,
             showEma20: showEma20,
             showEma50: showEma50,
-            showEma200: showEma200
+            showEma200: showEma200,
+            showPatterns: showPatterns
         };
         ensureInteractions(canvas, canvasId);
         scheduleRender(canvasId);
@@ -941,6 +1006,10 @@ window.pgOneChart = (function () {
             ctx.fillRect(toX(i) - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
         });
 
+        if (st.showPatterns) {
+            drawPatternMarkers(ctx, view, padding, chartH, toX, toY, candleWidth);
+        }
+
         // 1m CPR — same dashed line + label style as Day CPR, per 15m window on chart
         if (st.showIntradaCpr && st.intradayCprSegments && st.intradayCprSegments.length > 0) {
             drawIntradaCprLevels(ctx, view, st.intradayCprSegments, padding, chartH, slot, toY, toX);
@@ -1004,7 +1073,16 @@ window.pgOneChart = (function () {
         st.showEma20 = overlayFlag(opts, 'showEma20', false);
         st.showEma50 = overlayFlag(opts, 'showEma50', false);
         st.showEma200 = overlayFlag(opts, 'showEma200', false);
+        st.showPatterns = overlayFlag(opts, 'showPatterns', false);
         ensureStudyIndicators(st.candles, studyFlagsFromState(st));
+        scheduleRender(canvasId);
+        return true;
+    }
+
+    function setPatternsOverlay(canvasId, show) {
+        const st = states[canvasId];
+        if (!st) return false;
+        st.showPatterns = intOverlayFlag(show);
         scheduleRender(canvasId);
         return true;
     }
@@ -1101,6 +1179,7 @@ window.pgOneChart = (function () {
         setVwapOverlay: setVwapOverlay,
         setEma20Overlay: setEma20Overlay,
         setEmaOverlays: setEmaOverlays,
+        setPatternsOverlay: setPatternsOverlay,
         setIntradayCprOverlay: setIntradayCprOverlay,
         hasState: hasState,
         refreshAll: refreshAll,
@@ -1153,6 +1232,16 @@ window.pgOneSetEmaOverlays = function (canvasId, showEma9, showEma20, showEma50,
         return window.pgOneChart.setEmaOverlays(canvasId, showEma9, showEma20, showEma50, showEma200);
     } catch (err) {
         console.error('pgOneSetEmaOverlays failed', err);
+        return false;
+    }
+};
+
+window.pgOneSetPatternsOverlay = function (canvasId, show) {
+    try {
+        if (!window.pgOneChartReady()) return false;
+        return window.pgOneChart.setPatternsOverlay(canvasId, show);
+    } catch (err) {
+        console.error('pgOneSetPatternsOverlay failed', err);
         return false;
     }
 };

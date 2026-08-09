@@ -2390,6 +2390,9 @@ a.btn {
 .legend-color.ema20 { background: rgba(255, 152, 0, 0.9); }
 .legend-color.ema50 { background: rgba(66, 165, 245, 0.95); }
 .legend-color.ema200 { background: rgba(38, 166, 154, 0.95); }
+.legend-color.pattern-buy { background: #00C853; }
+.legend-color.pattern-sell { background: #FF5252; }
+.legend-color.pattern-neutral { background: #FFB300; }
 .legend-color.st725 { background: rgba(0, 188, 212, 0.95); }
 .legend-color.poc { background: linear-gradient(180deg, rgba(0,200,83,0.5) 50%, rgba(255,82,82,0.5) 50%); }
 .legend-color.pivot { background: var(--accent-strong); }

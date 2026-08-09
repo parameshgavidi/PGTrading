@@ -85,7 +85,10 @@ public static class CandleVolumeMerger
         Ema9 = c.Ema9,
         Ema20 = c.Ema20,
         Ema50 = c.Ema50,
-        Ema200 = c.Ema200
+        Ema200 = c.Ema200,
+        PatternCode = c.PatternCode,
+        PatternLabel = c.PatternLabel,
+        PatternBias = c.PatternBias
     };
 
     private static List<Candle> CloneCandles(IReadOnlyList<Candle> candles) =>

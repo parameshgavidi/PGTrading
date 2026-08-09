@@ -49,6 +49,7 @@ public class DashboardViewModel : INotifyPropertyChanged
     public bool ShowEma50Overlay { get; private set; } = false;
     public bool ShowEma200Overlay { get; private set; } = false;
     public bool ShowVwapOverlay { get; private set; } = false;
+    public bool ShowPatternsOverlay { get; private set; } = false;
     public bool Supports5mStudyToggles => SelectedTimeframe == "5m";
     public bool SupportsIntradayStOverlays => SelectedTimeframe is not "1W";
     public bool SupportsSt725Overlays => SelectedTimeframe is "1m" or "5m" or "15m";
@@ -422,6 +423,17 @@ public class DashboardViewModel : INotifyPropertyChanged
         Notify(nameof(OverlayVersion));
     }
 
+    public void SetShowPatternsOverlay(bool show)
+    {
+        if (ShowPatternsOverlay == show)
+            return;
+
+        ShowPatternsOverlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowPatternsOverlay));
+        Notify(nameof(OverlayVersion));
+    }
+
     private async Task LoadChartAsync()
     {
         try
@@ -700,6 +712,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowEma50Overlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowEma200Overlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowVwapOverlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowPatternsOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Supports5mStudyToggles)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SupportsIntradayStOverlays)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CprSegments)));

@@ -76,6 +76,12 @@
             VWAP
         </button>
     }
+    <button type="button"
+            class="btn overlay-toggle @(ShowPatterns ? "active" : "")"
+            title="Important candlestick patterns (engulfing, stars, hammer, doji…)"
+            @onclick="TogglePatternsAsync">
+        All patterns
+    </button>
 </div>
 
 @code {
@@ -96,6 +102,7 @@
     [Parameter] public bool ShowEma50 { get; set; }
     [Parameter] public bool ShowEma200 { get; set; }
     [Parameter] public bool ShowVwap { get; set; }
+    [Parameter] public bool ShowPatterns { get; set; }
     [Parameter] public EventCallback<bool> ShowPocChanged { get; set; }
     [Parameter] public EventCallback<bool> ShowDayCprChanged { get; set; }
     [Parameter] public EventCallback<bool> ShowCamarillaChanged { get; set; }
@@ -108,6 +115,7 @@
     [Parameter] public EventCallback<bool> ShowEma50Changed { get; set; }
     [Parameter] public EventCallback<bool> ShowEma200Changed { get; set; }
     [Parameter] public EventCallback<bool> ShowVwapChanged { get; set; }
+    [Parameter] public EventCallback<bool> ShowPatternsChanged { get; set; }
 
     private async Task TogglePocAsync() => await ShowPocChanged.InvokeAsync(!ShowPoc);
 
@@ -132,4 +140,6 @@
     private async Task ToggleEma200Async() => await ShowEma200Changed.InvokeAsync(!ShowEma200);
 
     private async Task ToggleVwapAsync() => await ShowVwapChanged.InvokeAsync(!ShowVwap);
+
+    private async Task TogglePatternsAsync() => await ShowPatternsChanged.InvokeAsync(!ShowPatterns);
 }
