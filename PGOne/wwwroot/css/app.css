@@ -1405,9 +1405,9 @@ html, body {
 }
 
 .target-pnl-form {
-    display: grid;
-    grid-template-columns: 1fr 1fr auto;
-    gap: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 12px;
     align-items: end;
     margin-top: 12px;
 }
@@ -1418,16 +1418,24 @@ html, body {
     gap: 4px;
     font-size: 12px;
     color: var(--text-secondary);
+    width: 118px;
+    flex: 0 0 auto;
+}
+
+.target-pnl-form .form-input {
+    width: 100%;
+    max-width: 118px;
+    padding: 6px 10px;
+    font-variant-numeric: tabular-nums;
+}
+
+.target-pnl-form .btn {
+    flex: 0 0 auto;
+    margin-bottom: 1px;
 }
 
 .target-pnl-live {
     margin-top: 12px;
-}
-
-@media (max-width: 700px) {
-    .target-pnl-form {
-        grid-template-columns: 1fr;
-    }
 }
 
 .card-header-actions {
@@ -1664,6 +1672,8 @@ a.btn {
     border-radius: 999px;
     font-size: 12px;
     font-weight: 600;
+    background: var(--badge-neutral-bg);
+    color: var(--text);
 }
 
 .summary-pill.buy {
@@ -2008,6 +2018,14 @@ a.btn {
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
+    color: var(--text);
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--gold);
+    flex-shrink: 0;
 }
 
 .trailing-stop-status {
@@ -3191,6 +3209,16 @@ code {
     background: #FFFFFF;
     border-color: rgba(15, 23, 42, 0.16);
     font-weight: 600;
+}
+
+[data-theme="classic"] .target-pnl-monitor-toggle,
+[data-theme="classic"] .checkbox-label {
+    color: #1F2937;
+}
+
+[data-theme="classic"] .summary-pill:not(.buy):not(.sell) {
+    background: #EEF2F7;
+    color: #1F2937;
 }
 
 [data-theme="classic"] .master-automation-toggle {
