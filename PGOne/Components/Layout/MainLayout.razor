@@ -3,10 +3,11 @@
 @inherits LayoutComponentBase
 @inject IZerodhaService ZerodhaService
 @inject IUiLayoutService Layout
+@inject IThemeService Theme
 @inject NavigationManager Navigation
 @implements IDisposable
 
-<div class="app-shell @(Layout.IsNavCollapsed ? "nav-collapsed" : "") @(Layout.IsFocusChart ? "focus-chart" : "")">
+<div class="app-shell @(Layout.IsNavCollapsed ? "nav-collapsed" : "") @(Layout.IsFocusChart ? "focus-chart" : "")" data-theme="@Theme.CurrentTheme">
     <aside class="sidebar" aria-hidden="@Layout.IsNavCollapsed">
         <div class="sidebar-header">
             <div class="sidebar-brand"><span class="brand-pg">PG</span> <span class="brand-one">one</span></div>
@@ -89,6 +90,7 @@
         ZerodhaService.ConnectionChanged += OnConnectionChanged;
         Navigation.LocationChanged += OnNavigationChanged;
         Layout.Changed += OnLayoutChanged;
+        Theme.ThemeChanged += OnThemeChanged;
         UpdatePageTitle();
 
         _timer = new System.Timers.Timer(1000);
@@ -105,6 +107,7 @@
         if (firstRender)
         {
             AppUiEvents.RaiseShellRendered();
+            await Theme.InitializeAsync();
             await Layout.InitializeAsync();
         }
     }
@@ -116,6 +119,7 @@
     }
 
     private void OnLayoutChanged() => InvokeAsync(StateHasChanged);
+    private void OnThemeChanged() => InvokeAsync(StateHasChanged);
 
     private void OnNavigationChanged(object? sender, LocationChangedEventArgs e) =>
         InvokeAsync(() =>
@@ -143,7 +147,7 @@
             "orders" => ("Orders", "Today’s order book"),
             "watchlist" => ("Watchlist", "Tracked symbols"),
             "auto-buy" => ("Auto Buy", "Long CNC automation"),
-            "settings" => ("Settings", "Broker & API configuration"),
+            "settings" => ("Settings", "Broker, theme & API configuration"),
             "holdings" => ("Holdings", "Delivery portfolio"),
             "strategy" => ("Strategy", "Rules & risk notes"),
             _ => ("PG One", string.Empty)
@@ -155,6 +159,7 @@
         ZerodhaService.ConnectionChanged -= OnConnectionChanged;
         Navigation.LocationChanged -= OnNavigationChanged;
         Layout.Changed -= OnLayoutChanged;
+        Theme.ThemeChanged -= OnThemeChanged;
         _timer?.Dispose();
     }
 }

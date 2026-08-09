@@ -14,6 +14,53 @@
         </div>
 
         <div class="settings-section">
+            <h3>Appearance</h3>
+            <p class="text-secondary form-hint">
+                Choose a look that feels comfortable for long trading sessions. Theme changes apply instantly and are saved automatically.
+            </p>
+            <div class="theme-picker" role="radiogroup" aria-label="Theme">
+                <button type="button"
+                        class="theme-option theme-option-black @(IsTheme(AppThemes.Black) ? "selected" : "")"
+                        role="radio"
+                        aria-checked="@(IsTheme(AppThemes.Black) ? "true" : "false")"
+                        disabled="@_themeBusy"
+                        @onclick="() => SelectThemeAsync(AppThemes.Black)">
+                    <span class="theme-swatch" aria-hidden="true">
+                        <span class="theme-swatch-sidebar"></span>
+                        <span class="theme-swatch-main">
+                            <span class="theme-swatch-bar"></span>
+                            <span class="theme-swatch-row"></span>
+                            <span class="theme-swatch-row short"></span>
+                        </span>
+                    </span>
+                    <span class="theme-option-copy">
+                        <strong>Black</strong>
+                        <span>Dark desk · gold accents · easy on the eyes</span>
+                    </span>
+                </button>
+                <button type="button"
+                        class="theme-option theme-option-classic @(IsTheme(AppThemes.Classic) ? "selected" : "")"
+                        role="radio"
+                        aria-checked="@(IsTheme(AppThemes.Classic) ? "true" : "false")"
+                        disabled="@_themeBusy"
+                        @onclick="() => SelectThemeAsync(AppThemes.Classic)">
+                    <span class="theme-swatch" aria-hidden="true">
+                        <span class="theme-swatch-sidebar"></span>
+                        <span class="theme-swatch-main">
+                            <span class="theme-swatch-bar"></span>
+                            <span class="theme-swatch-row"></span>
+                            <span class="theme-swatch-row short"></span>
+                        </span>
+                    </span>
+                    <span class="theme-option-copy">
+                        <strong>White &amp; Blue</strong>
+                        <span>Classic · clean white · Zerodha-style blue</span>
+                    </span>
+                </button>
+            </div>
+        </div>
+
+        <div class="settings-section">
             <h3>Broker — Zerodha</h3>
             <div class="form-row">
                 <label>Broker</label>
@@ -138,12 +185,33 @@
     private string _statusMessage = string.Empty;
     private string _connectStatusMessage = string.Empty;
     private bool _connectStatusIsSuccess;
+    private bool _themeBusy;
 
     protected override async Task OnInitializedAsync()
     {
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         await ViewModel.LoadAsync();
         _statusMessage = ViewModel.StatusMessage;
+    }
+
+    private bool IsTheme(string theme) =>
+        string.Equals(AppThemes.Normalize(ViewModel.Settings.Theme), theme, StringComparison.OrdinalIgnoreCase);
+
+    private async Task SelectThemeAsync(string theme)
+    {
+        if (_themeBusy || IsTheme(theme))
+            return;
+
+        _themeBusy = true;
+        try
+        {
+            await ViewModel.SetThemeAsync(theme);
+            _statusMessage = $"Theme set to {AppThemes.DisplayName(theme)}.";
+        }
+        finally
+        {
+            _themeBusy = false;
+        }
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)

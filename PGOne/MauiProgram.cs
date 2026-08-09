@@ -40,6 +40,7 @@ public static class MauiProgram
 #endif
 
         builder.Services.AddSingleton<ISettingsService, SettingsService>();
+        builder.Services.AddSingleton<IThemeService, ThemeService>();
         builder.Services.AddSingleton<IUiLayoutService, UiLayoutService>();
         builder.Services.AddSingleton<IZerodhaService, ZerodhaService>();
         builder.Services.AddSingleton<IOrderExecutionService, OrderExecutionService>();
