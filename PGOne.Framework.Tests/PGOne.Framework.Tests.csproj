@@ -23,6 +23,7 @@
     <Compile Include="../PGOne/Services/MarketHours.cs" Link="Services/MarketHours.cs" />
     <Compile Include="../PGOne/Services/IntradayCprService.cs" Link="Services/IntradayCprService.cs" />
     <Compile Include="../PGOne/Services/IndicatorService.cs" Link="Services/IndicatorService.cs" />
+    <Compile Include="../PGOne/Services/ChartPatternService.cs" Link="Services/ChartPatternService.cs" />
     <Compile Include="../PGOne/Services/SuperTrendService.cs" Link="Services/SuperTrendService.cs" />
     <Compile Include="../PGOne/Services/SentimentTextHelper.cs" Link="Services/SentimentTextHelper.cs" />
     <Compile Include="../PGOne/Services/LiveNewsImportance.cs" Link="Services/LiveNewsImportance.cs" />

@@ -27,6 +27,7 @@ public class MarketDataService : IMarketDataService
     private readonly IZerodhaService _zerodha;
     private readonly ISuperTrendService _superTrend;
     private readonly IIndicatorService _indicators;
+    private readonly IChartPatternService _patterns;
     private readonly ISettingsService _settings;
     private System.Timers.Timer? _timer;
     private string _streamingInstrument = "NSE:NIFTY 50";
@@ -38,11 +39,13 @@ public class MarketDataService : IMarketDataService
         IZerodhaService zerodha,
         ISuperTrendService superTrend,
         IIndicatorService indicators,
+        IChartPatternService patterns,
         ISettingsService settings)
     {
         _zerodha = zerodha;
         _superTrend = superTrend;
         _indicators = indicators;
+        _patterns = patterns;
         _settings = settings;
     }
 
@@ -243,6 +246,7 @@ public class MarketDataService : IMarketDataService
             }
         }
 
+        _patterns.ApplyPatterns(candles);
         return candles;
     }
 

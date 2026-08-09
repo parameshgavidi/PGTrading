@@ -28,4 +28,13 @@ public class Candle
     public decimal? Ema20 { get; set; }
     public decimal? Ema50 { get; set; }
     public decimal? Ema200 { get; set; }
+
+    /// <summary>Short pattern code for chart markers (e.g. BE, H, MS).</summary>
+    public string? PatternCode { get; set; }
+
+    /// <summary>Human-readable pattern label (e.g. Bull Engulf).</summary>
+    public string? PatternLabel { get; set; }
+
+    /// <summary>buy / sell / neutral — drives marker color.</summary>
+    public string? PatternBias { get; set; }
 }

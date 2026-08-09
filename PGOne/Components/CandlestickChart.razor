@@ -37,6 +37,7 @@
     [Parameter] public bool ShowEma50Overlay { get; set; }
     [Parameter] public bool ShowEma200Overlay { get; set; }
     [Parameter] public bool ShowVwapOverlay { get; set; }
+    [Parameter] public bool ShowPatternsOverlay { get; set; }
     [Parameter] public string Timeframe { get; set; } = "5m";
     [Parameter] public string CssClass { get; set; } = string.Empty;
     [Parameter] public int Width { get; set; } = 800;
@@ -57,6 +58,7 @@
     private bool _lastShowEma50;
     private bool _lastShowEma200;
     private bool _lastShowVwapOverlay;
+    private bool _lastShowPatterns;
     private int _lastCprSegmentCount;
     private string _lastCprSegmentKey = string.Empty;
     private int _pendingRenderRetries;
@@ -84,6 +86,7 @@
             && ShowEma50Overlay == _lastShowEma50
             && ShowEma200Overlay == _lastShowEma200
             && ShowVwapOverlay == _lastShowVwapOverlay
+            && ShowPatternsOverlay == _lastShowPatterns
             && CprSegments.Count == _lastCprSegmentCount
             && segmentKey == _lastCprSegmentKey)
             return;
@@ -114,6 +117,7 @@
         _lastShowEma50 = ShowEma50Overlay;
         _lastShowEma200 = ShowEma200Overlay;
         _lastShowVwapOverlay = ShowVwapOverlay;
+        _lastShowPatterns = ShowPatternsOverlay;
         _lastCprSegmentCount = CprSegments.Count;
         _lastCprSegmentKey = segmentKey;
         _pendingRenderRetries = 0;
@@ -147,6 +151,16 @@
     {
         return ShowVwapOverlay != _lastShowVwapOverlay
             && EmasUnchanged()
+            && ShowPatternsOverlay == _lastShowPatterns
+            && ShowSuperTrendOverlay == _lastShowSuperTrend
+            && ShowSuperTrend725Overlay == _lastShowSuperTrend725;
+    }
+
+    private bool IsPatternsOverlayToggleOnly()
+    {
+        return ShowPatternsOverlay != _lastShowPatterns
+            && ShowVwapOverlay == _lastShowVwapOverlay
+            && EmasUnchanged()
             && ShowSuperTrendOverlay == _lastShowSuperTrend
             && ShowSuperTrend725Overlay == _lastShowSuperTrend725;
     }
@@ -159,6 +173,7 @@
             || ShowEma200Overlay != _lastShowEma200;
         return emaChanged
             && ShowVwapOverlay == _lastShowVwapOverlay
+            && ShowPatternsOverlay == _lastShowPatterns
             && ShowSuperTrendOverlay == _lastShowSuperTrend
             && ShowSuperTrend725Overlay == _lastShowSuperTrend725;
     }
@@ -168,7 +183,8 @@
         return ShowSuperTrend725Overlay != _lastShowSuperTrend725
             && ShowSuperTrendOverlay == _lastShowSuperTrend
             && EmasUnchanged()
-            && ShowVwapOverlay == _lastShowVwapOverlay;
+            && ShowVwapOverlay == _lastShowVwapOverlay
+            && ShowPatternsOverlay == _lastShowPatterns;
     }
 
     private bool IsIntradayCprToggleOnly()
@@ -181,7 +197,8 @@
             && ShowSuperTrendOverlay == _lastShowSuperTrend
             && ShowSuperTrend725Overlay == _lastShowSuperTrend725
             && EmasUnchanged()
-            && ShowVwapOverlay == _lastShowVwapOverlay;
+            && ShowVwapOverlay == _lastShowVwapOverlay
+            && ShowPatternsOverlay == _lastShowPatterns;
     }
 
     private void ScheduleRenderRetry()
@@ -251,6 +268,12 @@
                     return true;
             }
 
+            if (IsPatternsOverlayToggleOnly())
+            {
+                if (await TrySetPatternsOverlayAsync())
+                    return true;
+            }
+
             if (IsSt725OverlayToggleOnly())
             {
                 var st725On = BuildStudyOverlayInts().ShowSt725;
@@ -281,7 +304,8 @@
             showEma9 = ShowEma9Overlay ? 1 : 0,
             showEma20 = ShowEma20Overlay ? 1 : 0,
             showEma50 = ShowEma50Overlay ? 1 : 0,
-            showEma200 = ShowEma200Overlay ? 1 : 0
+            showEma200 = ShowEma200Overlay ? 1 : 0,
+            showPatterns = ShowPatternsOverlay ? 1 : 0
         };
 
         var payload = Candles.Select(c => new
@@ -310,7 +334,10 @@
             ema50 = ToJsDouble(c.Ema50),
             ema50Line = ToJsDouble(c.Ema50),
             ema200 = ToJsDouble(c.Ema200),
-            ema200Line = ToJsDouble(c.Ema200)
+            ema200Line = ToJsDouble(c.Ema200),
+            patternCode = c.PatternCode,
+            patternLabel = c.PatternLabel,
+            patternBias = c.PatternBias
         }).ToList();
 
         var levels = BuildLevelPayload();
@@ -474,6 +501,30 @@
                     ShowEma20Overlay ? 1 : 0,
                     ShowEma50Overlay ? 1 : 0,
                     ShowEma200Overlay ? 1 : 0);
+            }
+            catch when (attempt < 5)
+            {
+                await Task.Delay(80 + attempt * 60);
+            }
+        }
+
+        return false;
+    }
+
+    private async Task<bool> TrySetPatternsOverlayAsync()
+    {
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            try
+            {
+                var hasState = await JS.InvokeAsync<bool>("pgOneChartHasState", CanvasId);
+                if (!hasState)
+                    return false;
+
+                return await JS.InvokeAsync<bool>(
+                    "pgOneSetPatternsOverlay",
+                    CanvasId,
+                    ShowPatternsOverlay ? 1 : 0);
             }
             catch when (attempt < 5)
             {

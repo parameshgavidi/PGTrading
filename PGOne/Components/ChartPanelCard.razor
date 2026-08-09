@@ -31,6 +31,7 @@
                       ShowEma50Overlay="Panel.ShowEma50Overlay"
                       ShowEma200Overlay="Panel.ShowEma200Overlay"
                       ShowVwapOverlay="Panel.ShowVwapOverlay"
+                      ShowPatternsOverlay="Panel.ShowPatternsOverlay"
                       Timeframe="Panel.SelectedTimeframe"
                       CssClass="multi"
                       Width="700"
@@ -61,6 +62,7 @@
                              ShowEma50="Panel.ShowEma50Overlay"
                              ShowEma200="Panel.ShowEma200Overlay"
                              ShowVwap="Panel.ShowVwapOverlay"
+                             ShowPatterns="Panel.ShowPatternsOverlay"
                              ShowPocChanged="v => OnShowPoc(v)"
                              ShowDayCprChanged="v => OnShowPivot(v)"
                              ShowCamarillaChanged="v => OnShowCamarilla(v)"
@@ -72,7 +74,8 @@
                              ShowEma20Changed="v => OnShowEma20(v)"
                              ShowEma50Changed="v => OnShowEma50(v)"
                              ShowEma200Changed="v => OnShowEma200(v)"
-                             ShowVwapChanged="v => OnShowVwap(v)" />
+                             ShowVwapChanged="v => OnShowVwap(v)"
+                             ShowPatternsChanged="v => OnShowPatterns(v)" />
     </div>
     <div class="chart-legend compact">
         @if (Panel.ShowSuperTrendOverlay && Panel.Supports5mStudyToggles)
@@ -99,6 +102,11 @@
         @if (Panel.ShowVwapOverlay && Panel.Supports5mStudyToggles)
         {
             <span class="legend-item"><span class="legend-color vwap"></span> VWAP</span>
+        }
+        @if (Panel.ShowPatternsOverlay)
+        {
+            <span class="legend-item"><span class="legend-color pattern-buy"></span> Bull</span>
+            <span class="legend-item"><span class="legend-color pattern-sell"></span> Bear</span>
         }
         @if (Panel.ShowPocOverlay)
         {
@@ -151,4 +159,5 @@
     private void OnShowEma50(bool v) => ViewModel.SetPanelShowEma50(Panel, v);
     private void OnShowEma200(bool v) => ViewModel.SetPanelShowEma200(Panel, v);
     private void OnShowVwap(bool v) => ViewModel.SetPanelShowVwap(Panel, v);
+    private void OnShowPatterns(bool v) => ViewModel.SetPanelShowPatterns(Panel, v);
 }

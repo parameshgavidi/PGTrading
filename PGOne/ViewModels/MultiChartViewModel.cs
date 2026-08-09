@@ -224,6 +224,16 @@ public class MultiChartViewModel : INotifyPropertyChanged
         NotifyPanels();
     }
 
+    public void SetPanelShowPatterns(ChartPanelModel panel, bool show)
+    {
+        if (panel.ShowPatternsOverlay == show)
+            return;
+
+        panel.ShowPatternsOverlay = show;
+        panel.OverlayVersion++;
+        NotifyPanels();
+    }
+
     public async Task RefreshAsync()
     {
         await UpdatePriceAsync();

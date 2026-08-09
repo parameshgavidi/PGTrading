@@ -20,6 +20,7 @@
                   ShowEma50Overlay="ViewModel.ShowEma50Overlay"
                   ShowEma200Overlay="ViewModel.ShowEma200Overlay"
                   ShowVwapOverlay="ViewModel.ShowVwapOverlay"
+                  ShowPatternsOverlay="ViewModel.ShowPatternsOverlay"
                   Timeframe="ViewModel.SelectedTimeframe"
                   CssClass="@CssClass"
                   Width="@Width"
@@ -50,6 +51,7 @@
                          ShowEma50="ViewModel.ShowEma50Overlay"
                          ShowEma200="ViewModel.ShowEma200Overlay"
                          ShowVwap="ViewModel.ShowVwapOverlay"
+                         ShowPatterns="ViewModel.ShowPatternsOverlay"
                          ShowPocChanged="v => ViewModel.SetShowPocOverlay(v)"
                          ShowDayCprChanged="v => ViewModel.SetShowPivotOverlay(v)"
                          ShowCamarillaChanged="v => ViewModel.SetShowCamarillaOverlay(v)"
@@ -61,7 +63,8 @@
                          ShowEma20Changed="v => ViewModel.SetShowEma20Overlay(v)"
                          ShowEma50Changed="v => ViewModel.SetShowEma50Overlay(v)"
                          ShowEma200Changed="v => ViewModel.SetShowEma200Overlay(v)"
-                         ShowVwapChanged="v => ViewModel.SetShowVwapOverlay(v)" />
+                         ShowVwapChanged="v => ViewModel.SetShowVwapOverlay(v)"
+                         ShowPatternsChanged="v => ViewModel.SetShowPatternsOverlay(v)" />
 </div>
 <div class="chart-legend">
     @if (ViewModel.ShowSuperTrend725Overlay && ViewModel.SupportsSt725Overlays)
@@ -92,6 +95,12 @@
     @if (ViewModel.ShowVwapOverlay && ViewModel.SelectedTimeframe == "5m")
     {
         <span class="legend-item"><span class="legend-color vwap"></span> VWAP</span>
+    }
+    @if (ViewModel.ShowPatternsOverlay)
+    {
+        <span class="legend-item"><span class="legend-color pattern-buy"></span> Bull pattern</span>
+        <span class="legend-item"><span class="legend-color pattern-sell"></span> Bear pattern</span>
+        <span class="legend-item"><span class="legend-color pattern-neutral"></span> Neutral pattern</span>
     }
     @if (ViewModel.ShowPocOverlay)
     {

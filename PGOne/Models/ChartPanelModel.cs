@@ -21,6 +21,7 @@ public class ChartPanelModel
     public bool ShowEma50Overlay { get; set; } = false;
     public bool ShowEma200Overlay { get; set; } = false;
     public bool ShowVwapOverlay { get; set; } = false;
+    public bool ShowPatternsOverlay { get; set; } = false;
     public IReadOnlyList<IntradayCprSegment> CprSegments { get; set; } = Array.Empty<IntradayCprSegment>();
     public bool AboveCpr { get; set; }
     public string? ChartDataMessage { get; set; }
