@@ -51,9 +51,24 @@
     @if (Show5mStudyToggles)
     {
         <button type="button"
+                class="btn overlay-toggle @(ShowEma9 ? "active" : "")"
+                @onclick="ToggleEma9Async">
+            EMA 9
+        </button>
+        <button type="button"
                 class="btn overlay-toggle @(ShowEma20 ? "active" : "")"
                 @onclick="ToggleEma20Async">
             EMA 20
+        </button>
+        <button type="button"
+                class="btn overlay-toggle @(ShowEma50 ? "active" : "")"
+                @onclick="ToggleEma50Async">
+            EMA 50
+        </button>
+        <button type="button"
+                class="btn overlay-toggle @(ShowEma200 ? "active" : "")"
+                @onclick="ToggleEma200Async">
+            EMA 200
         </button>
         <button type="button"
                 class="btn overlay-toggle @(ShowVwap ? "active" : "")"
@@ -76,7 +91,10 @@
     [Parameter] public bool Show5mStudyToggles { get; set; }
     [Parameter] public bool ShowSuperTrend { get; set; }
     [Parameter] public bool ShowSuperTrend725 { get; set; }
+    [Parameter] public bool ShowEma9 { get; set; }
     [Parameter] public bool ShowEma20 { get; set; }
+    [Parameter] public bool ShowEma50 { get; set; }
+    [Parameter] public bool ShowEma200 { get; set; }
     [Parameter] public bool ShowVwap { get; set; }
     [Parameter] public EventCallback<bool> ShowPocChanged { get; set; }
     [Parameter] public EventCallback<bool> ShowDayCprChanged { get; set; }
@@ -85,7 +103,10 @@
     [Parameter] public EventCallback<bool> ShowKeltnerChanged { get; set; }
     [Parameter] public EventCallback<bool> ShowSuperTrendChanged { get; set; }
     [Parameter] public EventCallback<bool> ShowSuperTrend725Changed { get; set; }
+    [Parameter] public EventCallback<bool> ShowEma9Changed { get; set; }
     [Parameter] public EventCallback<bool> ShowEma20Changed { get; set; }
+    [Parameter] public EventCallback<bool> ShowEma50Changed { get; set; }
+    [Parameter] public EventCallback<bool> ShowEma200Changed { get; set; }
     [Parameter] public EventCallback<bool> ShowVwapChanged { get; set; }
 
     private async Task TogglePocAsync() => await ShowPocChanged.InvokeAsync(!ShowPoc);
@@ -102,7 +123,13 @@
 
     private async Task ToggleSuperTrend725Async() => await ShowSuperTrend725Changed.InvokeAsync(!ShowSuperTrend725);
 
+    private async Task ToggleEma9Async() => await ShowEma9Changed.InvokeAsync(!ShowEma9);
+
     private async Task ToggleEma20Async() => await ShowEma20Changed.InvokeAsync(!ShowEma20);
+
+    private async Task ToggleEma50Async() => await ShowEma50Changed.InvokeAsync(!ShowEma50);
+
+    private async Task ToggleEma200Async() => await ShowEma200Changed.InvokeAsync(!ShowEma200);
 
     private async Task ToggleVwapAsync() => await ShowVwapChanged.InvokeAsync(!ShowVwap);
 }

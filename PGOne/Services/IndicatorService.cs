@@ -16,6 +16,7 @@ public interface IIndicatorService
     void ApplyKeltner(List<Candle> candles, int emaPeriod, int atrPeriod, double multiplierInner, double multiplierOuter);
     void ApplyVwap(List<Candle> candles);
     void ApplyEma20(List<Candle> candles, int period = 20);
+    void ApplyChartEmas(List<Candle> candles);
 }
 
 public class IndicatorService : IIndicatorService
@@ -244,13 +245,24 @@ public class IndicatorService : IIndicatorService
     }
 
     public void ApplyEma20(List<Candle> candles, int period = 20)
+        => ApplyEma(candles, period, static (c, v) => c.Ema20 = v);
+
+    public void ApplyChartEmas(List<Candle> candles)
+    {
+        ApplyEma(candles, 9, static (c, v) => c.Ema9 = v);
+        ApplyEma(candles, 20, static (c, v) => c.Ema20 = v);
+        ApplyEma(candles, 50, static (c, v) => c.Ema50 = v);
+        ApplyEma(candles, 200, static (c, v) => c.Ema200 = v);
+    }
+
+    private static void ApplyEma(List<Candle> candles, int period, Action<Candle, decimal?> assign)
     {
         if (candles.Count == 0)
             return;
 
         var values = Ema(candles.Select(c => c.Close).ToList(), period);
         for (var i = 0; i < candles.Count; i++)
-            candles[i].Ema20 = values[i];
+            assign(candles[i], values[i]);
     }
 
     private static decimal?[] Ema(List<decimal> values, int period)

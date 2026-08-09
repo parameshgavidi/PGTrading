@@ -9,7 +9,7 @@ public class ChartOverlayIndicatorTests
     [Fact]
     public void Five_minute_indicators_populate_super_trend_ema_and_vwap()
     {
-        var candles = BuildTrendingCandles(150);
+        var candles = BuildTrendingCandles(260);
         var superTrend = new SuperTrendService();
         var indicators = new IndicatorService();
 
@@ -31,13 +31,28 @@ public class ChartOverlayIndicatorTests
             candles[startIndex + i].SuperTrendEntry = st725[i];
 
         indicators.ApplyVwap(candles);
-        indicators.ApplyEma20(candles, 20);
+        indicators.ApplyChartEmas(candles);
 
         var visible = candles.TakeLast(50).ToList();
         Assert.All(visible, c => Assert.NotNull(c.SuperTrend));
         Assert.All(visible, c => Assert.NotNull(c.SuperTrendEntry));
         Assert.All(visible, c => Assert.NotNull(c.Vwap));
+        Assert.All(visible.Skip(8), c => Assert.NotNull(c.Ema9));
         Assert.All(visible.Skip(19), c => Assert.NotNull(c.Ema20));
+        Assert.All(visible.Skip(49), c => Assert.NotNull(c.Ema50));
+        Assert.All(candles.Skip(199), c => Assert.NotNull(c.Ema200));
+    }
+
+    [Fact]
+    public void Chart_emas_require_enough_bars_for_longest_period()
+    {
+        var shortSeries = BuildTrendingCandles(40);
+        new IndicatorService().ApplyChartEmas(shortSeries);
+
+        Assert.All(shortSeries.Skip(8), c => Assert.NotNull(c.Ema9));
+        Assert.All(shortSeries.Skip(19), c => Assert.NotNull(c.Ema20));
+        Assert.Null(shortSeries[^1].Ema50);
+        Assert.Null(shortSeries[^1].Ema200);
     }
 
     private static List<Candle> BuildTrendingCandles(int count)

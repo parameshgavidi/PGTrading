@@ -26,7 +26,10 @@
                       ShowIntradayCprLevels="Panel.ShowIntradayCprOverlay"
                       ShowSuperTrendOverlay="Panel.ShowSuperTrendOverlay"
                       ShowSuperTrend725Overlay="Panel.ShowSuperTrend725Overlay"
+                      ShowEma9Overlay="Panel.ShowEma9Overlay"
                       ShowEma20Overlay="Panel.ShowEma20Overlay"
+                      ShowEma50Overlay="Panel.ShowEma50Overlay"
+                      ShowEma200Overlay="Panel.ShowEma200Overlay"
                       ShowVwapOverlay="Panel.ShowVwapOverlay"
                       Timeframe="Panel.SelectedTimeframe"
                       CssClass="multi"
@@ -53,7 +56,10 @@
                              ShowKeltner="Panel.ShowKeltnerOverlay"
                              ShowSuperTrend="Panel.ShowSuperTrendOverlay"
                              ShowSuperTrend725="Panel.ShowSuperTrend725Overlay"
+                             ShowEma9="Panel.ShowEma9Overlay"
                              ShowEma20="Panel.ShowEma20Overlay"
+                             ShowEma50="Panel.ShowEma50Overlay"
+                             ShowEma200="Panel.ShowEma200Overlay"
                              ShowVwap="Panel.ShowVwapOverlay"
                              ShowPocChanged="v => OnShowPoc(v)"
                              ShowDayCprChanged="v => OnShowPivot(v)"
@@ -62,7 +68,10 @@
                              ShowKeltnerChanged="v => OnShowKeltner(v)"
                              ShowSuperTrendChanged="v => OnShowSuperTrend(v)"
                              ShowSuperTrend725Changed="v => OnShowSuperTrend725(v)"
+                             ShowEma9Changed="v => OnShowEma9(v)"
                              ShowEma20Changed="v => OnShowEma20(v)"
+                             ShowEma50Changed="v => OnShowEma50(v)"
+                             ShowEma200Changed="v => OnShowEma200(v)"
                              ShowVwapChanged="v => OnShowVwap(v)" />
     </div>
     <div class="chart-legend compact">
@@ -71,9 +80,21 @@
             <span class="legend-item"><span class="legend-color buy"></span> ST BUY</span>
             <span class="legend-item"><span class="legend-color sell"></span> ST SELL</span>
         }
+        @if (Panel.ShowEma9Overlay && Panel.Supports5mStudyToggles)
+        {
+            <span class="legend-item"><span class="legend-color ema9"></span> EMA 9</span>
+        }
         @if (Panel.ShowEma20Overlay && Panel.Supports5mStudyToggles)
         {
             <span class="legend-item"><span class="legend-color ema20"></span> EMA 20</span>
+        }
+        @if (Panel.ShowEma50Overlay && Panel.Supports5mStudyToggles)
+        {
+            <span class="legend-item"><span class="legend-color ema50"></span> EMA 50</span>
+        }
+        @if (Panel.ShowEma200Overlay && Panel.Supports5mStudyToggles)
+        {
+            <span class="legend-item"><span class="legend-color ema200"></span> EMA 200</span>
         }
         @if (Panel.ShowVwapOverlay && Panel.Supports5mStudyToggles)
         {
@@ -125,6 +146,9 @@
     private void OnShowIntradayCpr(bool v) => ViewModel.SetPanelShowIntradayCpr(Panel, v);
     private void OnShowSuperTrend(bool v) => ViewModel.SetPanelShowSuperTrend(Panel, v);
     private void OnShowSuperTrend725(bool v) => ViewModel.SetPanelShowSuperTrend725(Panel, v);
+    private void OnShowEma9(bool v) => ViewModel.SetPanelShowEma9(Panel, v);
     private void OnShowEma20(bool v) => ViewModel.SetPanelShowEma20(Panel, v);
+    private void OnShowEma50(bool v) => ViewModel.SetPanelShowEma50(Panel, v);
+    private void OnShowEma200(bool v) => ViewModel.SetPanelShowEma200(Panel, v);
     private void OnShowVwap(bool v) => ViewModel.SetPanelShowVwap(Panel, v);
 }

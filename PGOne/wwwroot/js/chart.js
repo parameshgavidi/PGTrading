@@ -52,8 +52,14 @@ window.pgOneChart = (function () {
             keltnerMid: num(field(raw, 'keltnerMid')),
             vwap: getNormalizedStudy(field(raw, 'vwap'), field(raw, 'vwapLine')),
             vwapLine: getNormalizedStudy(field(raw, 'vwapLine'), field(raw, 'vwap')),
+            ema9: getNormalizedStudy(field(raw, 'ema9'), field(raw, 'ema9Line')),
+            ema9Line: getNormalizedStudy(field(raw, 'ema9Line'), field(raw, 'ema9')),
             ema20: getNormalizedStudy(field(raw, 'ema20'), field(raw, 'ema20Line')),
             ema20Line: getNormalizedStudy(field(raw, 'ema20Line'), field(raw, 'ema20')),
+            ema50: getNormalizedStudy(field(raw, 'ema50'), field(raw, 'ema50Line')),
+            ema50Line: getNormalizedStudy(field(raw, 'ema50Line'), field(raw, 'ema50')),
+            ema200: getNormalizedStudy(field(raw, 'ema200'), field(raw, 'ema200Line')),
+            ema200Line: getNormalizedStudy(field(raw, 'ema200Line'), field(raw, 'ema200')),
             volume: num(field(raw, 'volume'))
         };
     }
@@ -72,22 +78,32 @@ window.pgOneChart = (function () {
         return v != null && !Number.isNaN(v) ? v : null;
     }
 
-    function getEma20Value(candle) {
+    function getEmaValue(candle, key) {
         if (!candle) return null;
-        var v = candle.ema20Line;
+        var lineKey = key + 'Line';
+        var v = candle[lineKey];
         if (v != null && !Number.isNaN(v)) return v;
-        v = candle.ema20;
+        v = candle[key];
         return v != null && !Number.isNaN(v) ? v : null;
     }
+
+    function getEma9Value(candle) { return getEmaValue(candle, 'ema9'); }
+    function getEma20Value(candle) { return getEmaValue(candle, 'ema20'); }
+    function getEma50Value(candle) { return getEmaValue(candle, 'ema50'); }
+    function getEma200Value(candle) { return getEmaValue(candle, 'ema200'); }
 
     function assignVwapValue(candle, value) {
         candle.vwap = value;
         candle.vwapLine = value;
     }
 
+    function assignEmaValue(candle, key, value) {
+        candle[key] = value;
+        candle[key + 'Line'] = value;
+    }
+
     function assignEma20Value(candle, value) {
-        candle.ema20 = value;
-        candle.ema20Line = value;
+        assignEmaValue(candle, 'ema20', value);
     }
 
     function getSt725Value(candle) {
@@ -115,18 +131,23 @@ window.pgOneChart = (function () {
         return found < (minCount || Math.min(3, Math.floor(candles.length / 4)));
     }
 
-    function computeEma20(candles, period) {
+    function computeEma(candles, period, key) {
         period = period || 20;
+        key = key || ('ema' + period);
         if (candles.length < period) return;
         var k = 2 / (period + 1);
         var sum = 0;
         for (var i = 0; i < period; i++) sum += candles[i].close;
         var ema = sum / period;
-        assignEma20Value(candles[period - 1], ema);
+        assignEmaValue(candles[period - 1], key, ema);
         for (var j = period; j < candles.length; j++) {
             ema = candles[j].close * k + ema * (1 - k);
-            assignEma20Value(candles[j], ema);
+            assignEmaValue(candles[j], key, ema);
         }
+    }
+
+    function computeEma20(candles, period) {
+        computeEma(candles, period || 20, 'ema20');
     }
 
     function computeSessionVwap(candles) {
@@ -202,10 +223,25 @@ window.pgOneChart = (function () {
     function ensureStudyIndicators(candles, flags) {
         if (!candles || candles.length === 0) return;
         // Always compute when overlay is enabled so toggling ON never hits empty series.
-        if (flags.showEma20) computeEma20(candles, 20);
+        if (flags.showEma9) computeEma(candles, 9, 'ema9');
+        if (flags.showEma20) computeEma(candles, 20, 'ema20');
+        if (flags.showEma50) computeEma(candles, 50, 'ema50');
+        if (flags.showEma200) computeEma(candles, 200, 'ema200');
         if (flags.showVwap) computeSessionVwap(candles);
         if (flags.showSuperTrend725) computeSuperTrendSeries(candles, 7, 2.5, 'superTrend725');
         if (flags.showSuperTrend) computeSuperTrendSeries(candles, 10, 3, 'superTrend');
+    }
+
+    function studyFlagsFromState(st) {
+        return {
+            showVwap: !!st.showVwap,
+            showEma9: !!st.showEma9,
+            showEma20: !!st.showEma20,
+            showEma50: !!st.showEma50,
+            showEma200: !!st.showEma200,
+            showSuperTrend725: !!st.showSuperTrend725,
+            showSuperTrend: !!st.showSuperTrend
+        };
     }
 
     function intOverlayFlag(v) {
@@ -216,7 +252,10 @@ window.pgOneChart = (function () {
         if (!ints) return opts || {};
         var merged = Object.assign({}, opts || {});
         if (ints.showVwap != null) merged.showVwap = intOverlayFlag(ints.showVwap) ? 1 : 0;
+        if (ints.showEma9 != null) merged.showEma9 = intOverlayFlag(ints.showEma9) ? 1 : 0;
         if (ints.showEma20 != null) merged.showEma20 = intOverlayFlag(ints.showEma20) ? 1 : 0;
+        if (ints.showEma50 != null) merged.showEma50 = intOverlayFlag(ints.showEma50) ? 1 : 0;
+        if (ints.showEma200 != null) merged.showEma200 = intOverlayFlag(ints.showEma200) ? 1 : 0;
         if (ints.showSuperTrend725 != null) merged.showSuperTrend725 = intOverlayFlag(ints.showSuperTrend725) ? 1 : 0;
         if (ints.showSuperTrend != null) merged.showSuperTrend = intOverlayFlag(ints.showSuperTrend) ? 1 : 0;
         return merged;
@@ -263,12 +302,17 @@ window.pgOneChart = (function () {
                 if (v != null) extra.push(v);
             });
         }
-        if (st.showEma20) {
+        function pushEma(getter, enabled) {
+            if (!enabled) return;
             view.forEach(function (c) {
-                var v = getEma20Value(c);
+                var v = getter(c);
                 if (v != null) extra.push(v);
             });
         }
+        pushEma(getEma9Value, st.showEma9);
+        pushEma(getEma20Value, st.showEma20);
+        pushEma(getEma50Value, st.showEma50);
+        pushEma(getEma200Value, st.showEma200);
         const maxPrice = Math.max(
             ...highs,
             ...(extra.length ? extra : [Number.MIN_VALUE]),
@@ -662,11 +706,17 @@ window.pgOneChart = (function () {
         const showVwap = overlayFlag(opts, 'showVwap', false);
         const showSuperTrend = overlayFlag(opts, 'showSuperTrend', false);
         const showSuperTrend725 = overlayFlag(opts, 'showSuperTrend725', false);
+        const showEma9 = overlayFlag(opts, 'showEma9', false);
         const showEma20 = overlayFlag(opts, 'showEma20', false);
+        const showEma50 = overlayFlag(opts, 'showEma50', false);
+        const showEma200 = overlayFlag(opts, 'showEma200', false);
 
         ensureStudyIndicators(normalized, {
             showVwap: showVwap,
+            showEma9: showEma9,
             showEma20: showEma20,
+            showEma50: showEma50,
+            showEma200: showEma200,
             showSuperTrend725: showSuperTrend725,
             showSuperTrend: showSuperTrend
         });
@@ -698,7 +748,10 @@ window.pgOneChart = (function () {
             showVwap: showVwap,
             showSuperTrend: showSuperTrend,
             showSuperTrend725: showSuperTrend725,
-            showEma20: showEma20
+            showEma9: showEma9,
+            showEma20: showEma20,
+            showEma50: showEma50,
+            showEma200: showEma200
         };
         ensureInteractions(canvas, canvasId);
         scheduleRender(canvasId);
@@ -920,8 +973,17 @@ window.pgOneChart = (function () {
             drawStudyLine(getVwapValue, theme.accent, [4, 3], 2.5);
         }
 
+        if (st.showEma9) {
+            drawStudyLine(getEma9Value, 'rgba(171, 71, 188, 0.95)', [2, 2], 2.0);
+        }
         if (st.showEma20) {
             drawStudyLine(getEma20Value, 'rgba(255, 152, 0, 0.95)', [8, 4], 2.5);
+        }
+        if (st.showEma50) {
+            drawStudyLine(getEma50Value, 'rgba(66, 165, 245, 0.95)', [6, 3], 2.25);
+        }
+        if (st.showEma200) {
+            drawStudyLine(getEma200Value, 'rgba(38, 166, 154, 0.95)', [10, 4], 2.5);
         }
     }
 
@@ -938,13 +1000,11 @@ window.pgOneChart = (function () {
         st.showVwap = overlayFlag(opts, 'showVwap', false);
         st.showSuperTrend = overlayFlag(opts, 'showSuperTrend', false);
         st.showSuperTrend725 = overlayFlag(opts, 'showSuperTrend725', false);
+        st.showEma9 = overlayFlag(opts, 'showEma9', false);
         st.showEma20 = overlayFlag(opts, 'showEma20', false);
-        ensureStudyIndicators(st.candles, {
-            showVwap: st.showVwap,
-            showEma20: st.showEma20,
-            showSuperTrend725: st.showSuperTrend725,
-            showSuperTrend: st.showSuperTrend
-        });
+        st.showEma50 = overlayFlag(opts, 'showEma50', false);
+        st.showEma200 = overlayFlag(opts, 'showEma200', false);
+        ensureStudyIndicators(st.candles, studyFlagsFromState(st));
         scheduleRender(canvasId);
         return true;
     }
@@ -953,12 +1013,7 @@ window.pgOneChart = (function () {
         const st = states[canvasId];
         if (!st) return false;
         st.showSuperTrend725 = intOverlayFlag(show);
-        ensureStudyIndicators(st.candles, {
-            showVwap: st.showVwap,
-            showEma20: st.showEma20,
-            showSuperTrend725: st.showSuperTrend725,
-            showSuperTrend: st.showSuperTrend
-        });
+        ensureStudyIndicators(st.candles, studyFlagsFromState(st));
         scheduleRender(canvasId);
         return true;
     }
@@ -967,12 +1022,7 @@ window.pgOneChart = (function () {
         const st = states[canvasId];
         if (!st) return false;
         st.showVwap = intOverlayFlag(show);
-        ensureStudyIndicators(st.candles, {
-            showVwap: st.showVwap,
-            showEma20: st.showEma20,
-            showSuperTrend725: st.showSuperTrend725,
-            showSuperTrend: st.showSuperTrend
-        });
+        ensureStudyIndicators(st.candles, studyFlagsFromState(st));
         scheduleRender(canvasId);
         return true;
     }
@@ -981,12 +1031,19 @@ window.pgOneChart = (function () {
         const st = states[canvasId];
         if (!st) return false;
         st.showEma20 = intOverlayFlag(show);
-        ensureStudyIndicators(st.candles, {
-            showVwap: st.showVwap,
-            showEma20: st.showEma20,
-            showSuperTrend725: st.showSuperTrend725,
-            showSuperTrend: st.showSuperTrend
-        });
+        ensureStudyIndicators(st.candles, studyFlagsFromState(st));
+        scheduleRender(canvasId);
+        return true;
+    }
+
+    function setEmaOverlays(canvasId, showEma9, showEma20, showEma50, showEma200) {
+        const st = states[canvasId];
+        if (!st) return false;
+        st.showEma9 = intOverlayFlag(showEma9);
+        st.showEma20 = intOverlayFlag(showEma20);
+        st.showEma50 = intOverlayFlag(showEma50);
+        st.showEma200 = intOverlayFlag(showEma200);
+        ensureStudyIndicators(st.candles, studyFlagsFromState(st));
         scheduleRender(canvasId);
         return true;
     }
@@ -1014,12 +1071,7 @@ window.pgOneChart = (function () {
         st.showEma20 = intOverlayFlag(showEma20);
         st.showSuperTrend725 = intOverlayFlag(showSt725);
         st.showSuperTrend = intOverlayFlag(showSt103);
-        ensureStudyIndicators(st.candles, {
-            showVwap: st.showVwap,
-            showEma20: st.showEma20,
-            showSuperTrend725: st.showSuperTrend725,
-            showSuperTrend: st.showSuperTrend
-        });
+        ensureStudyIndicators(st.candles, studyFlagsFromState(st));
         scheduleRender(canvasId);
         return true;
     }
@@ -1048,6 +1100,7 @@ window.pgOneChart = (function () {
         setSt725Overlay: setSt725Overlay,
         setVwapOverlay: setVwapOverlay,
         setEma20Overlay: setEma20Overlay,
+        setEmaOverlays: setEmaOverlays,
         setIntradayCprOverlay: setIntradayCprOverlay,
         hasState: hasState,
         refreshAll: refreshAll,
@@ -1090,6 +1143,16 @@ window.pgOneSetEma20Overlay = function (canvasId, show) {
         return window.pgOneChart.setEma20Overlay(canvasId, show);
     } catch (err) {
         console.error('pgOneSetEma20Overlay failed', err);
+        return false;
+    }
+};
+
+window.pgOneSetEmaOverlays = function (canvasId, showEma9, showEma20, showEma50, showEma200) {
+    try {
+        if (!window.pgOneChartReady()) return false;
+        return window.pgOneChart.setEmaOverlays(canvasId, showEma9, showEma20, showEma50, showEma200);
+    } catch (err) {
+        console.error('pgOneSetEmaOverlays failed', err);
         return false;
     }
 };
