@@ -81,6 +81,7 @@ public class SettingsService : ISettingsService
         Settings.TelegramBotToken = settings.TelegramBotToken;
         Settings.TelegramChatId = settings.TelegramChatId;
         Settings.HuggingFaceApiToken = settings.HuggingFaceApiToken;
+        Settings.Theme = AppThemes.Normalize(settings.Theme);
     }
 
     public async Task SaveSettingsAsync()

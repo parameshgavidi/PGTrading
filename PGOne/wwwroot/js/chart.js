@@ -412,6 +412,27 @@ window.pgOneChart = (function () {
 
     function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
+    function cssVar(name, fallback) {
+        try {
+            var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+            return v || fallback;
+        } catch (e) {
+            return fallback;
+        }
+    }
+
+    function chartTheme() {
+        return {
+            bg: cssVar('--chart-bg', '#121212'),
+            grid: cssVar('--chart-grid', '#2A2A2A'),
+            axis: cssVar('--chart-axis', '#AAAAAA'),
+            axisStrong: cssVar('--chart-axis-strong', '#B8B8B8'),
+            labelBg: cssVar('--chart-label-bg', 'rgba(18, 18, 18, 0.82)'),
+            accent: cssVar('--gold', '#D4AF37'),
+            accentStrong: cssVar('--accent-strong', 'rgba(212, 175, 55, 0.85)')
+        };
+    }
+
     function zoomAt(id, factor) {
         const st = states[id];
         if (!st) return;
@@ -424,10 +445,11 @@ window.pgOneChart = (function () {
     function levelColor(level) {
         const g = level.group || '';
         const kind = level.kind || '';
+        const theme = chartTheme();
         if (g === 'today') {
             if (kind === 'sell') return 'rgba(255, 82, 82, 0.85)';
             if (kind === 'buy') return 'rgba(0, 200, 83, 0.85)';
-            return 'rgba(212, 175, 55, 0.9)';
+            return theme.accentStrong;
         }
         if (g === 'prev') return 'rgba(160, 160, 160, 0.65)';
         if (g === 'cam') {
@@ -438,7 +460,7 @@ window.pgOneChart = (function () {
         if (g === 'cpr') {
             if (kind === 'sell') return 'rgba(255, 193, 7, 0.75)';
             if (kind === 'buy') return 'rgba(100, 181, 246, 0.75)';
-            return 'rgba(212, 175, 55, 0.85)';
+            return theme.accentStrong;
         }
         return 'rgba(200, 200, 200, 0.55)';
     }
@@ -476,7 +498,7 @@ window.pgOneChart = (function () {
     function fillChartBackground(ctx, padding, width, chartH) {
         var left = padding.left;
         var w = width - padding.right - left;
-        ctx.fillStyle = '#121212';
+        ctx.fillStyle = chartTheme().bg;
         ctx.fillRect(left, padding.top, w, chartH);
     }
 
@@ -573,7 +595,7 @@ window.pgOneChart = (function () {
         var h = 14;
         var top = y - h + 1;
 
-        ctx.fillStyle = 'rgba(18, 18, 18, 0.82)';
+        ctx.fillStyle = chartTheme().labelBg;
         ctx.fillRect(x, top, w, h);
 
         ctx.strokeStyle = color;
@@ -716,8 +738,9 @@ window.pgOneChart = (function () {
         const chartW = width - padding.left - padding.right;
         const chartH = height - padding.top - padding.bottom;
 
+        const theme = chartTheme();
         ctx.clearRect(0, 0, width, height);
-        ctx.fillStyle = '#121212';
+        ctx.fillStyle = theme.bg;
         ctx.fillRect(0, 0, width, height);
 
         const view = getChartView(st);
@@ -739,7 +762,7 @@ window.pgOneChart = (function () {
         ctx.textBaseline = 'middle';
         for (let i = 0; i <= 4; i++) {
             const y = padding.top + (chartH / 4) * i;
-            ctx.strokeStyle = '#2A2A2A';
+            ctx.strokeStyle = theme.grid;
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(padding.left, y);
@@ -747,7 +770,7 @@ window.pgOneChart = (function () {
             ctx.stroke();
 
             const price = visibleMax - (visibleRange / 4) * i;
-            ctx.fillStyle = '#AAAAAA';
+            ctx.fillStyle = theme.axis;
             ctx.font = '12px "Segoe UI", sans-serif';
             ctx.textAlign = 'left';
             ctx.fillText(price.toFixed(2), width - padding.right + 6, y);
@@ -756,7 +779,7 @@ window.pgOneChart = (function () {
         ctx.textBaseline = 'alphabetic';
         const labelCount = Math.min(7, view.length);
         const step = Math.max(1, Math.floor(view.length / labelCount));
-        ctx.fillStyle = '#B8B8B8';
+        ctx.fillStyle = theme.axisStrong;
         ctx.font = '12px "Segoe UI", sans-serif';
         ctx.textAlign = 'center';
         let lastDay = null;
@@ -891,7 +914,7 @@ window.pgOneChart = (function () {
         }
 
         if (st.showVwap) {
-            drawStudyLine(getVwapValue, '#D4AF37', [4, 3], 2.5);
+            drawStudyLine(getVwapValue, theme.accent, [4, 3], 2.5);
         }
 
         if (st.showEma20) {
@@ -1002,6 +1025,12 @@ window.pgOneChart = (function () {
         return !!states[canvasId];
     }
 
+    function refreshAll() {
+        Object.keys(states).forEach(function (id) {
+            scheduleRender(id);
+        });
+    }
+
     window.pgOneMergeOverlayInts = mergeOverlayInts;
 
     function isReady() {
@@ -1018,6 +1047,7 @@ window.pgOneChart = (function () {
         setEma20Overlay: setEma20Overlay,
         setIntradayCprOverlay: setIntradayCprOverlay,
         hasState: hasState,
+        refreshAll: refreshAll,
         zoom: zoom,
         resetZoom: resetZoom
     };

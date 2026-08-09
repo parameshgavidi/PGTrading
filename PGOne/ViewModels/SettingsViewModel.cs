@@ -123,8 +123,18 @@ public class SettingsViewModel : INotifyPropertyChanged
         SoundNotifications = source.SoundNotifications,
         TelegramBotToken = source.TelegramBotToken,
         TelegramChatId = source.TelegramChatId,
-        HuggingFaceApiToken = source.HuggingFaceApiToken
+        HuggingFaceApiToken = source.HuggingFaceApiToken,
+        Theme = AppThemes.Normalize(source.Theme)
     };
+
+    public async Task SetThemeAsync(string theme)
+    {
+        var normalized = AppThemes.Normalize(theme);
+        Settings.Theme = normalized;
+        _settings.Settings.Theme = normalized;
+        await _settings.SaveSettingsAsync();
+        Notify(nameof(Settings));
+    }
 
     private void Notify([CallerMemberName] string? property = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="black">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,6 +7,15 @@
     <base href="/" />
     <link rel="stylesheet" href="css/app.css" />
     <link rel="icon" href="images/pgone_logo.png" type="image/png" />
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('pgone.theme');
+                if (t === 'classic' || t === 'black')
+                    document.documentElement.setAttribute('data-theme', t);
+            } catch (e) { /* ignore */ }
+        })();
+    </script>
 </head>
 <body>
     <div id="app">
@@ -25,6 +34,25 @@
     <div id="pg-diag"></div>
 
     <script>
+        window.pgOneTheme = {
+            normalize: function (theme) {
+                return theme === 'classic' ? 'classic' : 'black';
+            },
+            apply: function (theme) {
+                var t = this.normalize(theme);
+                document.documentElement.setAttribute('data-theme', t);
+                try { localStorage.setItem('pgone.theme', t); } catch (e) { /* ignore */ }
+                try {
+                    if (window.pgOneChart && typeof window.pgOneChart.refreshAll === 'function')
+                        window.pgOneChart.refreshAll();
+                } catch (e) { /* ignore */ }
+                return t;
+            },
+            current: function () {
+                return document.documentElement.getAttribute('data-theme') || 'black';
+            }
+        };
+
         (function () {
             function diag(msg) {
                 var d = document.getElementById('pg-diag');
@@ -61,6 +89,6 @@
     </script>
     <!-- Blazor must load before chart scripts so a chart error cannot block the UI. -->
     <script src="_framework/blazor.webview.js" autostart="false"></script>
-    <script src="js/chart.js?v=20260810"></script>
+    <script src="js/chart.js?v=20260809-theme"></script>
 </body>
 </html>
