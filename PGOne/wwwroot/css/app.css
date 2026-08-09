@@ -2397,7 +2397,9 @@ a.btn {
 .legend-color.poc { background: linear-gradient(180deg, rgba(0,200,83,0.5) 50%, rgba(255,82,82,0.5) 50%); }
 .legend-color.pivot { background: var(--accent-strong); }
 .legend-color.camarilla { background: rgba(255, 150, 110, 0.75); }
-.legend-color.cpr-tc { background: rgba(100, 181, 246, 0.85); }
+.legend-color.cpr-tc { background: rgba(245, 166, 35, 0.95); }
+.legend-color.cpr-pivot { background: var(--accent, #387ED1); }
+.legend-color.cpr-bc { background: rgba(33, 150, 243, 0.95); }
 
 .cpr-position-badge {
     padding: 4px 10px;

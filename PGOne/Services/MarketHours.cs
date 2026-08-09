@@ -32,4 +32,14 @@ public static class MarketHours
 
         return close;
     }
+
+    /// <summary>
+    /// Trading session date for chart overlays (1m CPR bands, session candle filter).
+    /// Uses the last completed/open session — not calendar "today" on weekends/holidays.
+    /// </summary>
+    public static DateTime GetChartSessionDate(DateTime? istNow = null)
+    {
+        var now = istNow ?? GetIstNow();
+        return GetLastSessionClose(now).Date;
+    }
 }

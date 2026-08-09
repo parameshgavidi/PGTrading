@@ -18,18 +18,28 @@ public static class ChartPanelLoader
 
             if (panel.SelectedTimeframe == "1m")
             {
-                var sessionDate = GetChartSessionDate();
+                var sessionDate = MarketHours.GetChartSessionDate();
                 var candles15m = await marketData.GetCandlesResultAsync(instrument, "15m", 80);
                 panel.CprSegments = intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
 
                 var sessionCandles = result.Candles
                     .Where(c => c.Timestamp.Date == sessionDate)
                     .ToList();
+
+                if (sessionCandles.Count == 0 && result.Candles.Count > 0)
+                {
+                    sessionDate = result.Candles[^1].Timestamp.Date;
+                    panel.CprSegments = intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
+                    sessionCandles = result.Candles
+                        .Where(c => c.Timestamp.Date == sessionDate)
+                        .ToList();
+                }
+
                 panel.ChartCandles = sessionCandles.Count > 0 ? sessionCandles : result.Candles;
             }
             else if (panel.SelectedTimeframe == "15m")
             {
-                var sessionDate = GetChartSessionDate();
+                var sessionDate = MarketHours.GetChartSessionDate();
                 panel.CprSegments = intradayCpr.BuildSegments(result.Candles, sessionDate);
                 panel.ChartCandles = result.Candles;
             }
@@ -98,15 +108,6 @@ public static class ChartPanelLoader
             "1D" => analysis.Trend1H,
             _ => analysis.Trend5M
         };
-
-    private static DateTime GetChartSessionDate()
-    {
-        var now = MarketHours.GetIstNow();
-        if (!MarketHours.IsOpen(now) && now.TimeOfDay < MarketHours.OpenTime)
-            return now.Date.AddDays(now.DayOfWeek == DayOfWeek.Monday ? -3 : -1);
-
-        return now.Date;
-    }
 
     private static int GetCandleCount(string timeframe) => timeframe switch
     {
