@@ -119,6 +119,12 @@
             <div class="dashboard-dock card">
                 <div class="dashboard-dock-toggles">
                     <button type="button"
+                            class="dock-chip @(!Layout.IsWatchlistCollapsed ? "active" : "")"
+                            title="Show / hide Nifty indices &amp; Top 10"
+                            @onclick="ToggleWatchlistAsync">
+                        Nifty Top 10
+                    </button>
+                    <button type="button"
                             class="dock-chip @(_showSignal ? "active" : "")"
                             @onclick="ToggleSignal">
                         Signal
@@ -716,6 +722,7 @@
 
   private async Task HideWatchlistAsync() => await Layout.SetWatchlistCollapsedAsync(true);
   private async Task ShowWatchlistAsync() => await Layout.SetWatchlistCollapsedAsync(false);
+  private async Task ToggleWatchlistAsync() => await Layout.ToggleWatchlistAsync();
 
   private static string GetHeadlineIcon(string label) => label.ToLowerInvariant() switch
   {
