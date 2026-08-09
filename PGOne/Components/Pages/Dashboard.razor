@@ -5,78 +5,49 @@
 @inject IUiLayoutService Layout
 @implements IDisposable
 
-<div class="dashboard @(Layout.IsWatchlistCollapsed ? "watchlist-collapsed" : "") @(Layout.IsFocusChart ? "focus-chart" : "")">
+<div class="dashboard @(Layout.IsFocusChart ? "focus-chart" : "")">
     <div class="dashboard-body @(_showInsightRail ? "rail-open" : "")">
         <div class="dashboard-main">
-            <div class="dashboard-top">
-                @if (!Layout.IsWatchlistCollapsed)
-                {
-                <div class="watchlist-panel card">
-                    <div class="watchlist-panel-header">
-                        <span class="watchlist-panel-title">Nifty</span>
-                        <button type="button"
-                                class="drawer-close"
-                                title="Hide Nifty stocks"
-                                @onclick="HideWatchlistAsync">×</button>
-                    </div>
-                    <div class="watchlist-section">
-                        <div class="watchlist-section-title">Indices</div>
-                        <div class="watchlist-items">
-                            @foreach (var item in ViewModel.IndexWatchlist)
-                            {
-                                <div class="watchlist-row favorite @(ViewModel.SelectedSymbol == item.Symbol ? "selected" : "")"
-                                     @onclick="() => SelectSymbol(item.Symbol)">
-                                    <div class="watchlist-row-main">
-                                        <span class="symbol">@InstrumentMapper.ToIndexShortName(item.Symbol)</span>
-                                        <span class="bs-badge @TrendUi.GetClass(item.Trend)">@TrendUi.GetBadgeLabel(item.Trend)</span>
-                                    </div>
-                                    <div class="watchlist-row-meta">
-                                        <span class="index-change @(item.ChangePercent >= 0 ? "positive" : "negative")">
-                                            @(item.ChangePercent >= 0 ? "+" : "")@item.ChangePercent.ToString("N2")%
-                                        </span>
-                                    </div>
-                                </div>
-                            }
-                        </div>
-                    </div>
-
-                    <div class="watchlist-section">
-                        <Top10WeightHeader Items="ViewModel.Top10Watchlist" />
-                        <div class="watchlist-items">
-                            @foreach (var item in ViewModel.Top10Watchlist)
-                            {
-                                <div class="watchlist-row @(ViewModel.SelectedSymbol == item.Symbol ? "selected" : "")"
-                                     @onclick="() => SelectSymbol(item.Symbol)">
-                                    <div class="watchlist-row-main">
-                                        <span class="symbol">@item.Symbol</span>
-                                        <span class="bs-badge @TrendUi.GetClass(item.Trend)">@TrendUi.GetBadgeLabel(item.Trend)</span>
-                                    </div>
-                                    <div class="watchlist-row-meta">
-                                        <span class="index-change @(item.ChangePercent >= 0 ? "positive" : "negative")">
-                                            @(item.ChangePercent >= 0 ? "+" : "")@item.ChangePercent.ToString("N2")%
-                                        </span>
-                                        @if (item.Weight > 0)
-                                        {
-                                            <span class="weight-label">@item.Weight.ToString("N1")%</span>
-                                        }
-                                        <span class="sparkline @(item.ChangePercent >= 0 ? "up" : item.ChangePercent < 0 ? "down" : "")">@item.Sparkline</span>
-                                    </div>
-                                </div>
-                            }
-                        </div>
-                    </div>
-                </div>
-                }
-                else
-                {
+            @* Tool dock at top — Nifty accordion lives in left nav. *@
+            <div class="dashboard-dock card dock-top">
+                <div class="dashboard-dock-toggles">
                     <button type="button"
-                            class="watchlist-peek"
-                            title="Show Nifty stocks"
-                            @onclick="ShowWatchlistAsync">
-                        <span>Nifty</span>
+                            class="dock-chip @(Layout.IsNiftyAccordionOpen ? "active" : "")"
+                            title="Show / hide Nifty Top 10 in left menu"
+                            @onclick="ToggleWatchlistAsync">
+                        Nifty Top 10
                     </button>
-                }
+                    <button type="button"
+                            class="dock-chip @(_showSignal ? "active" : "")"
+                            @onclick="ToggleSignal">
+                        Signal
+                    </button>
+                    <button type="button"
+                            class="dock-chip @(_showNews ? "active" : "")"
+                            @onclick="ToggleNews">
+                        News
+                    </button>
+                    <button type="button"
+                            class="dock-chip @(_showAi ? "active" : "")"
+                            @onclick="ToggleAi">
+                        AI
+                    </button>
+                    <button type="button"
+                            class="dock-chip @(_showAnalysis ? "active" : "")"
+                            @onclick="ToggleAnalysis">
+                        Analysis
+                    </button>
+                </div>
+                <div class="dashboard-dock-summary">
+                    <span class="dock-pill @TrendUi.GetClass(ViewModel.Analysis.TradeDirection)">
+                        @TrendUi.GetBiasLabel(ViewModel.Analysis.TradeDirection)
+                    </span>
+                    <span class="dock-pill">@ViewModel.CurrentSignal.Entry</span>
+                    <span class="dock-pill confidence">@ViewModel.CurrentSignal.Confidence%</span>
+                </div>
+            </div>
 
+            <div class="dashboard-top">
                 <div class="chart-panel card">
                     <div class="chart-header">
                         <div class="instrument-info">
@@ -112,45 +83,6 @@
                                           Width="900"
                                           Height="@ChartHeight"
                                           Timeframes="DashboardChartTimeframes" />
-                </div>
-            </div>
-
-            @* Compact dock — open panels only when needed (chart stays primary). *@
-            <div class="dashboard-dock card">
-                <div class="dashboard-dock-toggles">
-                    <button type="button"
-                            class="dock-chip @(!Layout.IsWatchlistCollapsed ? "active" : "")"
-                            title="Show / hide Nifty indices &amp; Top 10"
-                            @onclick="ToggleWatchlistAsync">
-                        Nifty Top 10
-                    </button>
-                    <button type="button"
-                            class="dock-chip @(_showSignal ? "active" : "")"
-                            @onclick="ToggleSignal">
-                        Signal
-                    </button>
-                    <button type="button"
-                            class="dock-chip @(_showNews ? "active" : "")"
-                            @onclick="ToggleNews">
-                        News
-                    </button>
-                    <button type="button"
-                            class="dock-chip @(_showAi ? "active" : "")"
-                            @onclick="ToggleAi">
-                        AI
-                    </button>
-                    <button type="button"
-                            class="dock-chip @(_showAnalysis ? "active" : "")"
-                            @onclick="ToggleAnalysis">
-                        Analysis
-                    </button>
-                </div>
-                <div class="dashboard-dock-summary">
-                    <span class="dock-pill @TrendUi.GetClass(ViewModel.Analysis.TradeDirection)">
-                        @TrendUi.GetBiasLabel(ViewModel.Analysis.TradeDirection)
-                    </span>
-                    <span class="dock-pill">@ViewModel.CurrentSignal.Entry</span>
-                    <span class="dock-pill confidence">@ViewModel.CurrentSignal.Confidence%</span>
                 </div>
             </div>
 
@@ -647,9 +579,9 @@
 
   private bool _showInsightRail => _showAi || _showAnalysis;
   private int ChartHeight =>
-      Layout.IsFocusChart || Layout.IsWatchlistCollapsed
-          ? (_showSignal || _showNews ? 480 : 560)
-          : (_showSignal || _showNews ? 420 : 500);
+      Layout.IsFocusChart
+          ? (_showSignal || _showNews ? 500 : 580)
+          : (_showSignal || _showNews ? 460 : 540);
 
   protected override void OnInitialized()
   {
@@ -720,9 +652,7 @@
 
   private void OnLayoutChanged() => InvokeAsync(StateHasChanged);
 
-  private async Task HideWatchlistAsync() => await Layout.SetWatchlistCollapsedAsync(true);
-  private async Task ShowWatchlistAsync() => await Layout.SetWatchlistCollapsedAsync(false);
-  private async Task ToggleWatchlistAsync() => await Layout.ToggleWatchlistAsync();
+  private async Task ToggleWatchlistAsync() => await Layout.ToggleNiftyAccordionAsync();
 
   private static string GetHeadlineIcon(string label) => label.ToLowerInvariant() switch
   {

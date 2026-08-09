@@ -35,14 +35,8 @@
                     @if (_isDashboard)
                     {
                         <button type="button"
-                                class="layout-toggle @(Layout.IsWatchlistCollapsed ? "" : "active")"
-                                title="@(Layout.IsWatchlistCollapsed ? "Show Nifty stocks" : "Hide Nifty stocks")"
-                                @onclick="ToggleWatchlistAsync">
-                            <span class="layout-toggle-label">Stocks</span>
-                        </button>
-                        <button type="button"
                                 class="layout-toggle focus-toggle @(Layout.IsFocusChart ? "active" : "")"
-                                title="@(Layout.IsFocusChart ? "Exit focus chart" : "Focus chart — hide nav & stocks")"
+                                title="@(Layout.IsFocusChart ? "Exit focus chart" : "Focus chart — hide nav & maximize chart")"
                                 @onclick="ToggleFocusAsync">
                             <span class="layout-toggle-label">@(Layout.IsFocusChart ? "Exit focus" : "Focus chart")</span>
                         </button>
@@ -131,7 +125,6 @@
         });
 
     private async Task ToggleNavAsync() => await Layout.ToggleNavAsync();
-    private async Task ToggleWatchlistAsync() => await Layout.ToggleWatchlistAsync();
     private async Task ToggleFocusAsync() => await Layout.ToggleFocusChartAsync();
 
     private void UpdatePageTitle()

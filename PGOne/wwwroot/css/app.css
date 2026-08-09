@@ -123,6 +123,150 @@ html, body {
     margin-top: 2px;
 }
 
+.nav-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 2px 0;
+}
+
+.nav-accordion-toggle {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: var(--font-secondary);
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: background var(--ease-ui), color var(--ease-ui), border-color var(--ease-ui);
+}
+
+.nav-accordion-toggle:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text);
+}
+
+.nav-accordion.open .nav-accordion-toggle {
+    background: rgba(212, 175, 55, 0.1);
+    border-color: rgba(212, 175, 55, 0.22);
+    color: var(--gold-light);
+}
+
+.nav-accordion.open .nav-accordion-toggle .nav-mark {
+    background: rgba(212, 175, 55, 0.18);
+    color: var(--gold-light);
+    border-color: rgba(212, 175, 55, 0.35);
+}
+
+.nav-accordion-title {
+    flex: 1;
+}
+
+.nav-accordion-chevron {
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform 0.15s ease;
+    margin-right: 4px;
+}
+
+.nav-accordion.open .nav-accordion-chevron {
+    transform: rotate(-135deg);
+    margin-top: 3px;
+}
+
+.nav-accordion-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 4px 4px 8px 8px;
+    max-height: 280px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(212, 175, 55, 0.35) transparent;
+}
+
+.nav-accordion-group-label {
+    margin: 6px 6px 2px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.32);
+}
+
+.nav-stock-row {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 11px;
+    text-align: left;
+}
+
+.nav-stock-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text);
+}
+
+.nav-stock-row.selected {
+    background: rgba(212, 175, 55, 0.14);
+    color: var(--gold-light);
+}
+
+.nav-stock-symbol {
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.nav-stock-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.nav-stock-weight {
+    color: rgba(255, 255, 255, 0.35);
+    font-variant-numeric: tabular-nums;
+}
+
+.nav-stock-change {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+}
+
+.nav-stock-change.positive { color: var(--buy); }
+.nav-stock-change.negative { color: var(--sell); }
+
+.nav-accordion-empty {
+    padding: 8px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.dashboard-dock.dock-top {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
 .nav-item {
     display: flex;
     align-items: center;

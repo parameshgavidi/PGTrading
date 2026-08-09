@@ -6,6 +6,7 @@ public interface IUiLayoutService
 {
     bool IsNavCollapsed { get; }
     bool IsWatchlistCollapsed { get; }
+    bool IsNiftyAccordionOpen { get; }
     bool IsFocusChart { get; }
     event Action? Changed;
 
@@ -14,17 +15,20 @@ public interface IUiLayoutService
     Task SetNavCollapsedAsync(bool collapsed);
     Task ToggleWatchlistAsync();
     Task SetWatchlistCollapsedAsync(bool collapsed);
+    Task ToggleNiftyAccordionAsync();
+    Task SetNiftyAccordionOpenAsync(bool open);
     Task ToggleFocusChartAsync();
 }
 
 /// <summary>
-/// Shared layout preferences for chart-first UX: nav collapse, watchlist collapse, focus mode.
+/// Shared layout preferences for chart-first UX: nav collapse, Nifty accordion, focus mode.
 /// Persisted in localStorage so the desk feels the same on relaunch.
 /// </summary>
 public sealed class UiLayoutService : IUiLayoutService
 {
     private const string NavKey = "pgone.layout.navCollapsed";
     private const string WatchKey = "pgone.layout.watchlistCollapsed";
+    private const string NiftyAccKey = "pgone.layout.niftyAccordionOpen";
     private const string FocusKey = "pgone.layout.focusChart";
 
     private readonly IJSRuntime _js;
@@ -33,7 +37,8 @@ public sealed class UiLayoutService : IUiLayoutService
     private bool _watchBeforeFocus;
 
     public bool IsNavCollapsed { get; private set; }
-    public bool IsWatchlistCollapsed { get; private set; }
+    public bool IsWatchlistCollapsed { get; private set; } = true; // side panel retired; keep collapsed
+    public bool IsNiftyAccordionOpen { get; private set; } = true;
     public bool IsFocusChart { get; private set; }
     public event Action? Changed;
 
@@ -50,19 +55,16 @@ public sealed class UiLayoutService : IUiLayoutService
         try
         {
             IsNavCollapsed = await GetBoolAsync(NavKey);
-            IsWatchlistCollapsed = await GetBoolAsync(WatchKey);
+            IsWatchlistCollapsed = true; // always use nav accordion instead of side panel
+            IsNiftyAccordionOpen = await GetBoolAsync(NiftyAccKey, defaultValue: true);
             IsFocusChart = await GetBoolAsync(FocusKey);
 
-            // Focus implies both collapsed; heal inconsistent storage.
             if (IsFocusChart)
-            {
                 IsNavCollapsed = true;
-                IsWatchlistCollapsed = true;
-            }
         }
         catch
         {
-            // JS not ready / unavailable — keep defaults (all open).
+            // JS not ready / unavailable — keep defaults.
         }
 
         _ready = true;
@@ -84,16 +86,31 @@ public sealed class UiLayoutService : IUiLayoutService
         Changed?.Invoke();
     }
 
-    public Task ToggleWatchlistAsync() => SetWatchlistCollapsedAsync(!IsWatchlistCollapsed);
+    public Task ToggleWatchlistAsync() => ToggleNiftyAccordionAsync();
 
     public async Task SetWatchlistCollapsedAsync(bool collapsed)
     {
-        if (IsWatchlistCollapsed == collapsed && _ready)
+        // Legacy API: "collapsed" maps to accordion closed.
+        await SetNiftyAccordionOpenAsync(!collapsed);
+    }
+
+    public Task ToggleNiftyAccordionAsync() => SetNiftyAccordionOpenAsync(!IsNiftyAccordionOpen);
+
+    public async Task SetNiftyAccordionOpenAsync(bool open)
+    {
+        if (IsNiftyAccordionOpen == open && _ready && !IsNavCollapsed)
             return;
 
-        IsWatchlistCollapsed = collapsed;
-        if (!collapsed && IsFocusChart)
-            IsFocusChart = false;
+        IsNiftyAccordionOpen = open;
+        IsWatchlistCollapsed = !open;
+
+        // Opening Nifty stocks should reveal the nav if it was hidden.
+        if (open && IsNavCollapsed)
+        {
+            IsNavCollapsed = false;
+            if (IsFocusChart)
+                IsFocusChart = false;
+        }
 
         await PersistAsync();
         Changed?.Invoke();
@@ -106,11 +123,12 @@ public sealed class UiLayoutService : IUiLayoutService
             IsFocusChart = false;
             IsNavCollapsed = _navBeforeFocus;
             IsWatchlistCollapsed = _watchBeforeFocus;
+            IsNiftyAccordionOpen = !_watchBeforeFocus;
         }
         else
         {
             _navBeforeFocus = IsNavCollapsed;
-            _watchBeforeFocus = IsWatchlistCollapsed;
+            _watchBeforeFocus = !IsNiftyAccordionOpen;
             IsFocusChart = true;
             IsNavCollapsed = true;
             IsWatchlistCollapsed = true;
@@ -126,6 +144,7 @@ public sealed class UiLayoutService : IUiLayoutService
         {
             await SetBoolAsync(NavKey, IsNavCollapsed);
             await SetBoolAsync(WatchKey, IsWatchlistCollapsed);
+            await SetBoolAsync(NiftyAccKey, IsNiftyAccordionOpen);
             await SetBoolAsync(FocusKey, IsFocusChart);
         }
         catch
@@ -134,9 +153,12 @@ public sealed class UiLayoutService : IUiLayoutService
         }
     }
 
-    private async Task<bool> GetBoolAsync(string key)
+    private async Task<bool> GetBoolAsync(string key, bool defaultValue = false)
     {
         var value = await _js.InvokeAsync<string?>("localStorage.getItem", key);
+        if (string.IsNullOrEmpty(value))
+            return defaultValue;
+
         return string.Equals(value, "1", StringComparison.Ordinal)
             || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
