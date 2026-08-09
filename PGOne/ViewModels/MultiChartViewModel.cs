@@ -9,7 +9,6 @@ public class MultiChartViewModel : INotifyPropertyChanged
 {
     private readonly IMarketDataService _marketData;
     private readonly ISignalService _signal;
-    private readonly IWatchlistService _watchlist;
     private readonly IIntradayCprService _intradayCpr;
 
     private decimal _priceReference;
@@ -34,8 +33,6 @@ public class MultiChartViewModel : INotifyPropertyChanged
     public decimal LiveChange { get; private set; }
     public decimal LiveChangePercent { get; private set; }
     public MultiTimeframeAnalysis Analysis { get; private set; } = new();
-    public List<WatchItem> IndexWatchlist { get; private set; } = new();
-    public List<WatchItem> Top10Watchlist { get; private set; } = new();
 
     public string SelectedSymbol { get; private set; } = "NIFTY";
     public string SelectedInstrument { get; private set; } = "NSE:NIFTY 50";
@@ -48,16 +45,13 @@ public class MultiChartViewModel : INotifyPropertyChanged
     public MultiChartViewModel(
         IMarketDataService marketData,
         ISignalService signal,
-        IWatchlistService watchlist,
         IIntradayCprService intradayCpr)
     {
         _marketData = marketData;
         _signal = signal;
-        _watchlist = watchlist;
         _intradayCpr = intradayCpr;
 
         _marketData.PriceUpdated += OnPriceUpdated;
-        _watchlist.WatchlistUpdated += OnWatchlistUpdated;
     }
 
     public async Task InitializeAsync()
@@ -71,8 +65,6 @@ public class MultiChartViewModel : INotifyPropertyChanged
             await UpdatePriceAsync();
             Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
             await LoadAllChartsAsync();
-            await _watchlist.RefreshTopWeightageAsync();
-            SyncWatchlists();
             _marketData.StartStreaming(SelectedInstrument);
         }
         catch (Exception ex)
@@ -207,8 +199,6 @@ public class MultiChartViewModel : INotifyPropertyChanged
         await UpdatePriceAsync();
         Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
         await LoadAllChartsAsync();
-        await _watchlist.RefreshTopWeightageAsync();
-        SyncWatchlists();
         Notify();
     }
 
@@ -261,18 +251,6 @@ public class MultiChartViewModel : INotifyPropertyChanged
         NotifyPanels();
     }
 
-    private void OnWatchlistUpdated()
-    {
-        SyncWatchlists();
-        Notify();
-    }
-
-    private void SyncWatchlists()
-    {
-        IndexWatchlist = _watchlist.IndexItems;
-        Top10Watchlist = _watchlist.Top10WeightItems;
-    }
-
     private void NotifyPanels()
     {
         Notify(nameof(Panel5m));
@@ -289,8 +267,6 @@ public class MultiChartViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedDisplayName)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedInstrument)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Analysis)));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IndexWatchlist)));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Top10Watchlist)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsMarketOpen)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(MarketStatus)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsReady)));
