@@ -412,7 +412,7 @@
                     </span>
                     @if (ViewModel.TargetProfitAmount > 0)
                     {
-                        <span class="summary-pill">
+                        <span class="summary-pill buy">
                             Profit target: +₹@ViewModel.TargetProfitAmount.ToString("N0")
                         </span>
                     }
@@ -429,10 +429,10 @@
                 </div>
 
                 <div class="trailing-stop-controls">
-                    <label class="checkbox-label">
+                    <label class="checkbox-label target-pnl-monitor-toggle">
                         <input type="checkbox" checked="@ViewModel.IsTargetPnLMonitoring"
                                @onchange="OnTargetPnLMonitoringChanged" />
-                        Auto-exit when target P&amp;L hit
+                        <span>Auto-exit when target P&amp;L hit</span>
                     </label>
                     @if (!string.IsNullOrEmpty(ViewModel.TargetPnLStatusMessage))
                     {
