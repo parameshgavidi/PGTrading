@@ -2,13 +2,23 @@
 @using PGOne.Services
 @inject DashboardViewModel ViewModel
 @inject SentimentViewModel SentimentViewModel
+@inject IUiLayoutService Layout
 @implements IDisposable
 
-<div class="dashboard">
+<div class="dashboard @(Layout.IsWatchlistCollapsed ? "watchlist-collapsed" : "") @(Layout.IsFocusChart ? "focus-chart" : "")">
     <div class="dashboard-body @(_showInsightRail ? "rail-open" : "")">
         <div class="dashboard-main">
             <div class="dashboard-top">
+                @if (!Layout.IsWatchlistCollapsed)
+                {
                 <div class="watchlist-panel card">
+                    <div class="watchlist-panel-header">
+                        <span class="watchlist-panel-title">Nifty</span>
+                        <button type="button"
+                                class="drawer-close"
+                                title="Hide Nifty stocks"
+                                @onclick="HideWatchlistAsync">×</button>
+                    </div>
                     <div class="watchlist-section">
                         <div class="watchlist-section-title">Indices</div>
                         <div class="watchlist-items">
@@ -56,6 +66,16 @@
                         </div>
                     </div>
                 </div>
+                }
+                else
+                {
+                    <button type="button"
+                            class="watchlist-peek"
+                            title="Show Nifty stocks"
+                            @onclick="ShowWatchlistAsync">
+                        <span>Nifty</span>
+                    </button>
+                }
 
                 <div class="chart-panel card">
                     <div class="chart-header">
@@ -620,12 +640,16 @@
   private bool _showAnalysis;
 
   private bool _showInsightRail => _showAi || _showAnalysis;
-  private int ChartHeight => _showSignal || _showNews ? 420 : 500;
+  private int ChartHeight =>
+      Layout.IsFocusChart || Layout.IsWatchlistCollapsed
+          ? (_showSignal || _showNews ? 480 : 560)
+          : (_showSignal || _showNews ? 420 : 500);
 
   protected override void OnInitialized()
   {
     ViewModel.PropertyChanged += OnViewModelPropertyChanged;
     SentimentViewModel.PropertyChanged += OnSentimentPropertyChanged;
+    Layout.Changed += OnLayoutChanged;
     _refreshCts = new CancellationTokenSource();
     _ = LoadDashboardAsync();
     _ = RunRefreshLoopsAsync(_refreshCts.Token);
@@ -687,6 +711,11 @@
 
   private void OnSentimentPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
     InvokeAsync(StateHasChanged);
+
+  private void OnLayoutChanged() => InvokeAsync(StateHasChanged);
+
+  private async Task HideWatchlistAsync() => await Layout.SetWatchlistCollapsedAsync(true);
+  private async Task ShowWatchlistAsync() => await Layout.SetWatchlistCollapsedAsync(false);
 
   private static string GetHeadlineIcon(string label) => label.ToLowerInvariant() switch
   {
@@ -785,5 +814,6 @@
     _refreshCts?.Dispose();
     ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
     SentimentViewModel.PropertyChanged -= OnSentimentPropertyChanged;
+    Layout.Changed -= OnLayoutChanged;
   }
 }

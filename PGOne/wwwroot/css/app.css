@@ -65,6 +65,16 @@ html, body {
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
+    transition: width 0.2s ease, opacity 0.2s ease, border-color 0.2s ease;
+    overflow: hidden;
+}
+
+.app-shell.nav-collapsed .sidebar {
+    width: 0;
+    min-width: 0;
+    opacity: 0;
+    border-right-color: transparent;
+    pointer-events: none;
 }
 
 .sidebar-header {
@@ -224,9 +234,81 @@ html, body {
 .top-bar-left {
     min-width: 0;
     display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.top-bar-titles {
+    min-width: 0;
+    display: flex;
     flex-direction: column;
     gap: 2px;
 }
+
+.layout-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.layout-toggle {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--card-border);
+    background: rgba(0, 0, 0, 0.22);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: background var(--ease-ui), color var(--ease-ui), border-color var(--ease-ui);
+}
+
+.layout-toggle:hover {
+    color: var(--text);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.layout-toggle.active {
+    color: var(--gold-light);
+    border-color: var(--card-border-gold);
+    background: rgba(212, 175, 55, 0.12);
+}
+
+.layout-toggle.focus-toggle.active {
+    color: #121212;
+    background: var(--gold-gradient);
+    border-color: transparent;
+}
+
+.layout-toggle-bars,
+.layout-toggle-bars::before,
+.layout-toggle-bars::after {
+    display: block;
+    width: 12px;
+    height: 1.5px;
+    background: currentColor;
+    border-radius: 1px;
+}
+
+.layout-toggle-bars {
+    position: relative;
+}
+
+.layout-toggle-bars::before,
+.layout-toggle-bars::after {
+    content: "";
+    position: absolute;
+    left: 0;
+}
+
+.layout-toggle-bars::before { top: -4px; }
+.layout-toggle-bars::after { top: 4px; }
 
 .page-title {
     font-size: var(--font-page-title);
@@ -654,6 +736,54 @@ html, body {
     flex-shrink: 0;
     overflow-y: auto;
     max-height: 620px;
+    animation: drawer-attach-in 0.18s ease;
+}
+
+.watchlist-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.watchlist-panel-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.watchlist-peek {
+    appearance: none;
+    width: 34px;
+    flex-shrink: 0;
+    align-self: stretch;
+    min-height: 180px;
+    border: 1px solid var(--card-border);
+    border-radius: var(--card-radius);
+    background: var(--card);
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 12px 0;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition: color var(--ease-ui), border-color var(--ease-ui), background var(--ease-ui);
+}
+
+.watchlist-peek:hover {
+    color: var(--gold-light);
+    border-color: var(--card-border-gold);
+    background: rgba(212, 175, 55, 0.08);
+}
+
+.dashboard.focus-chart .chart-panel,
+.dashboard.watchlist-collapsed .chart-panel {
+    min-width: 0;
 }
 
 .watchlist-section + .watchlist-section {

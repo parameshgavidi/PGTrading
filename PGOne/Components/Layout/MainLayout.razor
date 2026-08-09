@@ -2,11 +2,12 @@
 @using PGOne.Services
 @inherits LayoutComponentBase
 @inject IZerodhaService ZerodhaService
+@inject IUiLayoutService Layout
 @inject NavigationManager Navigation
 @implements IDisposable
 
-<div class="app-shell">
-    <aside class="sidebar">
+<div class="app-shell @(Layout.IsNavCollapsed ? "nav-collapsed" : "") @(Layout.IsFocusChart ? "focus-chart" : "")">
+    <aside class="sidebar" aria-hidden="@Layout.IsNavCollapsed">
         <div class="sidebar-header">
             <div class="sidebar-brand"><span class="brand-pg">PG</span> <span class="brand-one">one</span></div>
             <div class="sidebar-tagline">Trade Smart. Stay Ahead.</div>
@@ -23,11 +24,37 @@
     <main class="main-content">
         <header class="top-bar">
             <div class="top-bar-left">
-                <h1 class="page-title">@_pageTitle</h1>
-                @if (!string.IsNullOrEmpty(_pageSubtitle))
-                {
-                    <p class="page-subtitle">@_pageSubtitle</p>
-                }
+                <div class="layout-controls">
+                    <button type="button"
+                            class="layout-toggle @(Layout.IsNavCollapsed ? "" : "active")"
+                            title="@(Layout.IsNavCollapsed ? "Show navigation" : "Hide navigation")"
+                            @onclick="ToggleNavAsync">
+                        <span class="layout-toggle-bars" aria-hidden="true"></span>
+                        <span class="layout-toggle-label">Nav</span>
+                    </button>
+                    @if (_isDashboard)
+                    {
+                        <button type="button"
+                                class="layout-toggle @(Layout.IsWatchlistCollapsed ? "" : "active")"
+                                title="@(Layout.IsWatchlistCollapsed ? "Show Nifty stocks" : "Hide Nifty stocks")"
+                                @onclick="ToggleWatchlistAsync">
+                            <span class="layout-toggle-label">Stocks</span>
+                        </button>
+                        <button type="button"
+                                class="layout-toggle focus-toggle @(Layout.IsFocusChart ? "active" : "")"
+                                title="@(Layout.IsFocusChart ? "Exit focus chart" : "Focus chart — hide nav & stocks")"
+                                @onclick="ToggleFocusAsync">
+                            <span class="layout-toggle-label">@(Layout.IsFocusChart ? "Exit focus" : "Focus chart")</span>
+                        </button>
+                    }
+                </div>
+                <div class="top-bar-titles">
+                    <h1 class="page-title">@_pageTitle</h1>
+                    @if (!string.IsNullOrEmpty(_pageSubtitle))
+                    {
+                        <p class="page-subtitle">@_pageSubtitle</p>
+                    }
+                </div>
             </div>
             <div class="top-bar-right">
                 @if (_isConnected)
@@ -55,6 +82,7 @@
 
 @code {
     private bool _isConnected;
+    private bool _isDashboard = true;
     private string _currentTime = DateTime.Now.ToString("hh:mm:ss tt");
     private string _pageTitle = "Dashboard";
     private string _pageSubtitle = string.Empty;
@@ -66,6 +94,7 @@
         _isConnected = ZerodhaService.IsConnected;
         ZerodhaService.ConnectionChanged += OnConnectionChanged;
         Navigation.LocationChanged += OnNavigationChanged;
+        Layout.Changed += OnLayoutChanged;
         UpdatePageTitle();
 
         _timer = new System.Timers.Timer(1000);
@@ -77,10 +106,13 @@
         _timer.Start();
     }
 
-    protected override void OnAfterRender(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
+        {
             AppUiEvents.RaiseShellRendered();
+            await Layout.InitializeAsync();
+        }
     }
 
     private void OnConnectionChanged(bool connected)
@@ -89,6 +121,8 @@
         InvokeAsync(StateHasChanged);
     }
 
+    private void OnLayoutChanged() => InvokeAsync(StateHasChanged);
+
     private void OnNavigationChanged(object? sender, LocationChangedEventArgs e) =>
         InvokeAsync(() =>
         {
@@ -96,9 +130,14 @@
             StateHasChanged();
         });
 
+    private async Task ToggleNavAsync() => await Layout.ToggleNavAsync();
+    private async Task ToggleWatchlistAsync() => await Layout.ToggleWatchlistAsync();
+    private async Task ToggleFocusAsync() => await Layout.ToggleFocusChartAsync();
+
     private void UpdatePageTitle()
     {
         var path = Navigation.ToBaseRelativePath(Navigation.Uri).Trim('/').ToLowerInvariant();
+        _isDashboard = path is "" or "dashboard";
         (_pageTitle, _pageSubtitle) = path switch
         {
             "" or "dashboard" => ("Dashboard", "Market overview & chart"),
@@ -123,6 +162,7 @@
     {
         ZerodhaService.ConnectionChanged -= OnConnectionChanged;
         Navigation.LocationChanged -= OnNavigationChanged;
+        Layout.Changed -= OnLayoutChanged;
         _timer?.Dispose();
     }
 }
