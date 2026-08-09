@@ -111,7 +111,7 @@ public static class ChartPanelLoader
     private static int GetCandleCount(string timeframe) => timeframe switch
     {
         "1m" => 450,
-        "5m" => 108,
+        "5m" => 320,
         "15m" => 75,
         "1H" => 60,
         "1D" => 90,

@@ -15,7 +15,10 @@
                   ShowIntradayCprLevels="ViewModel.ShowIntradayCprOverlay"
                   ShowSuperTrendOverlay="ViewModel.ShowSuperTrendOverlay"
                   ShowSuperTrend725Overlay="ViewModel.ShowSuperTrend725Overlay"
+                  ShowEma9Overlay="ViewModel.ShowEma9Overlay"
                   ShowEma20Overlay="ViewModel.ShowEma20Overlay"
+                  ShowEma50Overlay="ViewModel.ShowEma50Overlay"
+                  ShowEma200Overlay="ViewModel.ShowEma200Overlay"
                   ShowVwapOverlay="ViewModel.ShowVwapOverlay"
                   Timeframe="ViewModel.SelectedTimeframe"
                   CssClass="@CssClass"
@@ -42,7 +45,10 @@
                          ShowKeltner="ViewModel.ShowKeltnerOverlay"
                          ShowSuperTrend="ViewModel.ShowSuperTrendOverlay"
                          ShowSuperTrend725="ViewModel.ShowSuperTrend725Overlay"
+                         ShowEma9="ViewModel.ShowEma9Overlay"
                          ShowEma20="ViewModel.ShowEma20Overlay"
+                         ShowEma50="ViewModel.ShowEma50Overlay"
+                         ShowEma200="ViewModel.ShowEma200Overlay"
                          ShowVwap="ViewModel.ShowVwapOverlay"
                          ShowPocChanged="v => ViewModel.SetShowPocOverlay(v)"
                          ShowDayCprChanged="v => ViewModel.SetShowPivotOverlay(v)"
@@ -51,7 +57,10 @@
                          ShowKeltnerChanged="v => ViewModel.SetShowKeltnerOverlay(v)"
                          ShowSuperTrendChanged="v => ViewModel.SetShowSuperTrendOverlay(v)"
                          ShowSuperTrend725Changed="v => ViewModel.SetShowSuperTrend725Overlay(v)"
+                         ShowEma9Changed="v => ViewModel.SetShowEma9Overlay(v)"
                          ShowEma20Changed="v => ViewModel.SetShowEma20Overlay(v)"
+                         ShowEma50Changed="v => ViewModel.SetShowEma50Overlay(v)"
+                         ShowEma200Changed="v => ViewModel.SetShowEma200Overlay(v)"
                          ShowVwapChanged="v => ViewModel.SetShowVwapOverlay(v)" />
 </div>
 <div class="chart-legend">
@@ -64,9 +73,21 @@
         <span class="legend-item"><span class="legend-color buy"></span> ST(10,3) BUY</span>
         <span class="legend-item"><span class="legend-color sell"></span> ST(10,3) SELL</span>
     }
+    @if (ViewModel.ShowEma9Overlay && ViewModel.SelectedTimeframe == "5m")
+    {
+        <span class="legend-item"><span class="legend-color ema9"></span> EMA 9</span>
+    }
     @if (ViewModel.ShowEma20Overlay && ViewModel.SelectedTimeframe == "5m")
     {
         <span class="legend-item"><span class="legend-color ema20"></span> EMA 20</span>
+    }
+    @if (ViewModel.ShowEma50Overlay && ViewModel.SelectedTimeframe == "5m")
+    {
+        <span class="legend-item"><span class="legend-color ema50"></span> EMA 50</span>
+    }
+    @if (ViewModel.ShowEma200Overlay && ViewModel.SelectedTimeframe == "5m")
+    {
+        <span class="legend-item"><span class="legend-color ema200"></span> EMA 200</span>
     }
     @if (ViewModel.ShowVwapOverlay && ViewModel.SelectedTimeframe == "5m")
     {

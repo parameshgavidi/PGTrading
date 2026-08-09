@@ -44,7 +44,10 @@ public class DashboardViewModel : INotifyPropertyChanged
     public bool ShowIntradayCprOverlay { get; private set; } = false;
     public bool ShowSuperTrendOverlay { get; private set; } = false;
     public bool ShowSuperTrend725Overlay { get; private set; } = false;
+    public bool ShowEma9Overlay { get; private set; } = false;
     public bool ShowEma20Overlay { get; private set; } = false;
+    public bool ShowEma50Overlay { get; private set; } = false;
+    public bool ShowEma200Overlay { get; private set; } = false;
     public bool ShowVwapOverlay { get; private set; } = false;
     public bool Supports5mStudyToggles => SelectedTimeframe == "5m";
     public bool SupportsIntradayStOverlays => SelectedTimeframe is not "1W";
@@ -364,6 +367,17 @@ public class DashboardViewModel : INotifyPropertyChanged
         Notify(nameof(OverlayVersion));
     }
 
+    public void SetShowEma9Overlay(bool show)
+    {
+        if (ShowEma9Overlay == show)
+            return;
+
+        ShowEma9Overlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowEma9Overlay));
+        Notify(nameof(OverlayVersion));
+    }
+
     public void SetShowEma20Overlay(bool show)
     {
         if (ShowEma20Overlay == show)
@@ -372,6 +386,28 @@ public class DashboardViewModel : INotifyPropertyChanged
         ShowEma20Overlay = show;
         OverlayVersion++;
         Notify(nameof(ShowEma20Overlay));
+        Notify(nameof(OverlayVersion));
+    }
+
+    public void SetShowEma50Overlay(bool show)
+    {
+        if (ShowEma50Overlay == show)
+            return;
+
+        ShowEma50Overlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowEma50Overlay));
+        Notify(nameof(OverlayVersion));
+    }
+
+    public void SetShowEma200Overlay(bool show)
+    {
+        if (ShowEma200Overlay == show)
+            return;
+
+        ShowEma200Overlay = show;
+        OverlayVersion++;
+        Notify(nameof(ShowEma200Overlay));
         Notify(nameof(OverlayVersion));
     }
 
@@ -457,9 +493,9 @@ public class DashboardViewModel : INotifyPropertyChanged
 
         var st103 = ChartCandles.Count(c => c.SuperTrend.HasValue);
         var st725 = ChartCandles.Count(c => c.SuperTrendEntry.HasValue);
-        var ema = ChartCandles.Count(c => c.Ema20.HasValue);
+        var ema20 = ChartCandles.Count(c => c.Ema20.HasValue);
         var vwap = ChartCandles.Count(c => c.Vwap.HasValue);
-        return $" · ST10 {st103}/{ChartCandles.Count} ST7 {st725}/{ChartCandles.Count} EMA {ema}/{ChartCandles.Count} VWAP {vwap}/{ChartCandles.Count}";
+        return $" · ST10 {st103}/{ChartCandles.Count} ST7 {st725}/{ChartCandles.Count} EMA20 {ema20}/{ChartCandles.Count} VWAP {vwap}/{ChartCandles.Count}";
     }
 
     private static DateTime GetChartSessionDate()
@@ -512,7 +548,7 @@ public class DashboardViewModel : INotifyPropertyChanged
     private static int GetCandleCount(string timeframe) => timeframe switch
     {
         "1m" => 450,
-        "5m" => 108,
+        "5m" => 320,
         "15m" => 75,
         "1H" => 60,
         "1D" => 90,
@@ -659,7 +695,10 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowIntradayCprOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowSuperTrendOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowSuperTrend725Overlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowEma9Overlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowEma20Overlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowEma50Overlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowEma200Overlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowVwapOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Supports5mStudyToggles)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SupportsIntradayStOverlays)));

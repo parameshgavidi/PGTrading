@@ -32,7 +32,10 @@
     [Parameter] public bool ShowIntradayCprLevels { get; set; } = true;
     [Parameter] public bool ShowSuperTrendOverlay { get; set; }
     [Parameter] public bool ShowSuperTrend725Overlay { get; set; }
+    [Parameter] public bool ShowEma9Overlay { get; set; }
     [Parameter] public bool ShowEma20Overlay { get; set; }
+    [Parameter] public bool ShowEma50Overlay { get; set; }
+    [Parameter] public bool ShowEma200Overlay { get; set; }
     [Parameter] public bool ShowVwapOverlay { get; set; }
     [Parameter] public string Timeframe { get; set; } = "5m";
     [Parameter] public string CssClass { get; set; } = string.Empty;
@@ -49,7 +52,10 @@
     private bool _lastShowIntradayCpr;
     private bool _lastShowSuperTrend;
     private bool _lastShowSuperTrend725;
+    private bool _lastShowEma9;
     private bool _lastShowEma20;
+    private bool _lastShowEma50;
+    private bool _lastShowEma200;
     private bool _lastShowVwapOverlay;
     private int _lastCprSegmentCount;
     private string _lastCprSegmentKey = string.Empty;
@@ -73,7 +79,10 @@
             && ShowIntradayCprLevels == _lastShowIntradayCpr
             && ShowSuperTrendOverlay == _lastShowSuperTrend
             && ShowSuperTrend725Overlay == _lastShowSuperTrend725
+            && ShowEma9Overlay == _lastShowEma9
             && ShowEma20Overlay == _lastShowEma20
+            && ShowEma50Overlay == _lastShowEma50
+            && ShowEma200Overlay == _lastShowEma200
             && ShowVwapOverlay == _lastShowVwapOverlay
             && CprSegments.Count == _lastCprSegmentCount
             && segmentKey == _lastCprSegmentKey)
@@ -100,7 +109,10 @@
         _lastShowIntradayCpr = ShowIntradayCprLevels;
         _lastShowSuperTrend = ShowSuperTrendOverlay;
         _lastShowSuperTrend725 = ShowSuperTrend725Overlay;
+        _lastShowEma9 = ShowEma9Overlay;
         _lastShowEma20 = ShowEma20Overlay;
+        _lastShowEma50 = ShowEma50Overlay;
+        _lastShowEma200 = ShowEma200Overlay;
         _lastShowVwapOverlay = ShowVwapOverlay;
         _lastCprSegmentCount = CprSegments.Count;
         _lastCprSegmentKey = segmentKey;
@@ -125,17 +137,27 @@
             && ShowIntradayCprLevels == _lastShowIntradayCpr;
     }
 
+    private bool EmasUnchanged() =>
+        ShowEma9Overlay == _lastShowEma9
+        && ShowEma20Overlay == _lastShowEma20
+        && ShowEma50Overlay == _lastShowEma50
+        && ShowEma200Overlay == _lastShowEma200;
+
     private bool IsVwapOverlayToggleOnly()
     {
         return ShowVwapOverlay != _lastShowVwapOverlay
-            && ShowEma20Overlay == _lastShowEma20
+            && EmasUnchanged()
             && ShowSuperTrendOverlay == _lastShowSuperTrend
             && ShowSuperTrend725Overlay == _lastShowSuperTrend725;
     }
 
-    private bool IsEma20OverlayToggleOnly()
+    private bool IsEmaOverlayToggleOnly()
     {
-        return ShowEma20Overlay != _lastShowEma20
+        var emaChanged = ShowEma9Overlay != _lastShowEma9
+            || ShowEma20Overlay != _lastShowEma20
+            || ShowEma50Overlay != _lastShowEma50
+            || ShowEma200Overlay != _lastShowEma200;
+        return emaChanged
             && ShowVwapOverlay == _lastShowVwapOverlay
             && ShowSuperTrendOverlay == _lastShowSuperTrend
             && ShowSuperTrend725Overlay == _lastShowSuperTrend725;
@@ -145,7 +167,7 @@
     {
         return ShowSuperTrend725Overlay != _lastShowSuperTrend725
             && ShowSuperTrendOverlay == _lastShowSuperTrend
-            && ShowEma20Overlay == _lastShowEma20
+            && EmasUnchanged()
             && ShowVwapOverlay == _lastShowVwapOverlay;
     }
 
@@ -158,7 +180,7 @@
             && ShowKeltnerLevels == _lastShowKeltner
             && ShowSuperTrendOverlay == _lastShowSuperTrend
             && ShowSuperTrend725Overlay == _lastShowSuperTrend725
-            && ShowEma20Overlay == _lastShowEma20
+            && EmasUnchanged()
             && ShowVwapOverlay == _lastShowVwapOverlay;
     }
 
@@ -223,10 +245,9 @@
                     return true;
             }
 
-            if (IsEma20OverlayToggleOnly())
+            if (IsEmaOverlayToggleOnly())
             {
-                var emaOn = BuildStudyOverlayInts().ShowEma20;
-                if (await TrySetEma20OverlayAsync(emaOn))
+                if (await TrySetEmaOverlaysAsync())
                     return true;
             }
 
@@ -257,7 +278,10 @@
             showVwap = ShowVwapOverlay ? 1 : 0,
             showSuperTrend = ShowSuperTrendOverlay ? 1 : 0,
             showSuperTrend725 = ShowSuperTrend725Overlay ? 1 : 0,
-            showEma20 = ShowEma20Overlay ? 1 : 0
+            showEma9 = ShowEma9Overlay ? 1 : 0,
+            showEma20 = ShowEma20Overlay ? 1 : 0,
+            showEma50 = ShowEma50Overlay ? 1 : 0,
+            showEma200 = ShowEma200Overlay ? 1 : 0
         };
 
         var payload = Candles.Select(c => new
@@ -279,8 +303,14 @@
             keltnerMid = ToJsDouble(c.KeltnerMid),
             vwap = ToJsDouble(c.Vwap),
             vwapLine = ToJsDouble(c.Vwap),
+            ema9 = ToJsDouble(c.Ema9),
+            ema9Line = ToJsDouble(c.Ema9),
             ema20 = ToJsDouble(c.Ema20),
-            ema20Line = ToJsDouble(c.Ema20)
+            ema20Line = ToJsDouble(c.Ema20),
+            ema50 = ToJsDouble(c.Ema50),
+            ema50Line = ToJsDouble(c.Ema50),
+            ema200 = ToJsDouble(c.Ema200),
+            ema200Line = ToJsDouble(c.Ema200)
         }).ToList();
 
         var levels = BuildLevelPayload();
@@ -427,7 +457,7 @@
         return false;
     }
 
-    private async Task<bool> TrySetEma20OverlayAsync(int showEma20)
+    private async Task<bool> TrySetEmaOverlaysAsync()
     {
         for (var attempt = 0; attempt < 6; attempt++)
         {
@@ -437,7 +467,13 @@
                 if (!hasState)
                     return false;
 
-                return await JS.InvokeAsync<bool>("pgOneSetEma20Overlay", CanvasId, showEma20);
+                return await JS.InvokeAsync<bool>(
+                    "pgOneSetEmaOverlays",
+                    CanvasId,
+                    ShowEma9Overlay ? 1 : 0,
+                    ShowEma20Overlay ? 1 : 0,
+                    ShowEma50Overlay ? 1 : 0,
+                    ShowEma200Overlay ? 1 : 0);
             }
             catch when (attempt < 5)
             {

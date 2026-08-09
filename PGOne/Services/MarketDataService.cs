@@ -239,7 +239,7 @@ public class MarketDataService : IMarketDataService
             if (interval == "5m")
             {
                 _indicators.ApplyVwap(candles);
-                _indicators.ApplyEma20(candles, 20);
+                _indicators.ApplyChartEmas(candles);
             }
         }
 

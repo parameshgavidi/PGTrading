@@ -174,12 +174,42 @@ public class MultiChartViewModel : INotifyPropertyChanged
         NotifyPanels();
     }
 
+    public void SetPanelShowEma9(ChartPanelModel panel, bool show)
+    {
+        if (panel.ShowEma9Overlay == show)
+            return;
+
+        panel.ShowEma9Overlay = show;
+        panel.OverlayVersion++;
+        NotifyPanels();
+    }
+
     public void SetPanelShowEma20(ChartPanelModel panel, bool show)
     {
         if (panel.ShowEma20Overlay == show)
             return;
 
         panel.ShowEma20Overlay = show;
+        panel.OverlayVersion++;
+        NotifyPanels();
+    }
+
+    public void SetPanelShowEma50(ChartPanelModel panel, bool show)
+    {
+        if (panel.ShowEma50Overlay == show)
+            return;
+
+        panel.ShowEma50Overlay = show;
+        panel.OverlayVersion++;
+        NotifyPanels();
+    }
+
+    public void SetPanelShowEma200(ChartPanelModel panel, bool show)
+    {
+        if (panel.ShowEma200Overlay == show)
+            return;
+
+        panel.ShowEma200Overlay = show;
         panel.OverlayVersion++;
         NotifyPanels();
     }
