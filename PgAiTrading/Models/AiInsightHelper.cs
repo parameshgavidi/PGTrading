@@ -80,6 +80,16 @@ public static class AiInsightHelper
         return BuildReadyRecommendation(signal, analysis, probability, strength);
     }
 
+    /// <summary>All 5 framework steps aligned with a directional BUY/SELL signal.</summary>
+    public static bool IsPerfectEntry(MultiTimeframeAnalysis analysis, Signal signal)
+    {
+        if (!analysis.FrameworkReady)
+            return false;
+
+        var recommendation = BuildRecommendation(signal, analysis);
+        return recommendation.ActionKind is "buy" or "sell";
+    }
+
     public static string GetSuggestedAction(Signal signal, MultiTimeframeAnalysis analysis)
         => BuildRecommendation(signal, analysis).ActionHeadline;
 

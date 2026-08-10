@@ -170,6 +170,12 @@
                 <label>Sound</label>
                 <input type="checkbox" @bind="ViewModel.Settings.SoundNotifications" />
             </div>
+            <div class="form-row">
+                <label></label>
+                <button type="button" class="btn btn-secondary btn-sm" @onclick="TestGoodToTradeSoundAsync">
+                    Test good-to-trade sound
+                </button>
+            </div>
         </div>
 
         <button class="btn btn-primary btn-large" @onclick="Save">Save Settings</button>
@@ -211,6 +217,19 @@
         finally
         {
             _themeBusy = false;
+        }
+    }
+
+    private async Task TestGoodToTradeSoundAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("pgAiTradingAlerts.playGoodToTrade");
+            _statusMessage = "Played good-to-trade alert sound.";
+        }
+        catch (Exception ex)
+        {
+            _statusMessage = $"Could not play sound: {ex.Message}";
         }
     }
 

@@ -3,6 +3,9 @@
 @inject DashboardViewModel ViewModel
 @inject SentimentViewModel SentimentViewModel
 @inject IUiLayoutService Layout
+@inject IEntryAlertService EntryAlertService
+@inject ISettingsService SettingsService
+@inject IJSRuntime JS
 @implements IDisposable
 
 <div class="dashboard @(Layout.IsFocusChart ? "focus-chart" : "")">
@@ -46,6 +49,17 @@
                     <span class="dock-pill confidence">@ViewModel.CurrentSignal.Confidence%</span>
                 </div>
             </div>
+
+            @if (!string.IsNullOrEmpty(_entryAlertMessage))
+            {
+                <div class="entry-alert-banner @_entryAlertSide">
+                    <strong>@_entryAlertMessage</strong>
+                    @if (!string.IsNullOrEmpty(_entryAlertDetail))
+                    {
+                        <span class="entry-alert-detail">@_entryAlertDetail</span>
+                    }
+                </div>
+            }
 
             <div class="dashboard-top">
                 <div class="chart-panel card">
@@ -570,6 +584,10 @@
   private CancellationTokenSource? _refreshCts;
   private decimal _targetProfitInput;
   private decimal _targetLossInput;
+  private string? _entryAlertMessage;
+  private string? _entryAlertDetail;
+  private string _entryAlertSide = string.Empty;
+  private CancellationTokenSource? _entryAlertBannerCts;
 
   // Attachable drawers — closed by default so the chart owns the screen.
   private bool _showSignal;
@@ -587,10 +605,57 @@
   {
     ViewModel.PropertyChanged += OnViewModelPropertyChanged;
     SentimentViewModel.PropertyChanged += OnSentimentPropertyChanged;
+    EntryAlertService.EntryDetected += OnEntryDetected;
     Layout.Changed += OnLayoutChanged;
     _refreshCts = new CancellationTokenSource();
     _ = LoadDashboardAsync();
     _ = RunRefreshLoopsAsync(_refreshCts.Token);
+  }
+
+  private void OnEntryDetected(EntryAlertEventArgs args)
+  {
+    _ = InvokeAsync(async () =>
+    {
+      _entryAlertMessage = $"{args.Symbol} — {args.Headline}";
+      _entryAlertDetail = args.Detail;
+      _entryAlertSide = args.Side;
+
+      if (SettingsService.Settings.SoundNotifications)
+      {
+        try
+        {
+          await JS.InvokeVoidAsync("pgAiTradingAlerts.playGoodToTrade");
+        }
+        catch
+        {
+          // Ignore audio failures (e.g. autoplay restrictions).
+        }
+      }
+
+      _entryAlertBannerCts?.Cancel();
+      _entryAlertBannerCts?.Dispose();
+      _entryAlertBannerCts = new CancellationTokenSource();
+      var token = _entryAlertBannerCts.Token;
+      _ = DismissEntryAlertBannerAsync(token);
+
+      StateHasChanged();
+    });
+  }
+
+  private async Task DismissEntryAlertBannerAsync(CancellationToken cancellationToken)
+  {
+    try
+    {
+      await Task.Delay(TimeSpan.FromSeconds(12), cancellationToken);
+      _entryAlertMessage = null;
+      _entryAlertDetail = null;
+      _entryAlertSide = string.Empty;
+      await InvokeAsync(StateHasChanged);
+    }
+    catch (OperationCanceledException)
+    {
+      // Replaced by a newer alert or page disposed.
+    }
   }
 
   private async Task RunRefreshLoopsAsync(CancellationToken cancellationToken)
@@ -749,8 +814,11 @@
   {
     _refreshCts?.Cancel();
     _refreshCts?.Dispose();
+    _entryAlertBannerCts?.Cancel();
+    _entryAlertBannerCts?.Dispose();
     ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
     SentimentViewModel.PropertyChanged -= OnSentimentPropertyChanged;
+    EntryAlertService.EntryDetected -= OnEntryDetected;
     Layout.Changed -= OnLayoutChanged;
   }
 }

@@ -205,4 +205,25 @@ public class AiInsightHelperTests
         Assert.Equal("pass", checks[0].State);
         Assert.Equal("fail", checks[1].State);
     }
+
+    [Fact]
+    public void IsPerfectEntry_true_when_framework_ready_and_buy_signal()
+    {
+        var analysis = new MultiTimeframeAnalysis { FrameworkReady = true };
+        var signal = new Signal { Trend = TrendDirection.Buy };
+
+        Assert.True(AiInsightHelper.IsPerfectEntry(analysis, signal));
+
+        var recommendation = AiInsightHelper.BuildRecommendation(signal, analysis);
+        Assert.Equal("buy", recommendation.ActionKind);
+    }
+
+    [Fact]
+    public void IsPerfectEntry_false_when_framework_not_ready()
+    {
+        var analysis = new MultiTimeframeAnalysis { FrameworkReady = false };
+        var signal = new Signal { Trend = TrendDirection.Buy };
+
+        Assert.False(AiInsightHelper.IsPerfectEntry(analysis, signal));
+    }
 }
