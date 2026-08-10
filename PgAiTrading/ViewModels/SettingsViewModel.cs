@@ -97,10 +97,15 @@ public class SettingsViewModel : INotifyPropertyChanged
 
     public bool TryGetLoginUrl(out string url)
     {
+        Settings.ApiKey = (Settings.ApiKey ?? string.Empty).Trim();
+        Settings.ApiSecret = (Settings.ApiSecret ?? string.Empty).Trim();
         _settings.ApplySettings(Settings);
 
         url = _zerodha.GetLoginUrl();
-        if (!string.IsNullOrEmpty(url) && url.Contains("api_key=") && !url.EndsWith("api_key="))
+        if (!string.IsNullOrWhiteSpace(Settings.ApiKey)
+            && !string.IsNullOrEmpty(url)
+            && url.Contains("api_key=", StringComparison.Ordinal)
+            && !url.EndsWith("api_key=", StringComparison.Ordinal))
             return true;
 
         SetStatusMessage("Please enter your API Key and save settings first.");

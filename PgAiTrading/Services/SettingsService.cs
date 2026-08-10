@@ -97,9 +97,9 @@ public class SettingsService : ISettingsService
     public void ApplySettings(AppSettings settings)
     {
         Settings.Broker = settings.Broker;
-        Settings.ApiKey = settings.ApiKey;
-        Settings.ApiSecret = settings.ApiSecret;
-        Settings.AccessToken = settings.AccessToken;
+        Settings.ApiKey = (settings.ApiKey ?? string.Empty).Trim();
+        Settings.ApiSecret = (settings.ApiSecret ?? string.Empty).Trim();
+        Settings.AccessToken = (settings.AccessToken ?? string.Empty).Trim();
         Settings.LotSize = settings.LotSize;
         Settings.RiskPercent = settings.RiskPercent;
         Settings.TargetProfitAmount = settings.TargetProfitAmount;
