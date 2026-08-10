@@ -12,47 +12,6 @@
             Dashboard, Live Signals, Scanner, and Intraday Scan. Long-term scan uses separate rules.
         </p>
 
-        <div class="card framework-subcard framework-validation">
-            <h3>Validation status</h3>
-            <p class="framework-group-intro">
-                Last validated: <strong>@FrameworkPlaybook.LastValidated</strong>.
-                Playbook text matches <code>TradeFrameworkEvaluator</code> and <code>SignalService</code>.
-            </p>
-            <h4 class="framework-subheading">Revalidation checklist (code ↔ rules)</h4>
-            <ul class="framework-checklist">
-                @foreach (var item in FrameworkPlaybook.RevalidationChecklist)
-                {
-                    <li>@item</li>
-                }
-            </ul>
-            <h4 class="framework-subheading">Bugs fixed in final audit</h4>
-            <table class="framework-table">
-                <thead>
-                    <tr><th>Issue</th><th>Fix</th></tr>
-                </thead>
-                <tbody>
-                    @foreach (var (issue, fix) in FrameworkPlaybook.BugsFixed)
-                    {
-                        <tr>
-                            <td>@issue</td>
-                            <td>@fix</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-            <h4 class="framework-subheading">Known limitations (not bugs)</h4>
-            <ul class="framework-list">
-                @foreach (var item in FrameworkPlaybook.KnownLimitations)
-                {
-                    <li>@item</li>
-                }
-            </ul>
-            <p class="framework-note">
-                <strong>Unit tests:</strong>
-                <code>@FrameworkPlaybook.UnitTestCommand</code>
-            </p>
-        </div>
-
         <div class="framework-band-grid framework-band-grid-3">
             <div class="card framework-subcard">
                 <h3>ADX (14) — 1 Hour only</h3>
