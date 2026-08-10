@@ -216,30 +216,28 @@ html, body {
 }
 
 .sidebar-brand {
-    font-size: 19px;
+    font-size: 20px;
     font-weight: 700;
     letter-spacing: -0.02em;
-    line-height: 1.1;
+    line-height: 1.15;
 }
 
-.sidebar-logo {
-    display: block;
-    width: 100%;
-    max-width: 168px;
-    height: auto;
-    border-radius: 10px;
-    background: #fff;
+.brand-pg {
+    color: var(--text);
+    font-weight: 800;
 }
 
-.brand-pg { color: var(--text); }
-.brand-one { color: var(--gold); }
+.brand-one {
+    color: var(--gold);
+    font-weight: 700;
+}
 
 .sidebar-tagline {
     font-size: 10px;
     color: var(--text-secondary);
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    margin-top: 8px;
+    margin-top: 4px;
 }
 
 .nav-menu {

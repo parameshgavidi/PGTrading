@@ -10,9 +10,8 @@
 <div class="app-shell @(Layout.IsNavCollapsed ? "nav-collapsed" : "") @(Layout.IsFocusChart ? "focus-chart" : "")" data-theme="@Theme.CurrentTheme">
     <aside class="sidebar" aria-hidden="@Layout.IsNavCollapsed">
         <div class="sidebar-header">
-            <div class="sidebar-brand">
-                <img src="images/pgaitrading_logo.png" alt="PG AI Trading" class="sidebar-logo" />
-            </div>
+            <div class="sidebar-brand"><span class="brand-pg">PG</span> <span class="brand-one">AI Trading</span></div>
+            <div class="sidebar-tagline">Personal Guidance System</div>
         </div>
         <NavMenu />
         <div class="sidebar-footer">
