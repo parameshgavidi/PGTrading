@@ -3,11 +3,23 @@ using System.Text;
 
 namespace PgAiTrading.Models;
 
-/// <summary>Persists Auto Buy master toggle and watchlist rows to a single CSV file.</summary>
+/// <summary>
+/// Legacy CSV import for Auto Buy lists created before JSON storage.
+/// New writes go through <see cref="AutoBuyJsonFile"/>.
+/// </summary>
 public static class AutoBuyCsvFile
 {
     public const string MasterPrefix = "MASTER";
     public const string Header = "Symbol,Exchange,Timeframe,Lots,AutomationEnabled,MaxDeployAmount";
+
+    public static AutoBuyDocument? ToDocument(string path)
+    {
+        if (!File.Exists(path))
+            return null;
+
+        var (master, rows) = Load(path);
+        return AutoBuyDocument.FromRuntime(master, rows);
+    }
 
     public static (bool MasterAutomationEnabled, List<AutoBuyRow> Rows) Load(string path)
     {
@@ -61,6 +73,7 @@ public static class AutoBuyCsvFile
         return (masterEnabled, rows);
     }
 
+    /// <summary>Kept for tests and one-off export; runtime persistence uses JSON.</summary>
     public static void Save(string path, bool masterAutomationEnabled, IReadOnlyList<AutoBuyRow> rows)
     {
         var sb = new StringBuilder();
@@ -86,7 +99,7 @@ public static class AutoBuyCsvFile
     }
 
     public static string NormalizeTimeframe(string? timeframe) =>
-        AutoBuyTimeframes.IsValid(timeframe) ? timeframe! : "5m";
+        AutoBuyTimeframes.Normalize(timeframe);
 
     private static int ParseInt(string value, int fallback) =>
         int.TryParse(value.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var n)

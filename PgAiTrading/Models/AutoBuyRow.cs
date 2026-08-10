@@ -14,7 +14,7 @@ public sealed class AutoBuyRow
     public string Status { get; set; } = "Idle";
     public string? Detail { get; set; }
     public DateTime? LastTriggeredAt { get; set; }
-    /// <summary>Current deployed value (holdings + CNC) — not persisted in CSV.</summary>
+    /// <summary>Current deployed value (holdings + CNC) — not persisted.</summary>
     public decimal DeployedAmount { get; set; }
 }
 
@@ -24,4 +24,7 @@ public static class AutoBuyTimeframes
 
     public static bool IsValid(string? timeframe) =>
         timeframe is "1m" or "5m" or "15m";
+
+    public static string Normalize(string? timeframe) =>
+        IsValid(timeframe) ? timeframe! : "5m";
 }
