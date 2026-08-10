@@ -1,10 +1,40 @@
 @page "/chart"
 @inject NavigationManager Navigation
+@inject DashboardViewModel Dashboard
 
 @code {
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        // Live Market chart is on Dashboard — keep /chart as a redirect for old links.
+        // Live Market chart is on Dashboard — honor ?symbol= then redirect.
+        var symbol = TryReadSymbolQuery(Navigation.Uri);
+        if (!string.IsNullOrWhiteSpace(symbol))
+            await Dashboard.SelectInstrumentAsync(symbol);
+
         Navigation.NavigateTo("/", replace: true);
+    }
+
+    private static string? TryReadSymbolQuery(string uri)
+    {
+        if (!Uri.TryCreate(uri, UriKind.Absolute, out var parsed))
+            return null;
+
+        var query = parsed.Query.TrimStart('?');
+        if (string.IsNullOrEmpty(query))
+            return null;
+
+        foreach (var part in query.Split('&', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var pair = part.Split('=', 2);
+            if (pair.Length == 0)
+                continue;
+
+            if (!pair[0].Equals("symbol", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var value = pair.Length > 1 ? Uri.UnescapeDataString(pair[1]).Trim() : string.Empty;
+            return string.IsNullOrWhiteSpace(value) ? null : value.ToUpperInvariant();
+        }
+
+        return null;
     }
 }

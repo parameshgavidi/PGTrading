@@ -2997,6 +2997,13 @@ code {
     gap: 0.35rem;
 }
 
+.auto-buy-view-chart.active,
+.btn.auto-buy-view-chart.btn-primary {
+    background: var(--accent, var(--gold));
+    border-color: var(--accent, var(--gold));
+    color: var(--btn-primary-fg);
+}
+
 .auto-buy-serial {
     width: 2.5rem;
     text-align: center;
