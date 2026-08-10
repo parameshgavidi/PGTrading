@@ -15,6 +15,7 @@ public class DashboardViewModel : INotifyPropertyChanged
     private readonly ITargetPnLMonitorService _targetPnL;
     private readonly ISettingsService _settings;
     private readonly IIntradayCprService _intradayCpr;
+    private readonly IEntryAlertService _entryAlert;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -97,7 +98,8 @@ public class DashboardViewModel : INotifyPropertyChanged
         ITrailingStopLossService trailingStop,
         ITargetPnLMonitorService targetPnL,
         ISettingsService settings,
-        IIntradayCprService intradayCpr)
+        IIntradayCprService intradayCpr,
+        IEntryAlertService entryAlert)
     {
         _marketData = marketData;
         _signal = signal;
@@ -107,6 +109,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         _targetPnL = targetPnL;
         _settings = settings;
         _intradayCpr = intradayCpr;
+        _entryAlert = entryAlert;
 
         _marketData.PriceUpdated += OnPriceUpdated;
         _watchlist.WatchlistUpdated += OnWatchlistUpdated;
@@ -130,6 +133,7 @@ public class DashboardViewModel : INotifyPropertyChanged
             CurrentSignal = await _signal.GenerateSignalFromAnalysisAsync(SelectedSymbol, Analysis);
             OverlayVersion++;
             UpdateSelectedTrend();
+            EvaluateEntryAlert();
             await watchlistTask;
             await _settings.LoadAsync();
             await RefreshRiskControlsAsync();
@@ -160,6 +164,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         CurrentSignal = await _signal.GenerateSignalFromAnalysisAsync(SelectedSymbol, Analysis);
         OverlayVersion++;
         UpdateSelectedTrend();
+        EvaluateEntryAlert();
         _marketData.StartStreaming(SelectedInstrument);
         Notify();
     }
@@ -192,6 +197,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         CurrentSignal = await _signal.GenerateSignalFromAnalysisAsync(SelectedSymbol, Analysis);
         OverlayVersion++;
         UpdateSelectedTrend();
+        EvaluateEntryAlert();
         await watchlistTask;
         await RefreshRiskControlsAsync();
         Notify();
@@ -696,6 +702,9 @@ public class DashboardViewModel : INotifyPropertyChanged
             _ => Analysis.Trend5M
         };
     }
+
+    private void EvaluateEntryAlert() =>
+        _entryAlert.Evaluate(SelectedSymbol, Analysis, CurrentSignal);
 
     private void Notify([CallerMemberName] string? property = null)
     {

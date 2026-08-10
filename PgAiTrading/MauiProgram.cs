@@ -65,6 +65,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<INseSymbolResolver, NseSymbolResolver>();
         builder.Services.AddSingleton<INiftyIndexService, NiftyIndexService>();
         builder.Services.AddSingleton<IIntradayCprService, IntradayCprService>();
+        builder.Services.AddSingleton<IEntryAlertService, EntryAlertService>();
         builder.Services.AddSingleton<IUserContext, LocalUserContext>();
         builder.Services.AddSingleton<IAutoBuyStore>(_ =>
             new LocalFileAutoBuyStore(
