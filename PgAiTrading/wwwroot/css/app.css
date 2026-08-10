@@ -187,6 +187,10 @@ html, body {
     display: flex;
     height: 100vh;
     overflow: hidden;
+    /* Theme token host is data-theme on .app-shell — re-resolve text/bg here so
+       descendants that inherit color (lists, plain paragraphs) stay readable on classic. */
+    color: var(--text);
+    background: var(--bg);
 }
 
 /* Sidebar */
@@ -2590,6 +2594,7 @@ code {
     padding-left: 20px;
     line-height: 1.65;
     font-size: 14px;
+    color: var(--text);
 }
 
 .framework-steps li,
@@ -2597,6 +2602,7 @@ code {
 .framework-checklist li,
 .framework-priority li {
     margin-bottom: 6px;
+    color: var(--text);
 }
 
 .framework-list-inline {
@@ -2634,7 +2640,7 @@ code {
 
 .framework-checklist li {
     padding: 4px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid var(--card-border);
 }
 
 .framework-validation .framework-note code {
