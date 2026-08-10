@@ -914,7 +914,7 @@ public class ZerodhaService : IZerodhaService
 
     public async Task<IReadOnlyList<string>> GetNseEquitySymbolsAsync()
     {
-        if (_nseEquitySymbols is not null)
+        if (_nseEquitySymbols is { Count: > 0 })
             return _nseEquitySymbols;
 
         if (!IsConnected)
@@ -935,11 +935,14 @@ public class ZerodhaService : IZerodhaService
 
             while (reader.ReadLine() is { } line)
             {
-                var parts = line.Split(',');
+                var parts = ParseCsvLine(line);
                 if (parts.Length < 12)
                     continue;
 
-                if (parts[9] != "EQ" || parts[11] != "NSE")
+                var instrumentType = parts[9].Trim('"');
+                var exchange = parts[11].Trim('"');
+                if (!instrumentType.Equals("EQ", StringComparison.OrdinalIgnoreCase)
+                    || !exchange.Equals("NSE", StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 var symbol = parts[2].Trim('"');
@@ -949,7 +952,14 @@ public class ZerodhaService : IZerodhaService
                 symbols.Add(symbol);
             }
 
-            _nseEquitySymbols = symbols.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(s => s).ToList();
+            // Never cache an empty parse result — callers can retry / fall back.
+            if (symbols.Count == 0)
+                return NiftyConstituents.ScanUniverse.ToList();
+
+            _nseEquitySymbols = symbols
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
+                .ToList();
             return _nseEquitySymbols;
         }
         catch

@@ -93,6 +93,11 @@
             </button>
         </div>
 
+        @if (ViewModel.IsLoadingSymbols)
+        {
+            <div class="chart-meta">Loading NSE symbols…</div>
+        }
+
         @if (!string.IsNullOrEmpty(ViewModel.StatusMessage))
         {
             <div class="status-message">@ViewModel.StatusMessage</div>
@@ -270,9 +275,17 @@
         });
     }
 
-    private void OnSearchChanged(ChangeEventArgs e)
+    private async Task OnSearchChanged(ChangeEventArgs e)
     {
         _searchText = e.Value?.ToString() ?? string.Empty;
+
+        // If the universe is not ready yet, kick a load so suggestions can appear.
+        if (!ViewModel.IsLoadingSymbols
+            && ViewModel.NseSymbols.Count == 0)
+        {
+            await ViewModel.RefreshSymbolsAsync();
+        }
+
         _suggestions = ViewModel.SearchSymbols(_searchText).ToList();
         _showSuggestions = _suggestions.Count > 0;
     }
