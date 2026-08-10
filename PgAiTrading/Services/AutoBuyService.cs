@@ -41,6 +41,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
     private readonly IOrderExecutionService _orders;
     private readonly IAutoBuyStore _store;
     private readonly IUserContext _userContext;
+    private readonly INseSymbolResolver _nseSymbolsResolver;
 
     private readonly List<AutoBuyRow> _rows = new();
     private List<string> _nseSymbols = new();
@@ -69,7 +70,8 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         ISettingsService settings,
         IOrderExecutionService orders,
         IAutoBuyStore store,
-        IUserContext userContext)
+        IUserContext userContext,
+        INseSymbolResolver nseSymbolsResolver)
     {
         _zerodha = zerodha;
         _marketData = marketData;
@@ -78,6 +80,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         _orders = orders;
         _store = store;
         _userContext = userContext;
+        _nseSymbolsResolver = nseSymbolsResolver;
         _zerodha.ConnectionChanged += OnZerodhaConnectionChanged;
         _settings.SettingsChanged += OnSettingsChanged;
         _ = EnsureBootstrappedAsync();
@@ -116,11 +119,11 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             if (trimmed)
                 await SaveAsync();
 
+            // Load NSE search universe even before Zerodha connects (public equity list).
+            await RefreshSymbolsAsync();
+
             if (_zerodha.IsConnected)
-            {
-                await RefreshSymbolsAsync();
                 await RefreshDeployedAmountsAsync();
-            }
 
             _bootstrapped = true;
             EnsureMonitorRunning();
@@ -165,13 +168,40 @@ public class AutoBuyService : IAutoBuyService, IDisposable
 
         try
         {
-            var symbols = await _zerodha.GetNseEquitySymbolsAsync();
-            _nseSymbols = symbols
-                .Where(s => !string.IsNullOrWhiteSpace(s))
-                .Select(s => s.ToUpperInvariant())
+            await _nseSymbolsResolver.EnsureLoadedAsync();
+
+            // Publish a searchable universe immediately (resolver + liquid fallback).
+            _nseSymbols = NiftyConstituents.ScanUniverse
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            IsLoadingSymbols = false;
+            Notify();
+
+            // Enrich from Zerodha instruments when available (large download — don't block search).
+            try
+            {
+                var fromZerodha = await _zerodha.GetNseEquitySymbolsAsync();
+                _nseSymbols = fromZerodha
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Select(s => s.Trim().ToUpperInvariant())
+                    .Concat(NiftyConstituents.ScanUniverse)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            catch
+            {
+                // Resolver + ScanUniverse already available for search.
+            }
+        }
+        catch (Exception ex)
+        {
+            _nseSymbols = NiftyConstituents.ScanUniverse
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            StatusMessage = $"NSE list fallback loaded ({_nseSymbols.Count}): {ex.Message}";
         }
         finally
         {
@@ -185,9 +215,17 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         if (string.IsNullOrWhiteSpace(query))
             return Array.Empty<string>();
 
+        // Prefer resolver (symbol + company name). Fall back to cached tickers.
+        var fromResolver = _nseSymbolsResolver.Search(query, limit);
+        if (fromResolver.Count > 0)
+            return fromResolver;
+
         var q = query.Trim().ToUpperInvariant();
         return _nseSymbols
-            .Where(s => s.Contains(q, StringComparison.OrdinalIgnoreCase))
+            .Where(s => s.StartsWith(q, StringComparison.OrdinalIgnoreCase)
+                        || s.Contains(q, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(s => s.StartsWith(q, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ThenBy(s => s, StringComparer.OrdinalIgnoreCase)
             .Take(limit)
             .ToList();
     }
@@ -198,11 +236,18 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         if (string.IsNullOrEmpty(normalized))
             return;
 
-        if (!_nseSymbols.Contains(normalized))
+        if (!_nseSymbolsResolver.ContainsSymbol(normalized)
+            && !_nseSymbols.Contains(normalized, StringComparer.OrdinalIgnoreCase))
         {
-            StatusMessage = $"{normalized} is not in the NSE equity list.";
-            Notify();
-            return;
+            // Last chance: ensure list is loaded, then re-check.
+            await _nseSymbolsResolver.EnsureLoadedAsync();
+            if (!_nseSymbolsResolver.ContainsSymbol(normalized)
+                && !_nseSymbols.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+            {
+                StatusMessage = $"{normalized} is not in the NSE equity list. Click Refresh NSE list and try again.";
+                Notify();
+                return;
+            }
         }
 
         if (_rows.Count >= AutoBuyDefaults.MaxSymbols)

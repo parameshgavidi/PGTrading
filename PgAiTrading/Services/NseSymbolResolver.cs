@@ -8,6 +8,9 @@ public interface INseSymbolResolver
     int SymbolCount { get; }
     Task EnsureLoadedAsync(CancellationToken cancellationToken = default);
     IEnumerable<string> ResolveSymbolsInText(string text);
+    /// <summary>Search NSE equities by tradingsymbol or company name.</summary>
+    IReadOnlyList<string> Search(string query, int limit = 20);
+    bool ContainsSymbol(string symbol);
 }
 
 public sealed partial class NseSymbolResolver : INseSymbolResolver
@@ -44,9 +47,23 @@ public sealed partial class NseSymbolResolver : INseSymbolResolver
                 return;
 
             await LoadFromNseAsync(cancellationToken);
-            await MergeZerodhaSymbolsAsync(cancellationToken);
+
+            // Always keep a liquid fallback universe so search never stays empty.
+            foreach (var symbol in Models.NiftyConstituents.ScanUniverse)
+                Register(symbol, symbol);
+
             _companies.Sort((a, b) => b.Name.Length.CompareTo(a.Name.Length));
             _isLoaded = true;
+
+            // Zerodha instruments dump is large — enrich after search is already usable.
+            try
+            {
+                await MergeZerodhaSymbolsAsync(cancellationToken);
+            }
+            catch
+            {
+                // Search already works from NSE CSV + ScanUniverse.
+            }
         }
         finally
         {
@@ -79,6 +96,64 @@ public sealed partial class NseSymbolResolver : INseSymbolResolver
                 yield return token;
         }
     }
+
+    public IReadOnlyList<string> Search(string query, int limit = 20)
+    {
+        if (string.IsNullOrWhiteSpace(query) || limit <= 0)
+            return Array.Empty<string>();
+
+        var q = query.Trim().ToUpperInvariant();
+        var startsWith = new List<string>();
+        var containsSymbol = new List<string>();
+        var containsName = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var symbol in _symbols)
+        {
+            if (symbol.StartsWith(q, StringComparison.OrdinalIgnoreCase))
+            {
+                if (seen.Add(symbol))
+                    startsWith.Add(symbol);
+            }
+            else if (symbol.Contains(q, StringComparison.OrdinalIgnoreCase))
+            {
+                if (seen.Add(symbol))
+                    containsSymbol.Add(symbol);
+            }
+
+            if (startsWith.Count >= limit)
+                break;
+        }
+
+        if (startsWith.Count + containsSymbol.Count < limit)
+        {
+            foreach (var company in _companies)
+            {
+                if (seen.Contains(company.Symbol))
+                    continue;
+
+                if (!company.Name.Contains(q, StringComparison.OrdinalIgnoreCase)
+                    && !company.Symbol.Contains(q, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (seen.Add(company.Symbol))
+                    containsName.Add(company.Symbol);
+
+                if (startsWith.Count + containsSymbol.Count + containsName.Count >= limit)
+                    break;
+            }
+        }
+
+        return startsWith
+            .Concat(containsSymbol.OrderBy(s => s, StringComparer.OrdinalIgnoreCase))
+            .Concat(containsName.OrderBy(s => s, StringComparer.OrdinalIgnoreCase))
+            .Take(limit)
+            .ToList();
+    }
+
+    public bool ContainsSymbol(string symbol) =>
+        !string.IsNullOrWhiteSpace(symbol)
+        && _symbols.Contains(symbol.Trim());
 
     private async Task LoadFromNseAsync(CancellationToken cancellationToken)
     {
@@ -131,8 +206,16 @@ public sealed partial class NseSymbolResolver : INseSymbolResolver
 
     private void Register(string symbol, string companyName)
     {
-        _symbols.Add(symbol);
-        _companies.Add(new CompanyEntry(companyName, symbol));
+        var normalized = symbol.Trim().ToUpperInvariant();
+        if (string.IsNullOrEmpty(normalized))
+            return;
+
+        var added = _symbols.Add(normalized);
+        if (!added)
+            return;
+
+        var name = string.IsNullOrWhiteSpace(companyName) ? normalized : companyName.Trim();
+        _companies.Add(new CompanyEntry(name, normalized));
     }
 
     private static IEnumerable<string> Tokenize(string text)
