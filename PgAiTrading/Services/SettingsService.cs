@@ -23,6 +23,11 @@ public class SettingsService : ISettingsService
     private const string StrategyKey = "pgaitrading_strategy";
     private const string LongTermStrategyKey = "pgaitrading_strategy_longterm";
 
+    // Pre-rename keys (PGOne) — read once to restore broker settings after rebrand.
+    private const string LegacySettingsKey = "pgone_settings";
+    private const string LegacyStrategyKey = "pgone_strategy";
+    private const string LegacyLongTermStrategyKey = "pgone_strategy_longterm";
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -38,6 +43,7 @@ public class SettingsService : ISettingsService
 
     public async Task LoadAsync()
     {
+        MigrateLegacyPreferencesIfNeeded();
         ReloadFromStorage();
 
         var strategyJson = Preferences.Default.Get(StrategyKey, string.Empty);
@@ -62,6 +68,30 @@ public class SettingsService : ISettingsService
             return;
 
         ApplySettings(loaded);
+    }
+
+    /// <summary>
+    /// After PGOne → PgAiTrading rename, preference keys changed. Copy old values
+    /// into the new keys once so Zerodha API key/secret/token are not lost.
+    /// </summary>
+    private static void MigrateLegacyPreferencesIfNeeded()
+    {
+        TryMigrateKey(LegacySettingsKey, SettingsKey);
+        TryMigrateKey(LegacyStrategyKey, StrategyKey);
+        TryMigrateKey(LegacyLongTermStrategyKey, LongTermStrategyKey);
+    }
+
+    private static void TryMigrateKey(string legacyKey, string newKey)
+    {
+        var existing = Preferences.Default.Get(newKey, string.Empty);
+        if (!string.IsNullOrEmpty(existing))
+            return;
+
+        var legacy = Preferences.Default.Get(legacyKey, string.Empty);
+        if (string.IsNullOrEmpty(legacy))
+            return;
+
+        Preferences.Default.Set(newKey, legacy);
     }
 
     public void ApplySettings(AppSettings settings)
