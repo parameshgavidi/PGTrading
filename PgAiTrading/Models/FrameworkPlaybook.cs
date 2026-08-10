@@ -334,66 +334,6 @@ public static class FrameworkPlaybook
     ("L4", "C − range × 1.1 / 2", "Extension down")
   ];
 
-  public const string LastValidated = "30 Jul 2026";
-
-  public static readonly string UnitTestCommand =
-    "dotnet test PgAiTrading.Framework.Tests/PgAiTrading.Framework.Tests.csproj";
-
-  /// <summary>Code ↔ playbook alignment verified in TradeFrameworkEvaluatorTests + manual audit.</summary>
-  public static readonly IReadOnlyList<string> RevalidationChecklist =
-  [
-    "G0 — 5m RSI(14) < 30 sets WaitForReversal; IsFrameworkReady false; no new directional entry",
-    "G1 — ADX(1H) < 18 AND price inside current-day VA → IsRotationRegime; FrameworkReady false; score capped at 45",
-    "G2 — 1H RSI(28) 45–55 inclusive → IsRangebound; GetTradeDirection returns Neutral; FrameworkReady false",
-    "RSI long requires strictly > 55 (RsiConfirmsLong); RSI 55 is range, not long",
-    "RSI short requires strictly < 45 (RsiConfirmsShort); RSI 45 is range, not short",
-    "Step 1 — 1H ST (10,3) + session VWAP on 5m must align; conflict → WAIT with explicit Step 1 status",
-    "AI Analysis — 1H ST checklist pass independent of VWAP; VWAP fail when ST/VWAP conflict",
-    "AI Analysis — footprint opposes bias → WAIT, Flow Conflict, score capped at 68%",
-    "AI Analysis — Setup Score vs Entry Probability label based on FrameworkReady",
-    "Step 2 — 15M ST (10,3) must match market bias; ADX(1H) ≥ 18 (not choppy) and ≥ 20 (minimum trade)",
-    "Step 2 — POC: price above POC = bull, below = bear; prev-day POC fallback when no session profile",
-    "Step 2 — ADX(1H) > 25: long needs price above VAH, short needs price below VAL",
-    "Step 3 — 5M entry ST (7, 2.5) via TrailingStopDefaults; must match trade direction",
-    "Step 4 — Footprint delta + stacked imbalances + no opposing absorption on 5m",
-    "Footprint on indices: range proxy when candle volume is zero (see Footprint detail)",
-    "Dashboard POC/VA rows: Bullish/Bearish labels only (above POC+VAH / below POC+VAL)",
-    "Camarilla: PP + H2–H4 / L2–L4 context (H1/L1 hidden); pairs with POC/VA and CPR",
-    "Step 5 — Targets: prev-day POC / VAH / VAL; stop on 5M ST (7, 2.5) reversal",
-    "Framework READY — IsFrameworkReady blocks reversal, rotation, range-bound, and missing entry/footprint",
-    "Intraday scan — Nifty 50 two-phase (1H+VWAP screen → full framework on candidates); FrameworkReady; long MIS only",
-    "Long-term scan — separate daily/weekly ST + fundamentals playbook (Watchlist tab)"
-  ];
-
-  public static readonly IReadOnlyList<(string Issue, string Fix)> BugsFixed =
-  [
-    ("RSI 55 allowed long / RSI 45 allowed short",
-      "Strict boundaries: long > 55, short < 45; 45–55 inclusive is range via IsRangebound()"),
-    ("FrameworkReady did not block range-bound regime",
-      "IsFrameworkReady now requires !isRangebound; score 45 when range-bound or rotation"),
-    ("Range-bound status unclear in UI",
-      "GetBlockingReason returns \"Range-bound — 1H RSI(28) between 45–55\"; FrameworkStatus surfaced on Dashboard"),
-    ("POC missing on thin session data",
-      "TpoConfirmationEvaluator falls back to prev-day POC when session profile has no data"),
-    ("ADX choppy not explicit in trade-direction gate",
-      "GetTradeDirection returns Neutral when ADX < 18 before minimum-ADX check"),
-    ("Step 1 AI checklist marked 1H ST warn when only VWAP conflicted",
-      "1H ST pass when directional; VWAP fail when opposing ST; clearer Step 1 FrameworkStatus text"),
-    ("Intraday scan evaluated all NSE equities (slow)",
-      "Nifty 50 two-phase scan: parallel Step 1 screen then full framework on candidates only"),
-    ("AI Suggested action unstructured",
-      "Structured WAIT/BUY/SELL with ActionDetail; footprint conflict and Step 1 blocking reasons")
-  ];
-
-  public static readonly IReadOnlyList<string> KnownLimitations =
-  [
-    "NIFTY index candles have zero volume — footprint uses range proxy; POC uses OHLCV proxies",
-    "Footprint \"Delta flat\" = net buy/sell proxy balanced over 8 bars (or before range proxy on zero volume)",
-    "Chart overlay 5m SuperTrend display still uses (10, 3) in MarketDataService.AttachSuperTrend; signals use (7, 2.5) for entry",
-    "StrategyConfig.EntryMode is not wired into evaluator logic",
-    "Unit tests require local dotnet SDK — run command above before session if you changed framework code"
-  ];
-
   // Declared after all rule lists — static init order would leave Rules null if placed at top.
   public static readonly IReadOnlyList<FrameworkRuleGroup> Groups =
   [
