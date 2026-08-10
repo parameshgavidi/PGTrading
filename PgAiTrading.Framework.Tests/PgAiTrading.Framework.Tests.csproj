@@ -28,6 +28,7 @@
     <Compile Include="../PgAiTrading/Services/SentimentTextHelper.cs" Link="Services/SentimentTextHelper.cs" />
     <Compile Include="../PgAiTrading/Services/LiveNewsImportance.cs" Link="Services/LiveNewsImportance.cs" />
     <Compile Include="../PgAiTrading/Services/NiftyIndexService.cs" Link="Services/NiftyIndexService.cs" />
+    <Compile Include="../PgAiTrading/Services/IAutoBuyStore.cs" Link="Services/IAutoBuyStore.cs" />
   </ItemGroup>
 
 </Project>

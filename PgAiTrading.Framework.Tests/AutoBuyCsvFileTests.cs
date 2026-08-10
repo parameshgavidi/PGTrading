@@ -57,6 +57,7 @@ public class AutoBuyCsvFileTests
     {
         Assert.Equal("5m", AutoBuyCsvFile.NormalizeTimeframe("bad"));
         Assert.Equal("15m", AutoBuyCsvFile.NormalizeTimeframe("15m"));
+        Assert.Equal("5m", AutoBuyTimeframes.Normalize("bad"));
     }
 
     [Fact]

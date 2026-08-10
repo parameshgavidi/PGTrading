@@ -27,7 +27,7 @@
             <strong>Multiple NSE equities</strong> — each row has its own timeframe (1m/5m/15m), quantity, and max deploy cap.
             Starts automatically when the app opens if <strong>Master automation</strong> is on (no need to stay on this tab).
             Delivery CNC only (no MIS / F&amp;O).
-            Saved to <code>@ViewModel.CsvPath</code>.
+            Saved to <code>@ViewModel.StoragePath</code>.
         </p>
 
         @if (!ViewModel.IsConnected)
@@ -214,7 +214,7 @@
                            @bind:event="oninput" />
                     <span class="text-secondary form-hint">
                         Deployed now: ₹@_editRow.DeployedAmount.ToString("N0").
-                        When deployed ≥ max, automation turns off and saves to CSV.
+                        When deployed ≥ max, automation turns off and saves to storage.
                     </span>
                 </div>
 
@@ -355,7 +355,7 @@
 
         _editRow.Lots = Math.Max(1, _editRow.Lots);
         _editRow.MaxDeployAmount = Math.Max(0, _editRow.MaxDeployAmount);
-        _editRow.Timeframe = AutoBuyCsvFile.NormalizeTimeframe(_editRow.Timeframe);
+        _editRow.Timeframe = AutoBuyTimeframes.Normalize(_editRow.Timeframe);
         await ViewModel.UpdateRowAsync(_editRow);
         CloseRowModal();
     }

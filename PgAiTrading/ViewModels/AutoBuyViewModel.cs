@@ -29,7 +29,7 @@ public class AutoBuyViewModel : INotifyPropertyChanged, IDisposable
     public bool IsLoadingSymbols => _autoBuy.IsLoadingSymbols;
     public bool IsMonitoring => _autoBuy.IsMonitoring;
     public string? StatusMessage => _autoBuy.StatusMessage;
-    public string CsvPath => _autoBuy.CsvPath;
+    public string StoragePath => _autoBuy.StoragePath;
     public bool IsConnected => _zerodha.IsConnected;
 
     public async Task InitializeAsync() => await _autoBuy.InitializeAsync();

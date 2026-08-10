@@ -1,4 +1,3 @@
-using Microsoft.Maui.Storage;
 using PgAiTrading.Models;
 using PgAiTrading.Models.Trading;
 using PgAiTrading.Models.Ui;
@@ -14,7 +13,7 @@ public interface IAutoBuyService
     bool IsLoadingSymbols { get; }
     bool IsMonitoring { get; }
     string? StatusMessage { get; }
-    string CsvPath { get; }
+    string StoragePath { get; }
 
     Task InitializeAsync();
     Task RefreshSymbolsAsync();
@@ -40,6 +39,8 @@ public class AutoBuyService : IAutoBuyService, IDisposable
     private readonly ISuperTrendService _superTrend;
     private readonly ISettingsService _settings;
     private readonly IOrderExecutionService _orders;
+    private readonly IAutoBuyStore _store;
+    private readonly IUserContext _userContext;
 
     private readonly List<AutoBuyRow> _rows = new();
     private List<string> _nseSymbols = new();
@@ -59,21 +60,24 @@ public class AutoBuyService : IAutoBuyService, IDisposable
     public bool IsLoadingSymbols { get; private set; }
     public bool IsMonitoring => MasterAutomationEnabled && _monitorCts is not null;
     public string? StatusMessage { get; private set; }
-    public string CsvPath { get; private set; } =
-        Path.Combine(FileSystem.AppDataDirectory, "auto_buy.csv");
+    public string StoragePath { get; private set; } = LocalFileAutoBuyStore.JsonFileName;
 
     public AutoBuyService(
         IZerodhaService zerodha,
         IMarketDataService marketData,
         ISuperTrendService superTrend,
         ISettingsService settings,
-        IOrderExecutionService orders)
+        IOrderExecutionService orders,
+        IAutoBuyStore store,
+        IUserContext userContext)
     {
         _zerodha = zerodha;
         _marketData = marketData;
         _superTrend = superTrend;
         _settings = settings;
         _orders = orders;
+        _store = store;
+        _userContext = userContext;
         _zerodha.ConnectionChanged += OnZerodhaConnectionChanged;
         _settings.SettingsChanged += OnSettingsChanged;
         _ = EnsureBootstrappedAsync();
@@ -107,8 +111,8 @@ public class AutoBuyService : IAutoBuyService, IDisposable
                 return;
 
             _settings.ReloadFromStorage();
-            CsvPath = Path.Combine(FileSystem.AppDataDirectory, "auto_buy.csv");
-            var trimmed = LoadFromCsv();
+            StoragePath = _store.DescribeLocation(_userContext.UserId);
+            var trimmed = await LoadFromStoreAsync();
             if (trimmed)
                 await SaveAsync();
 
@@ -255,7 +259,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             await RefreshDeployedAmountsAsync();
 
         existing.Exchange = "NSE";
-        existing.Timeframe = AutoBuyCsvFile.NormalizeTimeframe(row.Timeframe);
+        existing.Timeframe = AutoBuyTimeframes.Normalize(row.Timeframe);
         existing.Lots = Math.Max(1, row.Lots);
         existing.MaxDeployAmount = Math.Max(0, row.MaxDeployAmount);
 
@@ -326,10 +330,10 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         Notify();
     }
 
-    public Task SaveAsync()
+    public async Task SaveAsync()
     {
-        AutoBuyCsvFile.Save(CsvPath, MasterAutomationEnabled, _rows);
-        return Task.CompletedTask;
+        var document = AutoBuyDocument.FromRuntime(MasterAutomationEnabled, _rows);
+        await _store.SaveAsync(_userContext.UserId, document);
     }
 
     public async Task RefreshDeployedAmountsAsync()
@@ -349,25 +353,26 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         Notify();
     }
 
-    private bool LoadFromCsv()
+    private async Task<bool> LoadFromStoreAsync()
     {
-        var (master, rows) = AutoBuyCsvFile.Load(CsvPath);
-        MasterAutomationEnabled = master;
+        var document = await _store.LoadAsync(_userContext.UserId);
+        MasterAutomationEnabled = document?.MasterAutomationEnabled ?? false;
         _rows.Clear();
 
+        var rows = document?.ToRuntime().Rows ?? new List<AutoBuyRow>();
         var trimmed = rows.Count > AutoBuyDefaults.MaxSymbols;
 
         foreach (var row in rows.Take(AutoBuyDefaults.MaxSymbols))
         {
             row.Exchange = "NSE";
-            row.Timeframe = AutoBuyCsvFile.NormalizeTimeframe(row.Timeframe);
+            row.Timeframe = AutoBuyTimeframes.Normalize(row.Timeframe);
             row.Lots = Math.Max(1, row.Lots);
             row.MaxDeployAmount = Math.Max(0, row.MaxDeployAmount);
             _rows.Add(row);
         }
 
         if (trimmed)
-            StatusMessage = $"CSV had more than {AutoBuyDefaults.MaxSymbols} symbols — loaded first {AutoBuyDefaults.MaxSymbols}.";
+            StatusMessage = $"List had more than {AutoBuyDefaults.MaxSymbols} symbols — loaded first {AutoBuyDefaults.MaxSymbols}.";
 
         return trimmed;
     }
