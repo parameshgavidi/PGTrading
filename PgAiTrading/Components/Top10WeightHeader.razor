@@ -1,0 +1,21 @@
+@namespace PgAiTrading.Components
+@using PgAiTrading.Models
+
+<div class="watchlist-section-header">
+    <div class="watchlist-section-title">Top 10 Weight</div>
+  @if (Probability.TotalWeightPercent > 0)
+  {
+    <div class="top10-weight-probability @Probability.CssClass" title="@Probability.SummaryLabel">
+      <span class="top10-weight-probability-label">Nifty Wait</span>
+      <span class="top10-weight-probability-value">@Probability.Probability%</span>
+      <span class="top10-weight-probability-direction">@Probability.DirectionLabel</span>
+    </div>
+  }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<WatchItem> Items { get; set; } = Array.Empty<WatchItem>();
+
+    private Top10WeightProbability Probability =>
+        Top10WeightProbabilityHelper.Calculate(Items);
+}
