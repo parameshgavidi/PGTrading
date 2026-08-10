@@ -7,7 +7,7 @@
   <div class="chart-header compact">
         <div class="price-row">
             <TrendBadge Trend="Panel.ChartTrend" />
-            @if (Panel.SupportsIntradayCprOverlay && Panel.ShowIntradayCprOverlay)
+            @if (Panel.ShowIntradayCprOverlay)
             {
                 <span class="cpr-position-badge @Panel.CprPositionClass">@Panel.CprPositionLabel</span>
             }
@@ -45,8 +45,7 @@
                         @onclick="() => OnTimeframeAsync(tf)">@tf</button>
             }
         </div>
-        <ChartOverlayToggles ShowIntradayCprToggle="Panel.SupportsIntradayCprOverlay"
-                             ShowKeltnerToggle="@(Panel.SelectedTimeframe == "1m" || Panel.SelectedTimeframe == "5m")"
+        <ChartOverlayToggles ShowKeltnerToggle="@(Panel.SelectedTimeframe == "1m" || Panel.SelectedTimeframe == "5m")"
                              ShowIntradayStToggles="Panel.SupportsIntradayStOverlays"
                              ShowSt725Toggle="Panel.SupportsSt725Overlays"
                              Show5mStudyToggles="Panel.Supports5mStudyToggles"
@@ -116,7 +115,7 @@
         {
             <span class="legend-item"><span class="legend-color pivot"></span> Day CPR</span>
         }
-        @if (Panel.ShowIntradayCprOverlay && Panel.SupportsIntradayCprOverlay)
+        @if (Panel.ShowIntradayCprOverlay)
         {
             <span class="legend-item"><span class="legend-color cpr-tc"></span> 1m CPR bands</span>
         }

@@ -60,8 +60,8 @@ public class DashboardViewModel : INotifyPropertyChanged
     public bool AboveCpr { get; private set; }
     public string CprPositionLabel => AboveCpr ? "Above CPR" : "Below CPR";
     public string CprPositionClass => AboveCpr ? "above-cpr" : "below-cpr";
-    /// <summary>15m-pivot intraday CPR bands on 1m chart only.</summary>
-    public bool SupportsIntradayCprOverlay => SelectedTimeframe == "1m";
+    /// <summary>15m-pivot intraday CPR bands available on every chart timeframe.</summary>
+    public bool SupportsIntradayCprOverlay => true;
     public bool IsChartFromZerodha { get; private set; }
     public string? ChartDataMessage { get; private set; }
     public string? LastCandleSummary { get; private set; }
@@ -171,18 +171,11 @@ public class DashboardViewModel : INotifyPropertyChanged
 
         SelectedTimeframe = timeframe;
         await LoadChartAsync();
-
-        // 1m CPR bands are only for the 1m chart — turn the overlay on when entering 1m
-        // so TC/CPR/BC show without hunting for the toggle (dedicated 1min CPR page was removed).
-        if (SelectedTimeframe == "1m" && !ShowIntradayCprOverlay)
-            SetShowIntradayCprOverlay(true);
-        else
-            OverlayVersion++;
+        OverlayVersion++;
 
         await UpdatePriceAsync();
         UpdateSelectedTrend();
         Notify(nameof(SelectedTimeframe));
-        Notify(nameof(SupportsIntradayCprOverlay));
         Notify(nameof(Supports5mStudyToggles));
         Notify(nameof(SupportsIntradayStOverlays));
         Notify(nameof(SupportsSt725Overlays));
@@ -440,10 +433,10 @@ public class DashboardViewModel : INotifyPropertyChanged
         {
             var count = GetCandleCount(SelectedTimeframe);
             var result = await _marketData.GetCandlesResultAsync(SelectedInstrument, SelectedTimeframe, count);
+            var sessionDate = MarketHours.GetChartSessionDate();
 
             if (SelectedTimeframe == "1m")
             {
-                var sessionDate = MarketHours.GetChartSessionDate();
                 var candles15m = await _marketData.GetCandlesResultAsync(SelectedInstrument, "15m", 80);
                 CprSegments = _intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
 
@@ -463,9 +456,27 @@ public class DashboardViewModel : INotifyPropertyChanged
 
                 ChartCandles = sessionCandles.Count > 0 ? sessionCandles : result.Candles;
             }
+            else if (SelectedTimeframe == "15m")
+            {
+                CprSegments = _intradayCpr.BuildSegments(result.Candles, sessionDate);
+                if (CprSegments.Count == 0 && result.Candles.Count > 0)
+                {
+                    sessionDate = result.Candles[^1].Timestamp.Date;
+                    CprSegments = _intradayCpr.BuildSegments(result.Candles, sessionDate);
+                }
+
+                ChartCandles = result.Candles;
+            }
             else
             {
-                CprSegments = Array.Empty<IntradayCprSegment>();
+                var candles15m = await _marketData.GetCandlesResultAsync(SelectedInstrument, "15m", 80);
+                CprSegments = _intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
+                if (CprSegments.Count == 0 && result.Candles.Count > 0)
+                {
+                    sessionDate = result.Candles[^1].Timestamp.Date;
+                    CprSegments = _intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
+                }
+
                 ChartCandles = result.Candles;
             }
 
@@ -506,19 +517,18 @@ public class DashboardViewModel : INotifyPropertyChanged
         if (ChartCandles.Count == 0)
             return null;
 
-        if (SelectedTimeframe == "1m")
-            return CprSegments.Count > 0
-                ? $" · CPR windows {CprSegments.Count}"
-                : " · CPR windows 0 (need 15m data)";
+        var cprDiag = CprSegments.Count > 0
+            ? $" · CPR windows {CprSegments.Count}"
+            : " · CPR windows 0 (need 15m data)";
 
         if (SelectedTimeframe != "5m")
-            return null;
+            return cprDiag;
 
         var st103 = ChartCandles.Count(c => c.SuperTrend.HasValue);
         var st725 = ChartCandles.Count(c => c.SuperTrendEntry.HasValue);
         var ema20 = ChartCandles.Count(c => c.Ema20.HasValue);
         var vwap = ChartCandles.Count(c => c.Vwap.HasValue);
-        return $" · ST10 {st103}/{ChartCandles.Count} ST7 {st725}/{ChartCandles.Count} EMA20 {ema20}/{ChartCandles.Count} VWAP {vwap}/{ChartCandles.Count}";
+        return $"{cprDiag} · ST10 {st103}/{ChartCandles.Count} ST7 {st725}/{ChartCandles.Count} EMA20 {ema20}/{ChartCandles.Count} VWAP {vwap}/{ChartCandles.Count}";
     }
 
     private void UpdateIntradayCprState()
@@ -597,7 +607,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         Notify(nameof(NiftyPrice));
         Notify(nameof(NiftyChange));
         Notify(nameof(NiftyChangePercent));
-        if (SelectedTimeframe == "1m")
+        if (ShowIntradayCprOverlay)
         {
             UpdateIntradayCprState();
             Notify(nameof(AboveCpr));

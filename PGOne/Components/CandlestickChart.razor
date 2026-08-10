@@ -287,8 +287,7 @@
 
         var segmentPayload = BuildCprSegmentPayload();
 
-        var supportsIntradayCpr = Timeframe == "1m";
-        var showIntradayCpr = supportsIntradayCpr && ShowIntradayCprLevels && segmentPayload.Count > 0;
+        var showIntradayCpr = ShowIntradayCprLevels && segmentPayload.Count > 0;
 
         var overlayOptions = new
         {
@@ -341,7 +340,7 @@
         }).ToList();
 
         var levels = BuildLevelPayload();
-        var pocToday = !supportsIntradayCpr && ShowPocLevels && Analysis?.VolumeProfile.HasData == true
+        var pocToday = !ShowIntradayCprLevels && ShowPocLevels && Analysis?.VolumeProfile.HasData == true
             ? (double)Analysis.VolumeProfile.Poc
             : 0d;
 

@@ -16,9 +16,10 @@ public static class ChartPanelLoader
             var count = GetCandleCount(panel.SelectedTimeframe);
             var result = await marketData.GetCandlesResultAsync(instrument, panel.SelectedTimeframe, count);
 
+            var sessionDate = MarketHours.GetChartSessionDate();
+
             if (panel.SelectedTimeframe == "1m")
             {
-                var sessionDate = MarketHours.GetChartSessionDate();
                 var candles15m = await marketData.GetCandlesResultAsync(instrument, "15m", 80);
                 panel.CprSegments = intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
 
@@ -39,13 +40,25 @@ public static class ChartPanelLoader
             }
             else if (panel.SelectedTimeframe == "15m")
             {
-                var sessionDate = MarketHours.GetChartSessionDate();
                 panel.CprSegments = intradayCpr.BuildSegments(result.Candles, sessionDate);
+                if (panel.CprSegments.Count == 0 && result.Candles.Count > 0)
+                {
+                    sessionDate = result.Candles[^1].Timestamp.Date;
+                    panel.CprSegments = intradayCpr.BuildSegments(result.Candles, sessionDate);
+                }
+
                 panel.ChartCandles = result.Candles;
             }
             else
             {
-                panel.CprSegments = Array.Empty<IntradayCprSegment>();
+                var candles15m = await marketData.GetCandlesResultAsync(instrument, "15m", 80);
+                panel.CprSegments = intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
+                if (panel.CprSegments.Count == 0 && result.Candles.Count > 0)
+                {
+                    sessionDate = result.Candles[^1].Timestamp.Date;
+                    panel.CprSegments = intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
+                }
+
                 panel.ChartCandles = result.Candles;
             }
 
@@ -54,12 +67,7 @@ public static class ChartPanelLoader
             panel.ChartVersion++;
             panel.IsChartFromZerodha = result.IsFromZerodha;
             panel.ChartDataMessage = result.IsFromZerodha
-                ? panel.SelectedTimeframe switch
-                {
-                    "1m" => $"Zerodha 1m candles ({panel.ChartCandles.Count} bars) · 1m CPR bands (15m pivot)",
-                    "15m" => $"Zerodha 15m candles ({panel.ChartCandles.Count} bars) · 1m CPR bands",
-                    _ => $"Zerodha {panel.SelectedTimeframe} candles ({panel.ChartCandles.Count} bars)"
-                }
+                ? $"Zerodha {panel.SelectedTimeframe} candles ({panel.ChartCandles.Count} bars) · 1m CPR bands (15m pivot)"
                 : result.Error ?? "Demo candle data";
             panel.LastCandleSummary = BuildLastCandleSummary(panel.ChartCandles);
             UpdateIntradayCprState(panel, intradayCpr, livePrice);
