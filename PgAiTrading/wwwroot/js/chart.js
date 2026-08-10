@@ -586,7 +586,8 @@ window.pgAiTradingChart = (function () {
         ctx.lineTo(x1, y);
         ctx.stroke();
         ctx.setLineDash([]);
-        drawLevelLabel(ctx, x0 + 2, y, label, color);
+        if (label)
+            drawLevelLabel(ctx, x0 + 2, y, label, color);
     }
 
     function normalizeCprSegment(raw) {
@@ -643,10 +644,19 @@ window.pgAiTradingChart = (function () {
         });
     }
 
+    function cprLevelChanged(prev, next) {
+        if (prev == null || Number.isNaN(prev)) return true;
+        if (next == null || Number.isNaN(next) || next <= 0) return false;
+        return Math.abs(prev - next) > 0.005;
+    }
+
     function drawIntradaCprLevels(ctx, view, segments, padding, chartH, slot, toY, toX) {
         if (!segments || segments.length === 0 || !view.length) return;
 
         var aligned = alignCprSegmentsToView(segments, view);
+        var lastTc = null;
+        var lastPivot = null;
+        var lastBc = null;
 
         aligned.forEach(function (seg) {
             if (!segmentHasPivot(seg)) return;
@@ -672,9 +682,21 @@ window.pgAiTradingChart = (function () {
             var tc = Number(seg.tc);
             var pivot = Number(seg.pivot);
             var bc = Number(seg.bc);
-            if (!Number.isNaN(tc) && tc > 0) drawCprStyleLine(ctx, x0, x1, toY(tc), 'TC', 'sell');
-            if (!Number.isNaN(pivot) && pivot > 0) drawCprStyleLine(ctx, x0, x1, toY(pivot), 'CPR', 'neutral');
-            if (!Number.isNaN(bc) && bc > 0) drawCprStyleLine(ctx, x0, x1, toY(bc), 'BC', 'buy');
+
+            // Draw every window's lines, but only label when the level changes.
+            // Otherwise flat BC/TC/CPR across many 15m windows stacks into a dense chip band.
+            if (!Number.isNaN(tc) && tc > 0) {
+                drawCprStyleLine(ctx, x0, x1, toY(tc), cprLevelChanged(lastTc, tc) ? 'TC' : null, 'sell');
+                lastTc = tc;
+            }
+            if (!Number.isNaN(pivot) && pivot > 0) {
+                drawCprStyleLine(ctx, x0, x1, toY(pivot), cprLevelChanged(lastPivot, pivot) ? 'CPR' : null, 'neutral');
+                lastPivot = pivot;
+            }
+            if (!Number.isNaN(bc) && bc > 0) {
+                drawCprStyleLine(ctx, x0, x1, toY(bc), cprLevelChanged(lastBc, bc) ? 'BC' : null, 'buy');
+                lastBc = bc;
+            }
 
             ctx.strokeStyle = 'rgba(56, 126, 209, 0.35)';
             ctx.lineWidth = 1;
