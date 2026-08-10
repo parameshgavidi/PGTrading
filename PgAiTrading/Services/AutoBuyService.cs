@@ -108,7 +108,12 @@ public class AutoBuyService : IAutoBuyService, IDisposable
 
             _settings.ReloadFromStorage();
             CsvPath = Path.Combine(FileSystem.AppDataDirectory, "auto_buy.csv");
+
+            // ApplicationId / title rename moved AppData — restore Auto Buy CSV once.
+            var migrated = AppDataFileMigration.TryMigrateAutoBuyCsv(CsvPath);
             var trimmed = LoadFromCsv();
+            if (migrated)
+                StatusMessage = "Restored Auto Buy list from previous PG One install.";
             if (trimmed)
                 await SaveAsync();
 
