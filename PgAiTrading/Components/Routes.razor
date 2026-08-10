@@ -1,0 +1,30 @@
+@namespace PgAiTrading.Components
+
+<ErrorBoundary @ref="_errorBoundary">
+    <ChildContent>
+        <Router AppAssembly="@typeof(MauiProgram).Assembly">
+            <Found Context="routeData">
+                <RouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)" />
+                <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+            </Found>
+            <NotFound>
+                <LayoutView Layout="@typeof(Layout.MainLayout)">
+                    <p class="text-secondary">Page not found.</p>
+                </LayoutView>
+            </NotFound>
+        </Router>
+    </ChildContent>
+    <ErrorContent Context="ex">
+        <div class="content-area startup-error-panel">
+            <h2>Something went wrong</h2>
+            <p class="text-secondary">@ex.Message</p>
+            <button type="button" class="btn tf-btn" @onclick="RecoverFromError">Try again</button>
+        </div>
+    </ErrorContent>
+</ErrorBoundary>
+
+@code {
+    private ErrorBoundary? _errorBoundary;
+
+    private void RecoverFromError() => _errorBoundary?.Recover();
+}

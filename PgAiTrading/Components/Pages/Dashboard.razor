@@ -1,0 +1,756 @@
+@page "/"
+@using PgAiTrading.Services
+@inject DashboardViewModel ViewModel
+@inject SentimentViewModel SentimentViewModel
+@inject IUiLayoutService Layout
+@implements IDisposable
+
+<div class="dashboard @(Layout.IsFocusChart ? "focus-chart" : "")">
+    <div class="dashboard-body @(_showInsightRail ? "rail-open" : "")">
+        <div class="dashboard-main">
+            @* Tool dock at top — Nifty accordion lives in left nav. *@
+            <div class="dashboard-dock card dock-top">
+                <div class="dashboard-dock-toggles">
+                    <button type="button"
+                            class="dock-chip @(Layout.IsNiftyAccordionOpen ? "active" : "")"
+                            title="Show / hide Nifty Top 10 in left menu"
+                            @onclick="ToggleWatchlistAsync">
+                        Nifty Top 10
+                    </button>
+                    <button type="button"
+                            class="dock-chip @(_showSignal ? "active" : "")"
+                            @onclick="ToggleSignal">
+                        Signal
+                    </button>
+                    <button type="button"
+                            class="dock-chip @(_showNews ? "active" : "")"
+                            @onclick="ToggleNews">
+                        News
+                    </button>
+                    <button type="button"
+                            class="dock-chip @(_showAi ? "active" : "")"
+                            @onclick="ToggleAi">
+                        AI
+                    </button>
+                    <button type="button"
+                            class="dock-chip @(_showAnalysis ? "active" : "")"
+                            @onclick="ToggleAnalysis">
+                        Analysis
+                    </button>
+                </div>
+                <div class="dashboard-dock-summary">
+                    <span class="dock-pill @TrendUi.GetClass(ViewModel.Analysis.TradeDirection)">
+                        @TrendUi.GetBiasLabel(ViewModel.Analysis.TradeDirection)
+                    </span>
+                    <span class="dock-pill">@ViewModel.CurrentSignal.Entry</span>
+                    <span class="dock-pill confidence">@ViewModel.CurrentSignal.Confidence%</span>
+                </div>
+            </div>
+
+            <div class="dashboard-top">
+                <div class="chart-panel card">
+                    <div class="chart-header">
+                        <div class="instrument-info">
+                            <div class="instrument-title-row">
+                                <h2>@ViewModel.SelectedDisplayName</h2>
+                                <span class="market-status @(ViewModel.IsMarketOpen ? "open" : "closed")">
+                                    @ViewModel.MarketStatus
+                                </span>
+                            </div>
+                            <div class="price-row">
+                                <span class="price">@ViewModel.NiftyPrice.ToString("N2")</span>
+                                <span class="change @(ViewModel.NiftyChange >= 0 ? "positive" : "negative")">
+                                    @(ViewModel.NiftyChange >= 0 ? "▲" : "▼") @Math.Abs(ViewModel.NiftyChange).ToString("N2") (@ViewModel.NiftyChangePercent%)
+                                </span>
+                                <TrendBadge Trend="ViewModel.NiftyTrend" />
+                                @if (ViewModel.ShowIntradayCprOverlay)
+                                {
+                                    <span class="cpr-position-badge @ViewModel.CprPositionClass">@ViewModel.CprPositionLabel</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(ViewModel.StartupError))
+                    {
+                        <div class="chart-meta warning">Startup: @ViewModel.StartupError</div>
+                    }
+                    @if (!ViewModel.IsDashboardReady)
+                    {
+                        <div class="chart-meta">Loading market data…</div>
+                    }
+                    <InstrumentChartPanel ViewModel="ViewModel"
+                                          CanvasId="priceChart"
+                                          Width="900"
+                                          Height="@ChartHeight"
+                                          Timeframes="DashboardChartTimeframes" />
+                </div>
+            </div>
+
+            @if (_showSignal)
+            {
+                <div class="dashboard-drawer card attached-panel">
+                    <div class="card-header">
+                        <span>Current Signal</span>
+                        <button type="button" class="drawer-close" title="Close" @onclick="CloseSignal">×</button>
+                    </div>
+                    @if (ViewModel.Analysis.WaitForReversal)
+                    {
+                        <div class="signal-check sell">⚠ Reversal risk: @ViewModel.Analysis.ReversalReason</div>
+                    }
+                    <div class="signal-checks">
+                        <div class="signal-check">Market bias : @TrendUi.GetBiasLabel(ViewModel.Analysis.MarketBias) (1H ST + VWAP)</div>
+                        <div class="signal-check">Trade direction : @TrendUi.GetBiasLabel(ViewModel.Analysis.TradeDirection) (15M ST + ADX(1H) @ViewModel.Analysis.Adx.ToString("0") + RSI(28) @ViewModel.Analysis.RsiTrend.ToString("0"))</div>
+                        <div class="signal-check">POC : @ViewModel.Analysis.Tpo.Summary @(ViewModel.Analysis.Tpo.StrongTrendDay ? "★ strong trend day" : "")</div>
+                        <div class="signal-check">Entry ST (7,2.5) : @ViewModel.Analysis.Trend5MEntry @(ViewModel.Analysis.EntryTriggered ? "✓" : "—")</div>
+                        <div class="signal-check">Footprint : @ViewModel.Analysis.Footprint.Summary</div>
+                        @{
+                            var footprintBias = ViewModel.Analysis.TradeDirection != TrendDirection.Neutral
+                                ? ViewModel.Analysis.TradeDirection
+                                : ViewModel.Analysis.MarketBias;
+                            var footprintBreakdown = FootprintDisplayHelper.GetStep4BreakdownLine(
+                                ViewModel.Analysis.Footprint,
+                                footprintBias,
+                                ViewModel.Analysis.FootprintConfirmed);
+                        }
+                        @if (!string.IsNullOrEmpty(footprintBreakdown))
+                        {
+                            <div class="signal-check footprint-detail">Step 4: @footprintBreakdown</div>
+                        }
+                        <div class="signal-check">Framework : @ViewModel.Analysis.FrameworkStatus</div>
+                        <div class="signal-check">Entry : @ViewModel.CurrentSignal.Entry</div>
+                        <div class="signal-check">Plan : @ViewModel.CurrentSignal.Strategy</div>
+                        <div class="signal-check">Target : @ViewModel.CurrentSignal.Target</div>
+                        <div class="signal-check">Confidence : @ViewModel.CurrentSignal.Confidence%</div>
+                    </div>
+                </div>
+            }
+
+            @if (_showNews)
+            {
+                <div class="dashboard-drawer card attached-panel news-panel">
+                    <div class="card-header">
+                        <span>Top News</span>
+                        <div class="card-header-actions">
+                            <a class="news-link" href="sentiment">View all →</a>
+                            <button type="button" class="drawer-close" title="Close" @onclick="CloseNews">×</button>
+                        </div>
+                    </div>
+                    <div class="news-list">
+                        @if (SentimentViewModel.IsLoadingTopLiveNews && SentimentViewModel.TopLiveHeadlines.Count == 0)
+                        {
+                            <div class="news-item text-secondary loading-inline">Loading live news…</div>
+                        }
+                        else if (SentimentViewModel.TopLiveHeadlines.Count == 0)
+                        {
+                            <div class="news-item text-secondary">No live headlines yet. Open Sentiment to scan feeds.</div>
+                        }
+                        else
+                        {
+                            @foreach (var headline in SentimentViewModel.TopLiveHeadlines.Take(5))
+                            {
+                                <div class="news-item" title="@BuildNewsTooltip(headline)">
+                                    @GetHeadlineIcon(headline.Label) @headline.Headline
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (_showInsightRail)
+        {
+        <aside class="dashboard-insight-rail attached-panel">
+            @if (_showAi)
+            {
+                <div class="insight-drawer-wrap">
+                    <div class="drawer-rail-header">
+                        <span>AI</span>
+                        <button type="button" class="drawer-close" title="Close" @onclick="CloseAi">×</button>
+                    </div>
+                    <AiInsightPanel Analysis="ViewModel.Analysis"
+                                    Signal="ViewModel.CurrentSignal" />
+                </div>
+            }
+
+            @if (_showAnalysis)
+            {
+            <div class="analysis-panel card">
+                <div class="card-header">
+                    <span>Multi Timeframe Analysis</span>
+                    <button type="button" class="drawer-close" title="Close" @onclick="CloseAnalysis">×</button>
+                </div>
+                <table class="analysis-table">
+                    <tr>
+                        <td>Probability</td>
+                        <td class="@GetOverallScoreClass(ViewModel.Analysis)">
+                            @ViewModel.Analysis.OverallScore% — @ViewModel.Analysis.Strength
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Market Bias (1H ST + VWAP)</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.MarketBias)">@TrendUi.GetIcon(ViewModel.Analysis.MarketBias) @TrendUi.GetBiasLabel(ViewModel.Analysis.MarketBias)</td>
+                    </tr>
+                    <tr>
+                        <td>Trade Direction (15M + ADX + RSI)</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.TradeDirection)">@TrendUi.GetIcon(ViewModel.Analysis.TradeDirection) @TrendUi.GetBiasLabel(ViewModel.Analysis.TradeDirection)</td>
+                    </tr>
+                    <tr>
+                        <td>ADX(14) 1H</td>
+                        <td>@ViewModel.Analysis.Adx — @GetAdxStrengthLabel(ViewModel.Analysis)</td>
+                    </tr>
+                    <tr>
+                        <td>RSI(28) 1H — bias</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.RsiBias)">@ViewModel.Analysis.RsiTrend @TrendUi.GetBiasLabel(ViewModel.Analysis.RsiBias)</td>
+                    </tr>
+                    <tr>
+                        <td>RSI(14) 1H</td>
+                        <td>@ViewModel.Analysis.Rsi</td>
+                    </tr>
+                    <tr>
+                        <td>POC bias</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.PocBias)">@ViewModel.Analysis.Tpo.Summary @(ViewModel.Analysis.PocBias != TrendDirection.Neutral ? TrendUi.GetBiasLabel(ViewModel.Analysis.PocBias) : "")</td>
+                    </tr>
+                    <tr>
+                        <td>1 Hour SuperTrend</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend1H)">@TrendUi.GetIcon(ViewModel.Analysis.Trend1H) @ViewModel.Analysis.Trend1H</td>
+                    </tr>
+                    <tr>
+                        <td>15 Min SuperTrend</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend15M)">@TrendUi.GetIcon(ViewModel.Analysis.Trend15M) @ViewModel.Analysis.Trend15M</td>
+                    </tr>
+                    <tr>
+                        <td>5 Min SuperTrend</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend5M)">@TrendUi.GetIcon(ViewModel.Analysis.Trend5M) @ViewModel.Analysis.Trend5M</td>
+                    </tr>
+                    <tr>
+                        <td>5 Min Entry ST (7,2.5)</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.Trend5MEntry)">@TrendUi.GetIcon(ViewModel.Analysis.Trend5MEntry) @ViewModel.Analysis.Trend5MEntry @(ViewModel.Analysis.EntryTriggered ? "✓" : "")</td>
+                    </tr>
+                    <tr>
+                        <td>5m VWAP @ViewModel.Analysis.Vwap5M.ToString("N2")</td>
+                        <td class="@(ViewModel.Analysis.AboveVwap ? "buy" : "sell")">@(ViewModel.Analysis.AboveVwap ? "Above (Bullish)" : "Below (Bearish)")</td>
+                    </tr>
+                    <tr>
+                        <td>Footprint</td>
+                        <td class="@FootprintDisplayHelper.GetDisplayClass(ViewModel.Analysis.Footprint)">
+                            @ViewModel.Analysis.Footprint.Summary
+                            @{
+                                var mtfFootprintBias = ViewModel.Analysis.TradeDirection != TrendDirection.Neutral
+                                    ? ViewModel.Analysis.TradeDirection
+                                    : ViewModel.Analysis.MarketBias;
+                                var mtfFootprintBreakdown = FootprintDisplayHelper.GetStep4BreakdownLine(
+                                    ViewModel.Analysis.Footprint,
+                                    mtfFootprintBias,
+                                    ViewModel.Analysis.FootprintConfirmed);
+                            }
+                            @if (!string.IsNullOrEmpty(mtfFootprintBreakdown))
+                            {
+                                <div class="trailing-detail">@mtfFootprintBreakdown</div>
+                            }
+                        </td>
+                    </tr>
+                    @if (ViewModel.Analysis.VolumeProfile.HasData)
+                    {
+                        <tr>
+                            <td>POC / VAH / VAL</td>
+                            <td class="@TrendUi.GetClass(ViewModel.Analysis.SessionVaBias)">
+                                VAH @ViewModel.Analysis.VolumeProfile.Vah.ToString("N2") · POC @ViewModel.Analysis.VolumeProfile.Poc.ToString("N2") · VAL @ViewModel.Analysis.VolumeProfile.Val.ToString("N2")
+                                — @TrendUi.GetBiasLabel(ViewModel.Analysis.SessionVaBias)
+                            </td>
+                        </tr>
+                    }
+                    @if (ViewModel.Analysis.VolumeProfile.PrevDayPoc > 0)
+                    {
+                        <tr>
+                            <td>Prev POC / VAH / VAL</td>
+                            <td class="@TrendUi.GetClass(ViewModel.Analysis.PrevDayVaBias)">
+                                VAH @ViewModel.Analysis.VolumeProfile.PrevDayVah.ToString("N2") · POC @ViewModel.Analysis.VolumeProfile.PrevDayPoc.ToString("N2") · VAL @ViewModel.Analysis.VolumeProfile.PrevDayVal.ToString("N2")
+                                — @TrendUi.GetBiasLabel(ViewModel.Analysis.PrevDayVaBias)
+                            </td>
+                        </tr>
+                    }
+                    @if (ViewModel.Analysis.Camarilla.HasData)
+                    {
+                        <tr>
+                            <td>Camarilla</td>
+                            <td class="@TrendUi.GetClass(ViewModel.Analysis.CamarillaBias)">
+                                H4 @ViewModel.Analysis.Camarilla.H4.ToString("N2") · H3 @ViewModel.Analysis.Camarilla.H3.ToString("N2") · H2 @ViewModel.Analysis.Camarilla.H2.ToString("N2") · PP @ViewModel.Analysis.Camarilla.Pivot.ToString("N2") · L2 @ViewModel.Analysis.Camarilla.L2.ToString("N2") · L3 @ViewModel.Analysis.Camarilla.L3.ToString("N2") · L4 @ViewModel.Analysis.Camarilla.L4.ToString("N2")
+                                — @TrendUi.GetBiasLabel(ViewModel.Analysis.CamarillaBias)
+                            </td>
+                        </tr>
+                    }
+                    <tr>
+                        <td>Regime</td>
+                        <td>@(ViewModel.Analysis.IsRangebound ? "Range-bound → Keltner" : "Trending")</td>
+                    </tr>
+                    <tr>
+                        <td>Framework</td>
+                        <td class="@(ViewModel.Analysis.FrameworkReady ? "buy" : "sell")">@ViewModel.Analysis.FrameworkStatus</td>
+                    </tr>
+                    <tr>
+                        <td>CPR</td>
+                        <td>@ViewModel.Analysis.Cpr @(ViewModel.Analysis.CprNarrow ? $"narrow ({ViewModel.Analysis.CprWidthPercent}%)" : "")</td>
+                    </tr>
+                </table>
+            </div>
+            }
+        </aside>
+        }
+    </div>
+
+    <div class="dashboard-positions">
+        <div class="card">
+            <div class="card-header">
+                <h2>Positions</h2>
+                <button class="btn btn-secondary btn-sm" @onclick="RefreshPositionsAsync"
+                        disabled="@ViewModel.IsPositionsLoading">
+                    Refresh
+                </button>
+            </div>
+
+            @if (!ViewModel.IsConnected)
+            {
+                <div class="holdings-banner warning">Connect to Zerodha in Settings to view live positions.</div>
+            }
+            else if (ViewModel.IsPositionsLoading && ViewModel.Positions.Count == 0)
+            {
+                <div class="scanning">Loading positions...</div>
+            }
+            else if (ViewModel.Positions.Count == 0)
+            {
+                <div class="empty-state">No open positions.</div>
+            }
+            else
+            {
+                @if (ViewModel.IsPositionsLoading)
+                {
+                    <div class="status-message">Refreshing positions...</div>
+                }
+                <div class="holdings-summary">
+                    <span class="summary-pill @(ViewModel.AggregatePnL >= 0 ? "buy" : "sell")">
+                        Open P&amp;L: ₹@ViewModel.AggregatePnL.ToString("N2")
+                    </span>
+                    <span class="summary-pill">@ViewModel.Positions.Count position(s)</span>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Qty</th>
+                            <th>Avg Price</th>
+                            <th>LTP</th>
+                            <th>P&amp;L</th>
+                            <th>Side</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var pos in ViewModel.Positions)
+                        {
+                            <tr>
+                                <td><strong>@pos.Symbol</strong></td>
+                                <td>@pos.Quantity</td>
+                                <td>@pos.AveragePrice.ToString("N2")</td>
+                                <td>@pos.LastPrice.ToString("N2")</td>
+                                <td class="@(pos.PnL >= 0 ? "buy" : "sell")">@pos.PnL.ToString("N2")</td>
+                                <td class="@GetTrendClass(pos.Side)">@pos.Side</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        <div class="risk-controls-grid">
+        <div class="card">
+            <div class="card-header">
+                <h2>Target profit / loss</h2>
+                <div class="card-header-actions">
+                    @if (ViewModel.RiskControlsLastUpdated.HasValue)
+                    {
+                        <span class="refresh-timestamp">@ViewModel.RiskControlsLastUpdated.Value.ToString("HH:mm:ss")</span>
+                    }
+                    <button class="btn btn-secondary btn-sm" @onclick="RefreshTargetPnLAsync"
+                            disabled="@ViewModel.IsTargetPnLLoading">
+                        Refresh
+                    </button>
+                </div>
+            </div>
+
+            <p class="text-secondary">
+                Sum <strong>open MIS (intraday)</strong> P&amp;L from Zerodha. Delivery holdings (CNC) like existing portfolio stocks are excluded.
+            </p>
+
+            <div class="framework-panel">
+                <div class="framework-panel-title">Book profit or loss (₹)</div>
+                <ul class="framework-conditions">
+                    <li>Profit: exit all <strong>open MIS</strong> when intraday P&amp;L ≥ target</li>
+                    <li>Loss: exit all <strong>open MIS</strong> when intraday P&amp;L ≤ −limit</li>
+                    <li>Does not sell CNC/delivery holdings — only today&apos;s MIS positions with open quantity</li>
+                    <li>Places LIMIT at live LTP (tick-rounded), then MARKET if limit is rejected</li>
+                </ul>
+
+                <div class="target-pnl-form">
+                    <label class="form-field">
+                        <span>Book profit at (₹)</span>
+                        <input type="number" step="100" min="0" class="form-input"
+                               @bind="_targetProfitInput" @bind:event="oninput" />
+                    </label>
+                    <label class="form-field">
+                        <span>Book loss at (₹)</span>
+                        <input type="number" step="100" min="0" class="form-input"
+                               @bind="_targetLossInput" @bind:event="oninput" />
+                    </label>
+                    <button class="btn btn-primary btn-sm" @onclick="SaveTargetPnLAmountsAsync">
+                        Save targets
+                    </button>
+                </div>
+
+                <div class="holdings-summary target-pnl-live">
+                    <span class="summary-pill @(ViewModel.AggregatePnL >= 0 ? "buy" : "sell")">
+                        MIS P&amp;L: ₹@ViewModel.AggregatePnL.ToString("N2")
+                    </span>
+                    @if (ViewModel.TargetProfitAmount > 0)
+                    {
+                        <span class="summary-pill buy">
+                            Profit target: +₹@ViewModel.TargetProfitAmount.ToString("N0")
+                        </span>
+                    }
+                    @if (ViewModel.TargetLossAmount > 0)
+                    {
+                        <span class="summary-pill sell">
+                            Loss limit: −₹@ViewModel.TargetLossAmount.ToString("N0")
+                        </span>
+                    }
+                    @if (ViewModel.IsTargetPnLMonitoring)
+                    {
+                        <span class="summary-pill buy">Auto-exit on</span>
+                    }
+                </div>
+
+                <div class="trailing-stop-controls">
+                    <label class="checkbox-label target-pnl-monitor-toggle">
+                        <input type="checkbox" checked="@ViewModel.IsTargetPnLMonitoring"
+                               @onchange="OnTargetPnLMonitoringChanged" />
+                        <span>Auto-exit when target P&amp;L hit</span>
+                    </label>
+                    @if (!string.IsNullOrEmpty(ViewModel.TargetPnLStatusMessage))
+                    {
+                        <span class="trailing-stop-status">@ViewModel.TargetPnLStatusMessage</span>
+                    }
+                </div>
+            </div>
+
+            @if (!ViewModel.IsConnected)
+            {
+                <div class="holdings-banner warning">Connect to Zerodha in Settings to monitor P&amp;L.</div>
+            }
+            else if (ViewModel.TargetPnLOpenCount == 0)
+            {
+                <div class="empty-state">No open positions — set targets and enable monitoring before entries.</div>
+            }
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>Intraday trailing stop loss</h2>
+                <div class="card-header-actions">
+                    @if (ViewModel.RiskControlsLastUpdated.HasValue)
+                    {
+                        <span class="refresh-timestamp">@ViewModel.RiskControlsLastUpdated.Value.ToString("HH:mm:ss")</span>
+                    }
+                    <button class="btn btn-secondary btn-sm" @onclick="RefreshTrailingStopAsync"
+                            disabled="@ViewModel.IsTrailingStopLoading">
+                        Refresh
+                    </button>
+                </div>
+            </div>
+
+            <p class="text-secondary">
+                Open MIS positions — ST(7, 2.5) on 5m. Auto square-off when candle closes through SuperTrend.
+            </p>
+
+            <div class="framework-panel">
+                <div class="framework-panel-title">Trailing Stop — ST(7, 2.5) on 5m</div>
+                <ul class="framework-conditions">
+                    <li>Long (buy): exit when 5m candle <strong>closes below</strong> ST(7, 2.5)</li>
+                    <li>Short (sell): exit when 5m candle <strong>closes above</strong> ST(7, 2.5)</li>
+                    <li>Uses last completed 5m candle (not the live forming bar)</li>
+                    <li>Enable auto-exit to place LIMIT square-off orders on breach</li>
+                </ul>
+                <div class="trailing-stop-controls">
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked="@ViewModel.IsTrailingStopMonitoring"
+                               @onchange="OnTrailingStopMonitoringChanged" />
+                        Auto-exit on ST breach
+                    </label>
+                    @if (!string.IsNullOrEmpty(ViewModel.TrailingStopStatusMessage))
+                    {
+                        <span class="trailing-stop-status">@ViewModel.TrailingStopStatusMessage</span>
+                    }
+                </div>
+            </div>
+
+            @if (!ViewModel.IsConnected)
+            {
+                <div class="holdings-banner warning">Connect to Zerodha in Settings for MIS trailing stop.</div>
+            }
+            else if (ViewModel.IsTrailingStopLoading && ViewModel.TrailingStopItems.Count == 0)
+            {
+                <div class="scanning">Loading open MIS positions...</div>
+            }
+            else if (ViewModel.TrailingStopItems.Count == 0)
+            {
+                <div class="empty-state">No open MIS positions to trail.</div>
+            }
+            else
+            {
+                @if (ViewModel.IsTrailingStopLoading)
+                {
+                    <div class="status-message">Refreshing trailing stop data...</div>
+                }
+                <div class="holdings-summary">
+                    <span class="summary-pill">@ViewModel.TrailingStopMonitoringCount open</span>
+                    @if (ViewModel.TrailingStopTriggeredCount > 0)
+                    {
+                        <span class="summary-pill sell">@ViewModel.TrailingStopTriggeredCount exit signal</span>
+                    }
+                    @if (ViewModel.IsTrailingStopMonitoring)
+                    {
+                        <span class="summary-pill buy">Auto-exit on</span>
+                    }
+                </div>
+
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Stock</th>
+                            <th>Exch</th>
+                            <th>Side</th>
+                            <th>Qty</th>
+                            <th>LTP</th>
+                            <th>ST (7, 2.5)</th>
+                            <th>Last 5m close</th>
+                            <th>P&amp;L</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in ViewModel.TrailingStopItems)
+                        {
+                            <tr class="@GetTrailingRowClass(item)">
+                                <td><strong>@item.Symbol</strong></td>
+                                <td><span class="exchange-badge">@item.Exchange</span></td>
+                                <td class="@(item.Side == TrendDirection.Buy ? "buy" : "sell")">@item.Side</td>
+                                <td>@item.Quantity</td>
+                                <td>@item.LastPrice.ToString("N2")</td>
+                                <td>@item.SuperTrendLevel.ToString("N2")</td>
+                                <td>@item.LastClosedPrice.ToString("N2")</td>
+                                <td class="@(item.PnL >= 0 ? "buy" : "sell")">@item.PnL.ToString("N2")</td>
+                                <td>
+                                    <span class="framework-badge @GetTrailingStatusClass(item)">@item.Status</span>
+                                    @if (!string.IsNullOrEmpty(item.Detail))
+                                    {
+                                        <div class="trailing-detail">@item.Detail</div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+        </div>
+    </div>
+</div>
+
+@code {
+  private static readonly string[] DashboardChartTimeframes = ["1m", "5m", "15m", "1H", "1D", "1W"];
+
+  private CancellationTokenSource? _refreshCts;
+  private decimal _targetProfitInput;
+  private decimal _targetLossInput;
+
+  // Attachable drawers — closed by default so the chart owns the screen.
+  private bool _showSignal;
+  private bool _showNews;
+  private bool _showAi;
+  private bool _showAnalysis;
+
+  private bool _showInsightRail => _showAi || _showAnalysis;
+  private int ChartHeight =>
+      Layout.IsFocusChart
+          ? (_showSignal || _showNews ? 500 : 580)
+          : (_showSignal || _showNews ? 460 : 540);
+
+  protected override void OnInitialized()
+  {
+    ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+    SentimentViewModel.PropertyChanged += OnSentimentPropertyChanged;
+    Layout.Changed += OnLayoutChanged;
+    _refreshCts = new CancellationTokenSource();
+    _ = LoadDashboardAsync();
+    _ = RunRefreshLoopsAsync(_refreshCts.Token);
+  }
+
+  private async Task RunRefreshLoopsAsync(CancellationToken cancellationToken)
+  {
+    using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+    var tick = 0;
+
+    try
+    {
+      while (await timer.WaitForNextTickAsync(cancellationToken))
+      {
+        tick++;
+        if (tick % 4 == 0)
+          await ViewModel.RefreshAsync();
+        else
+          await ViewModel.RefreshRiskControlsAsync();
+
+        // Refresh top live news ~ every 3 minutes (12 × 15s).
+        if (tick % 12 == 0)
+          await SentimentViewModel.RefreshTopLiveNewsAsync();
+
+        await InvokeAsync(StateHasChanged);
+      }
+    }
+    catch (OperationCanceledException)
+    {
+      // Page disposed.
+    }
+  }
+
+  private async Task LoadDashboardAsync()
+  {
+    try
+    {
+      await ViewModel.InitializeAsync();
+      if (ViewModel.SelectedTimeframe != "5m")
+        await ViewModel.ChangeTimeframeAsync("5m");
+      _targetProfitInput = ViewModel.TargetProfitAmount;
+      _targetLossInput = ViewModel.TargetLossAmount;
+
+      // Live RSS → rank top 5 important/affected → separate sentiment analysis method.
+      await SentimentViewModel.RefreshTopLiveNewsAsync();
+    }
+    catch (Exception)
+    {
+      await InvokeAsync(StateHasChanged);
+    }
+    finally
+    {
+      await InvokeAsync(StateHasChanged);
+    }
+  }
+
+  private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+    InvokeAsync(StateHasChanged);
+
+  private void OnSentimentPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+    InvokeAsync(StateHasChanged);
+
+  private void OnLayoutChanged() => InvokeAsync(StateHasChanged);
+
+  private async Task ToggleWatchlistAsync() => await Layout.ToggleNiftyAccordionAsync();
+
+  private static string GetHeadlineIcon(string label) => label.ToLowerInvariant() switch
+  {
+      "positive" => "🟢",
+      "negative" => "🔴",
+      _ => "🟡"
+  };
+
+  private static string BuildNewsTooltip(LiveNewsHeadline headline)
+  {
+    var symbols = headline.RelatedSymbols.Count > 0
+        ? string.Join(", ", headline.RelatedSymbols.Take(4))
+        : "Market";
+    return $"{headline.Source} · {symbols} · {headline.Label} ({Math.Round(headline.Score * 100)}%)";
+  }
+
+  private void ToggleSignal() => _showSignal = !_showSignal;
+  private void ToggleNews() => _showNews = !_showNews;
+  private void ToggleAi() => _showAi = !_showAi;
+  private void ToggleAnalysis() => _showAnalysis = !_showAnalysis;
+  private void CloseSignal() => _showSignal = false;
+  private void CloseNews() => _showNews = false;
+  private void CloseAi() => _showAi = false;
+  private void CloseAnalysis() => _showAnalysis = false;
+
+  private async Task RefreshPositionsAsync()
+  {
+    await ViewModel.RefreshPositionsAsync();
+    await InvokeAsync(StateHasChanged);
+  }
+
+  private async Task RefreshTrailingStopAsync()
+  {
+    await ViewModel.RefreshTrailingStopAsync();
+    await InvokeAsync(StateHasChanged);
+  }
+
+  private async Task OnTrailingStopMonitoringChanged(ChangeEventArgs e)
+  {
+    var enabled = e.Value is true;
+    await ViewModel.SetTrailingStopMonitoringAsync(enabled);
+  }
+
+  private async Task RefreshTargetPnLAsync()
+  {
+    await ViewModel.RefreshTargetPnLAsync();
+    await InvokeAsync(StateHasChanged);
+  }
+
+  private async Task SaveTargetPnLAmountsAsync()
+  {
+    await ViewModel.SaveTargetPnLAmountsAsync(_targetProfitInput, _targetLossInput);
+    _targetProfitInput = ViewModel.TargetProfitAmount;
+    _targetLossInput = ViewModel.TargetLossAmount;
+    await InvokeAsync(StateHasChanged);
+  }
+
+  private async Task OnTargetPnLMonitoringChanged(ChangeEventArgs e)
+  {
+    var enabled = e.Value is true;
+    await ViewModel.SetTargetPnLMonitoringAsync(enabled);
+  }
+
+  private async Task SelectSymbol(string symbol)
+  {
+    await ViewModel.SelectInstrumentAsync(symbol);
+  }
+
+  private static string GetTrendClass(TrendDirection trend) => TrendUi.GetClass(trend);
+
+  private static string GetAdxStrengthLabel(MultiTimeframeAnalysis analysis) => analysis.Strength1H switch
+  {
+      TrendStrength.Strong => "Strong (>25)",
+      TrendStrength.Moderate => "Moderate (18–25)",
+      _ => "Choppy (<18)"
+  };
+
+  private static string GetOverallScoreClass(MultiTimeframeAnalysis analysis) => analysis.Strength1H switch
+  {
+      TrendStrength.Strong => "buy",
+      TrendStrength.Moderate => "neutral",
+      _ => "sell"
+  };
+
+  private static string GetTrailingRowClass(TrailingStopRow item) => item.ExitPlaced
+      ? "closed-row"
+      : item.IsTriggered ? "review-row" : "aligned-row";
+
+  private static string GetTrailingStatusClass(TrailingStopRow item) => item.ExitPlaced
+      ? "neutral"
+      : item.IsTriggered ? "sell" : "buy";
+
+  public void Dispose()
+  {
+    _refreshCts?.Cancel();
+    _refreshCts?.Dispose();
+    ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+    SentimentViewModel.PropertyChanged -= OnSentimentPropertyChanged;
+    Layout.Changed -= OnLayoutChanged;
+  }
+}
