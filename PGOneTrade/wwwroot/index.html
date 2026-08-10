@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="black">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PG One Trade - SuperTrend Trading</title>
+    <base href="/" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="icon" href="images/pgonetrade_logo.png" type="image/png" />
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('pgonetrade.theme');
+                if (t === 'classic' || t === 'black')
+                    document.documentElement.setAttribute('data-theme', t);
+            } catch (e) { /* ignore */ }
+        })();
+    </script>
+</head>
+<body>
+    <div id="app">
+        <div class="loading-screen">
+            <img src="images/pgonetrade_logo.png" alt="PG One Trade" class="loading-logo" />
+            <div class="loading-text">Loading PG One Trade…</div>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <div id="pg-diag"></div>
+
+    <script>
+        window.pgOneTradeTheme = {
+            normalize: function (theme) {
+                return theme === 'classic' ? 'classic' : 'black';
+            },
+            apply: function (theme) {
+                var t = this.normalize(theme);
+                document.documentElement.setAttribute('data-theme', t);
+                try { localStorage.setItem('pgonetrade.theme', t); } catch (e) { /* ignore */ }
+                try {
+                    if (window.pgOneTradeChart && typeof window.pgOneTradeChart.refreshAll === 'function')
+                        window.pgOneTradeChart.refreshAll();
+                } catch (e) { /* ignore */ }
+                return t;
+            },
+            current: function () {
+                return document.documentElement.getAttribute('data-theme') || 'black';
+            }
+        };
+
+        (function () {
+            function diag(msg) {
+                var d = document.getElementById('pg-diag');
+                if (!d) return;
+                d.style.display = 'block';
+                d.textContent += msg + "\n";
+            }
+
+            window.addEventListener('error', function (e) {
+                if (e && e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK' || e.target.tagName === 'IMG')) {
+                    diag('Failed to load: ' + (e.target.src || e.target.href));
+                } else {
+                    diag('JS error: ' + (e.message || (e.error && e.error.message) || e) +
+                        (e.filename ? ('  @ ' + e.filename + ':' + e.lineno) : ''));
+                }
+            }, true);
+
+            window.addEventListener('unhandledrejection', function (e) {
+                diag('Promise error: ' + (e.reason && (e.reason.message || e.reason)));
+            });
+
+            setTimeout(function () {
+                if (!document.querySelector('.app-shell')) {
+                    diag('Blazor did not render within 15s.\n' +
+                        'The host page loaded, but no Razor component mounted.\n\n' +
+                        'Try:\n' +
+                        '  1. .\\verify-build.ps1  (confirm _framework/blazor.webview.js exists)\n' +
+                        '  2. .\\sync-maui-version.ps1  (align MAUI packages with workload)\n' +
+                        '  3. .\\clean.ps1 then rebuild (F5)\n' +
+                        '  4. .\\install-webview2.ps1  (install WebView2 Runtime)');
+                }
+            }, 15000);
+        })();
+    </script>
+    <!-- Blazor must load before chart scripts so a chart error cannot block the UI. -->
+    <script src="_framework/blazor.webview.js" autostart="false"></script>
+    <script src="js/chart.js?v=20260809-cpr-fix"></script>
+</body>
+</html>

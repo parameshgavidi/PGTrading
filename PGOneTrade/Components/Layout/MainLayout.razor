@@ -1,0 +1,165 @@
+@namespace PGOneTrade.Components.Layout
+@using PGOneTrade.Services
+@inherits LayoutComponentBase
+@inject IZerodhaService ZerodhaService
+@inject IUiLayoutService Layout
+@inject IThemeService Theme
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<div class="app-shell @(Layout.IsNavCollapsed ? "nav-collapsed" : "") @(Layout.IsFocusChart ? "focus-chart" : "")" data-theme="@Theme.CurrentTheme">
+    <aside class="sidebar" aria-hidden="@Layout.IsNavCollapsed">
+        <div class="sidebar-header">
+            <div class="sidebar-brand"><span class="brand-pg">PG</span> <span class="brand-one">One Trade</span></div>
+            <div class="sidebar-tagline">Trade Smart. Stay Ahead.</div>
+        </div>
+        <NavMenu />
+        <div class="sidebar-footer">
+            <div class="connection-status @(_isConnected ? "connected" : "disconnected")">
+                <span class="status-dot"></span>
+                @(_isConnected ? "Broker linked" : "Broker offline")
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-bar">
+            <div class="top-bar-left">
+                <div class="layout-controls">
+                    <button type="button"
+                            class="layout-toggle @(Layout.IsNavCollapsed ? "" : "active")"
+                            title="@(Layout.IsNavCollapsed ? "Show navigation" : "Hide navigation")"
+                            @onclick="ToggleNavAsync">
+                        <span class="layout-toggle-bars" aria-hidden="true"></span>
+                        <span class="layout-toggle-label">Nav</span>
+                    </button>
+                    @if (_isDashboard)
+                    {
+                        <button type="button"
+                                class="layout-toggle focus-toggle @(Layout.IsFocusChart ? "active" : "")"
+                                title="@(Layout.IsFocusChart ? "Exit focus chart" : "Focus chart — hide nav & maximize chart")"
+                                @onclick="ToggleFocusAsync">
+                            <span class="layout-toggle-label">@(Layout.IsFocusChart ? "Exit focus" : "Focus chart")</span>
+                        </button>
+                    }
+                </div>
+                <div class="top-bar-titles">
+                    <h1 class="page-title">@_pageTitle</h1>
+                    @if (!string.IsNullOrEmpty(_pageSubtitle))
+                    {
+                        <p class="page-subtitle">@_pageSubtitle</p>
+                    }
+                </div>
+            </div>
+            <div class="top-bar-right">
+                @if (_isConnected)
+                {
+                    <span class="connection-badge connected" title="Zerodha connected">
+                        <span class="status-dot"></span>
+                        Connected
+                    </span>
+                }
+                else
+                {
+                    <a class="connection-badge disconnected connection-cta" href="settings" title="Connect Zerodha in Settings">
+                        <span class="status-dot"></span>
+                        Connect broker
+                    </a>
+                }
+                <span class="clock" title="Local time">@_currentTime</span>
+            </div>
+        </header>
+        <article class="content-area">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code {
+    private bool _isConnected;
+    private bool _isDashboard = true;
+    private string _currentTime = DateTime.Now.ToString("hh:mm:ss tt");
+    private string _pageTitle = "Dashboard";
+    private string _pageSubtitle = string.Empty;
+    private System.Timers.Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        AppUiEvents.RaiseShellRendered();
+        _isConnected = ZerodhaService.IsConnected;
+        ZerodhaService.ConnectionChanged += OnConnectionChanged;
+        Navigation.LocationChanged += OnNavigationChanged;
+        Layout.Changed += OnLayoutChanged;
+        Theme.ThemeChanged += OnThemeChanged;
+        UpdatePageTitle();
+
+        _timer = new System.Timers.Timer(1000);
+        _timer.Elapsed += (_, _) =>
+        {
+            _currentTime = DateTime.Now.ToString("hh:mm:ss tt");
+            InvokeAsync(StateHasChanged);
+        };
+        _timer.Start();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            AppUiEvents.RaiseShellRendered();
+            await Theme.InitializeAsync();
+            await Layout.InitializeAsync();
+        }
+    }
+
+    private void OnConnectionChanged(bool connected)
+    {
+        _isConnected = connected;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnLayoutChanged() => InvokeAsync(StateHasChanged);
+    private void OnThemeChanged() => InvokeAsync(StateHasChanged);
+
+    private void OnNavigationChanged(object? sender, LocationChangedEventArgs e) =>
+        InvokeAsync(() =>
+        {
+            UpdatePageTitle();
+            StateHasChanged();
+        });
+
+    private async Task ToggleNavAsync() => await Layout.ToggleNavAsync();
+    private async Task ToggleFocusAsync() => await Layout.ToggleFocusChartAsync();
+
+    private void UpdatePageTitle()
+    {
+        var path = Navigation.ToBaseRelativePath(Navigation.Uri).Trim('/').ToLowerInvariant();
+        _isDashboard = path is "" or "dashboard";
+        (_pageTitle, _pageSubtitle) = path switch
+        {
+            "" or "dashboard" => ("Dashboard", "Market overview & chart"),
+            "framework" => ("Framework", "Playbook & bias checklist"),
+            "multi-chart" => ("Multi Chart", "Compare symbols side by side"),
+            "scanner" => ("Scanner", "Intraday & long-term scans"),
+            "sentiment" => ("Sentiment", "News-driven bias · Buy CNC"),
+            "signals" => ("Signals", "Setup readiness & index options"),
+            "positions" => ("Positions", "Open MIS / NRML risk"),
+            "orders" => ("Orders", "Today’s order book"),
+            "watchlist" => ("Watchlist", "Tracked symbols"),
+            "auto-buy" => ("Auto Buy", "Long CNC automation"),
+            "settings" => ("Settings", "Broker, theme & API configuration"),
+            "holdings" => ("Holdings", "Delivery portfolio"),
+            "strategy" => ("Strategy", "Rules & risk notes"),
+            _ => ("PG One Trade", string.Empty)
+        };
+    }
+
+    public void Dispose()
+    {
+        ZerodhaService.ConnectionChanged -= OnConnectionChanged;
+        Navigation.LocationChanged -= OnNavigationChanged;
+        Layout.Changed -= OnLayoutChanged;
+        Theme.ThemeChanged -= OnThemeChanged;
+        _timer?.Dispose();
+    }
+}

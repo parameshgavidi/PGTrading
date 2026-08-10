@@ -1,21 +1,21 @@
-# PG Trading — PG One SuperTrend Nifty Trading Assistant
+# PG Trading — PG One Trade SuperTrend Nifty Trading Assistant
 
 .NET MAUI Blazor Hybrid desktop app for SuperTrend-based Nifty trading with Zerodha integration.
 
 **Requires:** .NET 10 SDK + MAUI 10 workload
 
-See [PGOne/README.md](PGOne/README.md) for full setup instructions.
+See [PGOneTrade/README.md](PGOneTrade/README.md) for full setup instructions.
 
 ## Quick Start (Windows)
 
 ```powershell
-cd D:\PGOne\PGOne
+cd D:\PGOneTrade\PGOneTrade
 .\check-sdk.ps1
 dotnet workload install maui
 dotnet restore
 dotnet build -f net10.0-windows10.0.19041.0
 ```
 
-Or open `PGTrading.sln` in Visual Studio 2026 and press F5.
+Or open `PG One Trade.sln` in Visual Studio 2026 and press F5.
 
 **Don't have .NET 10?** Download: https://dotnet.microsoft.com/download/dotnet/10.0
