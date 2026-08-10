@@ -227,7 +227,8 @@ html, body {
 }
 
 .brand-pg {
-    color: var(--text);
+    /* Warm trading orange — reads as the PG mark on dark navy */
+    color: #F97316;
     font-weight: 800;
 }
 
@@ -443,12 +444,15 @@ html, body {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0;
     background: var(--nav-mark-bg);
     color: var(--text-secondary);
     border: 1px solid var(--nav-mark-border);
+}
+
+.nav-mark svg {
+    width: 13px;
+    height: 13px;
+    display: block;
 }
 
 .nav-item:hover .nav-mark {
@@ -3190,7 +3194,8 @@ code {
 }
 
 [data-theme="classic"] .brand-pg {
-    color: var(--text);
+    /* Slightly deeper orange on light surfaces for contrast */
+    color: #EA580C;
 }
 
 [data-theme="classic"] .brand-one {
