@@ -409,6 +409,7 @@
     public void Dispose()
     {
         ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        Dashboard.PropertyChanged -= OnDashboardPropertyChanged;
         Navigation.LocationChanged -= OnLocationChanged;
     }
 }
