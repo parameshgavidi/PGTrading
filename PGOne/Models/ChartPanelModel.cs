@@ -29,7 +29,7 @@ public class ChartPanelModel
     public bool IsChartFromZerodha { get; set; }
     public TrendDirection ChartTrend { get; set; } = TrendDirection.Neutral;
 
-    public bool SupportsIntradayCprOverlay => SelectedTimeframe is "1m" or "15m";
+    public bool SupportsIntradayCprOverlay => true;
     public bool SupportsIntradayStOverlays => SelectedTimeframe is not "1W";
     public bool SupportsSt725Overlays => SelectedTimeframe is "1m" or "5m" or "15m";
     public bool Supports5mStudyToggles => SelectedTimeframe == "5m";

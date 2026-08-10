@@ -63,7 +63,7 @@
                                     @(ViewModel.NiftyChange >= 0 ? "▲" : "▼") @Math.Abs(ViewModel.NiftyChange).ToString("N2") (@ViewModel.NiftyChangePercent%)
                                 </span>
                                 <TrendBadge Trend="ViewModel.NiftyTrend" />
-                                @if (ViewModel.SupportsIntradayCprOverlay && ViewModel.ShowIntradayCprOverlay)
+                                @if (ViewModel.ShowIntradayCprOverlay)
                                 {
                                     <span class="cpr-position-badge @ViewModel.CprPositionClass">@ViewModel.CprPositionLabel</span>
                                 }

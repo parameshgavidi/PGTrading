@@ -34,8 +34,7 @@
                     @onclick="() => ChangeTimeframeAsync(tf)">@tf</button>
         }
     </div>
-    <ChartOverlayToggles ShowIntradayCprToggle="ViewModel.SupportsIntradayCprOverlay"
-                         ShowKeltnerToggle="@(ViewModel.SelectedTimeframe == "1m" || ViewModel.SelectedTimeframe == "5m")"
+    <ChartOverlayToggles ShowKeltnerToggle="@(ViewModel.SelectedTimeframe == "1m" || ViewModel.SelectedTimeframe == "5m")"
                          ShowIntradayStToggles="ViewModel.SupportsIntradayStOverlays"
                          ShowSt725Toggle="ViewModel.SupportsSt725Overlays"
                          Show5mStudyToggles="ViewModel.Supports5mStudyToggles"
@@ -110,7 +109,7 @@
     {
         <span class="legend-item"><span class="legend-color pivot"></span> Day CPR (prev day)</span>
     }
-    @if (ViewModel.ShowIntradayCprOverlay && ViewModel.SupportsIntradayCprOverlay)
+    @if (ViewModel.ShowIntradayCprOverlay)
     {
         <span class="legend-item"><span class="legend-color cpr-tc"></span> 1m CPR on chart — TC / CPR / BC per 15m</span>
     }

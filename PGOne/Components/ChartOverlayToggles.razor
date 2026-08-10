@@ -11,14 +11,11 @@
             @onclick="ToggleDayCprAsync">
         Day CPR
     </button>
-    @if (ShowIntradayCprToggle)
-    {
-        <button type="button"
-                class="btn overlay-toggle @(ShowIntradayCpr ? "active" : "")"
-                @onclick="ToggleIntradayCprAsync">
-            1m CPR
-        </button>
-    }
+    <button type="button"
+            class="btn overlay-toggle @(ShowIntradayCpr ? "active" : "")"
+            @onclick="ToggleIntradayCprAsync">
+        1m CPR
+    </button>
     <button type="button"
             class="btn overlay-toggle @(ShowCamarilla ? "active" : "")"
             @onclick="ToggleCamarillaAsync">
@@ -88,7 +85,6 @@
     [Parameter] public bool ShowPoc { get; set; } = true;
     [Parameter] public bool ShowDayCpr { get; set; }
     [Parameter] public bool ShowCamarilla { get; set; }
-    [Parameter] public bool ShowIntradayCprToggle { get; set; }
     [Parameter] public bool ShowIntradayCpr { get; set; }
     [Parameter] public bool ShowKeltnerToggle { get; set; }
     [Parameter] public bool ShowKeltner { get; set; }
