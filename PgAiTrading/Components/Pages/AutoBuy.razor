@@ -1,5 +1,6 @@
 @page "/auto-buy"
 @inject AutoBuyViewModel ViewModel
+@inject DashboardViewModel Dashboard
 @inject NavigationManager Navigation
 @implements IDisposable
 
@@ -154,8 +155,9 @@
                             <td class="auto-buy-detail">@row.Detail</td>
                             <td @onclick:stopPropagation="true" class="auto-buy-actions">
                                 <button type="button"
-                                        class="btn btn-secondary btn-sm"
-                                        @onclick="() => ViewChart(row.Symbol)">
+                                        class="btn btn-sm @(IsChartSymbol(row.Symbol) ? "btn-primary auto-buy-view-chart active" : "btn-secondary auto-buy-view-chart")"
+                                        title="Open @row.Symbol on Dashboard"
+                                        @onclick="() => ViewChartAsync(row.Symbol)">
                                     View chart
                                 </button>
                                 <button type="button"
@@ -258,6 +260,7 @@
     protected override async Task OnInitializedAsync()
     {
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        Dashboard.PropertyChanged += OnDashboardPropertyChanged;
         Navigation.LocationChanged += OnLocationChanged;
         await ViewModel.InitializeAsync();
         await ViewModel.RefreshSettingsAsync();
@@ -293,6 +296,19 @@
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
         InvokeAsync(StateHasChanged);
 
+    private void OnDashboardPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is null
+            || e.PropertyName == nameof(DashboardViewModel.SelectedSymbol)
+            || e.PropertyName == nameof(DashboardViewModel.SelectedInstrument))
+        {
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private bool IsChartSymbol(string symbol) =>
+        string.Equals(Dashboard.SelectedSymbol, symbol, StringComparison.OrdinalIgnoreCase);
+
     private async Task SelectSuggestionAsync(string symbol)
     {
         _searchText = symbol;
@@ -315,12 +331,20 @@
 
     private async Task RemoveRowAsync(string symbol) => await ViewModel.RemoveSymbolAsync(symbol);
 
-    private void ViewChart(string symbol)
+    private async Task ViewChartAsync(string symbol)
     {
         if (string.IsNullOrWhiteSpace(symbol))
             return;
 
-        Navigation.NavigateTo($"chart?symbol={Uri.EscapeDataString(symbol.Trim().ToUpperInvariant())}");
+        var normalized = symbol.Trim().ToUpperInvariant();
+        await Dashboard.SelectInstrumentAsync(normalized);
+
+        var path = Navigation.ToBaseRelativePath(Navigation.Uri).Trim('/');
+        if (!string.IsNullOrEmpty(path)
+            && !path.Equals("dashboard", StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo("/");
+        }
     }
 
     private async Task OnMasterAutomationChanged(ChangeEventArgs e)
