@@ -16,6 +16,6 @@ dotnet restore
 dotnet build -f net10.0-windows10.0.19041.0
 ```
 
-Or open `PG AI Trading.sln` in Visual Studio 2026 and press F5.
+Or open `PgAiTrading.sln` in Visual Studio 2026 and press F5.
 
 **Don't have .NET 10?** Download: https://dotnet.microsoft.com/download/dotnet/10.0

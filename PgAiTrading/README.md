@@ -58,7 +58,7 @@ dotnet build -f net10.0-windows10.0.19041.0
 dotnet run -f net10.0-windows10.0.19041.0
 ```
 
-Or open `PG AI Trading.sln` in **Visual Studio 2026 Community** and press **F5**.
+Or open `PgAiTrading.sln` in **Visual Studio 2026 Community** and press **F5**.
 
 ### Install .NET 10 SDK
 
@@ -117,7 +117,7 @@ If the app crashes with `TypeInitializationException` for `WinRT.ActivationFacto
 1. Pull latest — project runs **unpackaged** (plain `.exe`, no MSIX)
 2. Close Visual Studio completely
 3. Run `.\clean.ps1`, delete `.vs`
-4. Reopen `PG AI Trading.sln` and press **F5**
+4. Reopen `PgAiTrading.sln` and press **F5**
 
 If it still fails, install **Windows App Runtime** from the Microsoft Store, then rebuild.
 
