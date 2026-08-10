@@ -228,7 +228,7 @@ html, body {
 }
 
 .brand-one {
-    color: var(--gold);
+    color: #3B82F6;
     font-weight: 700;
 }
 
@@ -3187,7 +3187,7 @@ code {
 }
 
 [data-theme="classic"] .brand-one {
-    color: var(--gold);
+    color: #2563EB;
 }
 
 [data-theme="classic"] .connection-badge.connected {
