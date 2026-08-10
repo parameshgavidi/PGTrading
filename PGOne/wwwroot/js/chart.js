@@ -1,10 +1,10 @@
 // Candlestick chart renderer for PG One with zoom/pan support.
 window.pgOneChart = (function () {
     const states = {};
-    const PRICE_AXIS_WIDTH = 56;
+    const PRICE_AXIS_WIDTH = 108;
     const Y_SCALE_MIN = 0.05;
     const Y_SCALE_MAX = 20;
-    const CHART_PADDING = { top: 10, right: 52, bottom: 22, left: 6 };
+    const CHART_PADDING = { top: 10, right: 104, bottom: 22, left: 6 };
 
     function num(v) { return v == null ? null : Number(v); }
 
@@ -434,7 +434,7 @@ window.pgOneChart = (function () {
                 return;
             }
 
-            const perBar = (canvas.clientWidth - 72) / st.count;
+            const perBar = (canvas.clientWidth - (PRICE_AXIS_WIDTH + 16)) / st.count;
             const deltaBars = Math.round((e.clientX - interaction.lastX) / perBar);
             if (deltaBars !== 0) {
                 st.offset = clamp(st.offset + deltaBars, 0, st.candles.length - st.count);
@@ -709,6 +709,163 @@ window.pgOneChart = (function () {
         ctx.fillText(text, x + padX, y);
     }
 
+    function getBarDurationMs(timeframe) {
+        switch (timeframe) {
+            case '1m': return 60 * 1000;
+            case '5m': return 5 * 60 * 1000;
+            case '15m': return 15 * 60 * 1000;
+            case '1H': return 60 * 60 * 1000;
+            case '1D': return 24 * 60 * 60 * 1000;
+            default: return null;
+        }
+    }
+
+    function isIstMarketOpen(nowMs) {
+        var ist = new Date((nowMs == null ? Date.now() : nowMs) + (5.5 * 60 * 60 * 1000));
+        var day = ist.getUTCDay();
+        if (day === 0 || day === 6) return false;
+        var mins = ist.getUTCHours() * 60 + ist.getUTCMinutes();
+        return mins >= (9 * 60 + 15) && mins <= (15 * 60 + 30);
+    }
+
+    function candleTimeMs(candle) {
+        if (!candle || candle.time == null) return null;
+        if (typeof candle.time === 'number') return candle.time;
+        var parsed = Date.parse(candle.time);
+        return Number.isNaN(parsed) ? null : parsed;
+    }
+
+    function formatPriceIn(price) {
+        return Number(price).toLocaleString('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function formatBarCountdown(remainingMs) {
+        var totalSec = Math.max(0, Math.floor(remainingMs / 1000));
+        var m = Math.floor(totalSec / 60);
+        var s = totalSec % 60;
+        return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+
+    function getBarCountdownText(barStartMs, timeframe) {
+        var duration = getBarDurationMs(timeframe);
+        if (!duration || barStartMs == null) return null;
+        if (timeframe === '1D' || timeframe === '1W') return null;
+        if (!isIstMarketOpen(Date.now())) return null;
+        return formatBarCountdown((barStartMs + duration) - Date.now());
+    }
+
+    function shouldTickCountdown(st) {
+        if (!st || !st.candles || st.candles.length === 0) return false;
+        if (!getBarDurationMs(st.timeframe) || st.timeframe === '1D' || st.timeframe === '1W')
+            return false;
+        if (!isIstMarketOpen(Date.now())) return false;
+        var last = st.candles[st.candles.length - 1];
+        var start = candleTimeMs(last);
+        if (start == null) return false;
+        var remaining = (start + getBarDurationMs(st.timeframe)) - Date.now();
+        // Keep ticking a few seconds past close so the badge can settle on 00:00.
+        return remaining > -5000;
+    }
+
+    function ensureCountdownTicker(canvasId) {
+        var st = states[canvasId];
+        if (!st) return;
+        if (st._countdownTimer) return;
+        st._countdownTimer = setInterval(function () {
+            var cur = states[canvasId];
+            if (!cur || !document.getElementById(canvasId)) {
+                if (cur && cur._countdownTimer) {
+                    clearInterval(cur._countdownTimer);
+                    cur._countdownTimer = null;
+                }
+                delete states[canvasId];
+                return;
+            }
+            if (shouldTickCountdown(cur))
+                scheduleRender(canvasId);
+        }, 1000);
+    }
+
+    function drawLastPriceBadge(ctx, st, lastCandle, width, height, padding, toY) {
+        if (!lastCandle || lastCandle.close == null || Number.isNaN(lastCandle.close)) return;
+
+        var live = num(st.livePrice);
+        var price = live != null && live > 0 ? live : lastCandle.close;
+        if (price == null || Number.isNaN(price)) return;
+
+        var isUp = price >= lastCandle.open;
+        var bg = isUp ? '#00C853' : '#FF5252';
+        var y = toY(price);
+        var chartTop = padding.top;
+        var chartBottom = height - padding.bottom;
+        y = Math.max(chartTop + 2, Math.min(chartBottom - 2, y));
+
+        ctx.save();
+        ctx.strokeStyle = bg;
+        ctx.globalAlpha = 0.85;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(width - padding.right, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+
+        var symbol = (st.symbolLabel || '').toString().trim();
+        var priceText = formatPriceIn(price);
+        var timerText = getBarCountdownText(candleTimeMs(lastCandle), st.timeframe);
+
+        ctx.font = 'bold 10px "Segoe UI", sans-serif';
+        var symbolW = symbol ? ctx.measureText(symbol).width : 0;
+        ctx.font = 'bold 12px "Segoe UI", sans-serif';
+        var priceW = ctx.measureText(priceText).width;
+        var gap = symbol ? 6 : 0;
+        var line1W = symbolW + gap + priceW;
+
+        var timerW = 0;
+        if (timerText) {
+            ctx.font = '11px "Segoe UI", sans-serif';
+            timerW = ctx.measureText(timerText).width;
+        }
+
+        var padX = 6;
+        var padY = 4;
+        var innerW = Math.max(line1W, timerW) + padX * 2;
+        var boxW = Math.min(innerW, padding.right - 4);
+        var boxH = timerText ? 30 : 18;
+        var boxX = width - padding.right + 2;
+        var boxY = y - boxH / 2;
+        if (boxY < chartTop) boxY = chartTop;
+        if (boxY + boxH > chartBottom) boxY = chartBottom - boxH;
+
+        ctx.fillStyle = bg;
+        ctx.fillRect(boxX, boxY, boxW, boxH);
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+
+        var line1Y = timerText ? boxY + padY + 7 : boxY + boxH / 2;
+        var tx = boxX + padX;
+        if (symbol) {
+            ctx.font = 'bold 10px "Segoe UI", sans-serif';
+            ctx.fillText(symbol, tx, line1Y);
+            tx += symbolW + gap;
+        }
+        ctx.font = 'bold 12px "Segoe UI", sans-serif';
+        ctx.fillText(priceText, tx, line1Y);
+
+        if (timerText) {
+            ctx.font = '11px "Segoe UI", sans-serif';
+            ctx.fillText(timerText, boxX + padX, boxY + boxH - padY - 6);
+        }
+        ctx.restore();
+    }
+
     function drawLevels(ctx, levels, padding, width, toY) {
         if (!levels || levels.length === 0) return;
 
@@ -824,6 +981,8 @@ window.pgOneChart = (function () {
         const showEma50 = overlayFlag(opts, 'showEma50', false);
         const showEma200 = overlayFlag(opts, 'showEma200', false);
         const showPatterns = overlayFlag(opts, 'showPatterns', false);
+        const symbolLabel = (field(opts, 'symbolLabel') || field(opts, 'symbol') || '').toString();
+        const livePrice = num(field(opts, 'livePrice'));
 
         ensureStudyIndicators(normalized, {
             showVwap: showVwap,
@@ -848,6 +1007,8 @@ window.pgOneChart = (function () {
             yPan = 0;
         }
 
+        const prevTimer = prev && prev._countdownTimer ? prev._countdownTimer : null;
+
         states[canvasId] = {
             canvas, candles: normalized, timeframe, count, offset,
             yScale, yPan,
@@ -866,9 +1027,13 @@ window.pgOneChart = (function () {
             showEma20: showEma20,
             showEma50: showEma50,
             showEma200: showEma200,
-            showPatterns: showPatterns
+            showPatterns: showPatterns,
+            symbolLabel: symbolLabel,
+            livePrice: livePrice,
+            _countdownTimer: prevTimer
         };
         ensureInteractions(canvas, canvasId);
+        ensureCountdownTicker(canvasId);
         scheduleRender(canvasId);
         return true;
     }
@@ -1104,6 +1269,9 @@ window.pgOneChart = (function () {
         if (st.showEma200) {
             drawStudyLine(getEma200Value, 'rgba(38, 166, 154, 0.95)', [10, 4], 2.5);
         }
+
+        const lastCandle = candles[candles.length - 1];
+        drawLastPriceBadge(ctx, st, lastCandle, width, height, padding, toY);
     }
 
     function updateOverlayOptions(canvasId, overlayOptions, overlayInts) {

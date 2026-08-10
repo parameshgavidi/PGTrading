@@ -39,6 +39,8 @@
     [Parameter] public bool ShowVwapOverlay { get; set; }
     [Parameter] public bool ShowPatternsOverlay { get; set; }
     [Parameter] public string Timeframe { get; set; } = "5m";
+    [Parameter] public string SymbolLabel { get; set; } = string.Empty;
+    [Parameter] public decimal LivePrice { get; set; }
     [Parameter] public string CssClass { get; set; } = string.Empty;
     [Parameter] public int Width { get; set; } = 800;
     [Parameter] public int Height { get; set; } = 350;
@@ -46,6 +48,8 @@
     private int _lastRenderedVersion = -1;
     private int _lastOverlayVersion = -1;
     private string _lastTimeframe = "5m";
+    private string _lastSymbolLabel = string.Empty;
+    private decimal _lastLivePrice;
     private bool _lastShowPoc;
     private bool _lastShowPivot;
     private bool _lastShowCamarilla;
@@ -74,6 +78,8 @@
         if (ChartVersion == _lastRenderedVersion
             && OverlayVersion == _lastOverlayVersion
             && Timeframe == _lastTimeframe
+            && SymbolLabel == _lastSymbolLabel
+            && LivePrice == _lastLivePrice
             && ShowPocLevels == _lastShowPoc
             && ShowPivotLevels == _lastShowPivot
             && ShowCamarillaLevels == _lastShowCamarilla
@@ -105,6 +111,8 @@
         _lastRenderedVersion = ChartVersion;
         _lastOverlayVersion = OverlayVersion;
         _lastTimeframe = Timeframe;
+        _lastSymbolLabel = SymbolLabel;
+        _lastLivePrice = LivePrice;
         _lastShowPoc = ShowPocLevels;
         _lastShowPivot = ShowPivotLevels;
         _lastShowCamarilla = ShowCamarillaLevels;
@@ -304,7 +312,9 @@
             showEma20 = ShowEma20Overlay ? 1 : 0,
             showEma50 = ShowEma50Overlay ? 1 : 0,
             showEma200 = ShowEma200Overlay ? 1 : 0,
-            showPatterns = ShowPatternsOverlay ? 1 : 0
+            showPatterns = ShowPatternsOverlay ? 1 : 0,
+            symbolLabel = SymbolLabel,
+            livePrice = LivePrice > 0 ? (double)LivePrice : 0d
         };
 
         var payload = Candles.Select(c => new
