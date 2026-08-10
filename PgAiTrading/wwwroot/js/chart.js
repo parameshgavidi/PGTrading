@@ -1082,7 +1082,7 @@ window.pgAiTradingChart = (function () {
             drawPatternMarkers(ctx, view, padding, chartH, toX, toY, candleWidth);
         }
 
-        // 1m CPR — same dashed line + label style as Day CPR, per 15m window on chart
+        // Intraday CPR — dashed TC/CPR/BC per window (15m on 1m chart; 1H on 5m chart)
         if (st.showIntradaCpr && st.intradayCprSegments && st.intradayCprSegments.length > 0) {
             drawIntradaCprLevels(ctx, view, st.intradayCprSegments, padding, chartH, slot, toY, toX);
         }
