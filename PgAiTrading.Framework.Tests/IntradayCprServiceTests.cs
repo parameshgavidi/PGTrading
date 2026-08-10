@@ -54,4 +54,35 @@ public class IntradayCprServiceTests
         Assert.Equal(sessionOpen.AddMinutes(30), segments[2].Start);
         Assert.Equal(98.33m, segments[2].Pivot);
     }
+
+    [Fact]
+    public void BuildSegments_5m_chart_uses_60_minute_windows()
+    {
+        var sessionDate = new DateTime(2026, 7, 24);
+        var sessionOpen = sessionDate.Add(MarketHours.OpenTime);
+        var prevHour = new Candle
+        {
+            Timestamp = sessionOpen.AddHours(-1),
+            High = 100m,
+            Low = 90m,
+            Close = 95m
+        };
+        var hourBar = new Candle
+        {
+            Timestamp = sessionOpen,
+            High = 102m,
+            Low = 94m,
+            Close = 99m
+        };
+
+        var segments = _service.BuildSegments(
+            [prevHour, hourBar],
+            sessionDate,
+            IntradayCprService.FiveMinuteChartSegmentMinutes);
+
+        Assert.NotEmpty(segments);
+        Assert.Equal(sessionOpen, segments[0].Start);
+        Assert.Equal(sessionOpen.AddMinutes(60), segments[0].End);
+        Assert.All(segments, s => Assert.Equal(60, (s.End - s.Start).TotalMinutes));
+    }
 }

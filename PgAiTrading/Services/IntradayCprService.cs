@@ -4,18 +4,33 @@ namespace PgAiTrading.Services;
 
 public interface IIntradayCprService
 {
-    IReadOnlyList<IntradayCprSegment> BuildSegments(List<Candle> candles15m, DateTime sessionDate);
+    /// <summary>
+    /// Builds intraday CPR windows from reference candles
+    /// (15m bars → 15-minute segments; 1H bars → 60-minute segments on a 5m chart).
+    /// </summary>
+    IReadOnlyList<IntradayCprSegment> BuildSegments(
+        List<Candle> referenceCandles,
+        DateTime sessionDate,
+        int segmentMinutes = 15);
+
     IntradayCprSegment? GetActiveSegment(IReadOnlyList<IntradayCprSegment> segments, DateTime time);
 }
 
 public class IntradayCprService : IIntradayCprService
 {
-    public IReadOnlyList<IntradayCprSegment> BuildSegments(List<Candle> candles15m, DateTime sessionDate)
+    public const int DefaultSegmentMinutes = 15;
+    /// <summary>5m chart CPR refresh interval — same as PGCryptoTrading.</summary>
+    public const int FiveMinuteChartSegmentMinutes = 60;
+
+    public IReadOnlyList<IntradayCprSegment> BuildSegments(
+        List<Candle> referenceCandles,
+        DateTime sessionDate,
+        int segmentMinutes = DefaultSegmentMinutes)
     {
-        if (candles15m.Count == 0)
+        if (referenceCandles.Count == 0 || segmentMinutes <= 0)
             return Array.Empty<IntradayCprSegment>();
 
-        var ordered = candles15m.OrderBy(c => c.Timestamp).ToList();
+        var ordered = referenceCandles.OrderBy(c => c.Timestamp).ToList();
         var segments = new List<IntradayCprSegment>();
         var sessionOpen = sessionDate.Date.Add(MarketHours.OpenTime);
         var sessionClose = sessionDate.Date.Add(MarketHours.CloseTime);
@@ -27,20 +42,20 @@ public class IntradayCprService : IIntradayCprService
 
         if (prevSessionCandle is not null)
         {
-            var firstEnd = sessionOpen.AddMinutes(15);
+            var firstEnd = sessionOpen.AddMinutes(segmentMinutes);
             if (firstEnd <= sessionClose)
                 segments.Add(MakeSegment(sessionOpen, firstEnd, prevSessionCandle));
         }
 
-        var boundary = sessionOpen.AddMinutes(15);
+        var boundary = sessionOpen.AddMinutes(segmentMinutes);
         while (boundary < sessionClose)
         {
-            var refOpen = boundary.AddMinutes(-15);
-            var refCandle = Find15mCandle(ordered, refOpen) ?? prevSessionCandle;
+            var refOpen = boundary.AddMinutes(-segmentMinutes);
+            var refCandle = FindReferenceCandle(ordered, refOpen, segmentMinutes) ?? prevSessionCandle;
             if (refCandle is not null)
-                segments.Add(MakeSegment(boundary, boundary.AddMinutes(15), refCandle));
+                segments.Add(MakeSegment(boundary, boundary.AddMinutes(segmentMinutes), refCandle));
 
-            boundary = boundary.AddMinutes(15);
+            boundary = boundary.AddMinutes(segmentMinutes);
         }
 
         return segments;
@@ -57,14 +72,15 @@ public class IntradayCprService : IIntradayCprService
         return segments.LastOrDefault();
     }
 
-    private static Candle? Find15mCandle(List<Candle> ordered, DateTime openTime)
+    private static Candle? FindReferenceCandle(List<Candle> ordered, DateTime openTime, int segmentMinutes)
     {
         var match = ordered.FirstOrDefault(c => c.Timestamp == openTime);
         if (match is not null)
             return match;
 
+        var lookbackMinutes = segmentMinutes + 5;
         return ordered
-            .Where(c => c.Timestamp <= openTime && c.Timestamp > openTime.AddMinutes(-20))
+            .Where(c => c.Timestamp <= openTime && c.Timestamp > openTime.AddMinutes(-lookbackMinutes))
             .OrderByDescending(c => c.Timestamp)
             .FirstOrDefault();
     }

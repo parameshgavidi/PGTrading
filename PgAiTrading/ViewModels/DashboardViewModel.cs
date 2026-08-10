@@ -61,8 +61,10 @@ public class DashboardViewModel : INotifyPropertyChanged
     public bool AboveCpr { get; private set; }
     public string CprPositionLabel => AboveCpr ? "Above CPR" : "Below CPR";
     public string CprPositionClass => AboveCpr ? "above-cpr" : "below-cpr";
-    /// <summary>15m-pivot intraday CPR bands available on every chart timeframe.</summary>
+    /// <summary>Intraday CPR bands on every chart TF (15m pivot; 5m uses 1H CPR like crypto).</summary>
     public bool SupportsIntradayCprOverlay => true;
+    /// <summary>5m chart uses 1H CPR windows (PGCryptoTrading parity).</summary>
+    public bool IsIntradayCprChart => SelectedTimeframe == "5m";
     public bool IsChartFromZerodha { get; private set; }
     public string? ChartDataMessage { get; private set; }
     public string? LastCandleSummary { get; private set; }
@@ -184,6 +186,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         Notify(nameof(Supports5mStudyToggles));
         Notify(nameof(SupportsIntradayStOverlays));
         Notify(nameof(SupportsSt725Overlays));
+        Notify(nameof(IsIntradayCprChart));
         Notify(nameof(OverlayVersion));
         Notify();
     }
@@ -441,7 +444,26 @@ public class DashboardViewModel : INotifyPropertyChanged
             var result = await _marketData.GetCandlesResultAsync(SelectedInstrument, SelectedTimeframe, count);
             var sessionDate = MarketHours.GetChartSessionDate();
 
-            if (SelectedTimeframe == "1m")
+            // 5m chart: CPR every 1H (same as PGCryptoTrading) — fetch 1H bars for ~session windows.
+            if (SelectedTimeframe == "5m")
+            {
+                var candles1H = await _marketData.GetCandlesResultAsync(SelectedInstrument, "1H", 48);
+                CprSegments = _intradayCpr.BuildSegments(
+                    candles1H.Candles,
+                    sessionDate,
+                    IntradayCprService.FiveMinuteChartSegmentMinutes);
+                if (CprSegments.Count == 0 && result.Candles.Count > 0)
+                {
+                    sessionDate = result.Candles[^1].Timestamp.Date;
+                    CprSegments = _intradayCpr.BuildSegments(
+                        candles1H.Candles,
+                        sessionDate,
+                        IntradayCprService.FiveMinuteChartSegmentMinutes);
+                }
+
+                ChartCandles = result.Candles;
+            }
+            else if (SelectedTimeframe == "1m")
             {
                 var candles15m = await _marketData.GetCandlesResultAsync(SelectedInstrument, "15m", 80);
                 CprSegments = _intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
@@ -497,6 +519,7 @@ public class DashboardViewModel : INotifyPropertyChanged
             ChartDataMessage = result.IsFromZerodha
                 ? SelectedTimeframe switch
                 {
+                    "5m" => $"Zerodha 5m candles ({ChartCandles.Count} bars) · CPR every 1H",
                     "1m" => $"Zerodha 1m candles ({ChartCandles.Count} bars)",
                     "15m" => $"Zerodha 15m candles ({ChartCandles.Count} bars)",
                     _ => $"Zerodha {SelectedTimeframe} candles ({ChartCandles.Count} bars)"
@@ -525,7 +548,9 @@ public class DashboardViewModel : INotifyPropertyChanged
 
         var cprDiag = CprSegments.Count > 0
             ? $" · CPR windows {CprSegments.Count}"
-            : " · CPR windows 0 (need 15m data)";
+            : IsIntradayCprChart
+                ? " · CPR windows 0 (need 1H data)"
+                : " · CPR windows 0 (need 15m data)";
 
         if (SelectedTimeframe != "5m")
             return cprDiag;
@@ -744,6 +769,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CprPositionLabel)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CprPositionClass)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SupportsIntradayCprOverlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsIntradayCprChart)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsMarketOpen)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(MarketStatus)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NiftyChange)));

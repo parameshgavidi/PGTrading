@@ -117,7 +117,9 @@
         }
         @if (Panel.ShowIntradayCprOverlay)
         {
-            <span class="legend-item"><span class="legend-color cpr-tc"></span> 1m CPR bands</span>
+            <span class="legend-item"><span class="legend-color cpr-tc"></span>
+                @(Panel.SelectedTimeframe == "5m" ? "1H CPR bands (every 1H)" : "1m CPR bands (15m pivot)")
+            </span>
         }
         @if (Panel.ShowCamarillaOverlay)
         {
