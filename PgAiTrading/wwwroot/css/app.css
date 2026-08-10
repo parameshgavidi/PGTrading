@@ -2558,9 +2558,10 @@ code {
 .framework-subcard {
     padding: 16px 18px;
     margin-bottom: 16px;
-    background: var(--surface-inset);
+    background: var(--card);
     border: 1px solid var(--card-border);
     border-radius: var(--card-radius);
+    box-shadow: var(--card-shadow);
 }
 
 .framework-subcard h3 {
@@ -2698,7 +2699,7 @@ code {
     display: flex;
     gap: 12px;
     padding: 12px 14px;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--surface-inset);
     border: 1px solid var(--card-border);
     border-radius: 8px;
 }
