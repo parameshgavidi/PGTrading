@@ -345,9 +345,11 @@ public class SignalService : ISignalService
         }
 
         var bias = analysis.TradeDirection;
+        // Index options: bullish → buy ATM CE; bearish → sell ATM CE (not PE).
+        // Include Buy/Sell in Entry so the dock pill isn't just "63950 CE" next to Bearish.
         var (entry, strategy, optionType) = bias == TrendDirection.Buy
-            ? ($"{strike} CE", "Debit Spread", "CE")
-            : ($"{strike} CE", "Sell ATM Call", "CE");
+            ? ($"Buy {strike} CE", "Debit Spread", "CE")
+            : ($"Sell {strike} CE", "Sell ATM Call", "CE");
 
         var target = analysis.VolumeProfile.TargetSummary(bias);
 
