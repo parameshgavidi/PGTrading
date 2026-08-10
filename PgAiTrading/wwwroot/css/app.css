@@ -228,7 +228,7 @@ html, body {
 }
 
 .brand-one {
-    color: #3B82F6;
+    color: var(--gold);
     font-weight: 700;
 }
 
