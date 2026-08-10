@@ -69,8 +69,11 @@ public class ZerodhaService : IZerodhaService
 
     public string GetLoginUrl()
     {
-        var apiKey = _settings.Settings.ApiKey;
-        return $"{LoginUrl}?v=3&api_key={apiKey}";
+        var apiKey = (_settings.Settings.ApiKey ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(apiKey))
+            return $"{LoginUrl}?v=3&api_key=";
+
+        return $"{LoginUrl}?v=3&api_key={Uri.EscapeDataString(apiKey)}";
     }
 
     public async Task<(bool Success, string Message)> GenerateSessionAsync(string requestToken)
