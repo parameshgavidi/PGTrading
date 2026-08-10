@@ -111,7 +111,11 @@
     }
     @if (ViewModel.ShowIntradayCprOverlay)
     {
-        <span class="legend-item"><span class="legend-color cpr-tc"></span> 1m CPR on chart — TC / CPR / BC per 15m</span>
+        <span class="legend-item"><span class="legend-color cpr-tc"></span>
+            @(ViewModel.SelectedTimeframe == "5m"
+                ? "1H CPR on chart — TC / CPR / BC every 1H"
+                : "1m CPR on chart — TC / CPR / BC per 15m")
+        </span>
     }
     @if (ViewModel.ShowCamarillaOverlay)
     {

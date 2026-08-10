@@ -18,7 +18,25 @@ public static class ChartPanelLoader
 
             var sessionDate = MarketHours.GetChartSessionDate();
 
-            if (panel.SelectedTimeframe == "1m")
+            if (panel.SelectedTimeframe == "5m")
+            {
+                var candles1H = await marketData.GetCandlesResultAsync(instrument, "1H", 48);
+                panel.CprSegments = intradayCpr.BuildSegments(
+                    candles1H.Candles,
+                    sessionDate,
+                    IntradayCprService.FiveMinuteChartSegmentMinutes);
+                if (panel.CprSegments.Count == 0 && result.Candles.Count > 0)
+                {
+                    sessionDate = result.Candles[^1].Timestamp.Date;
+                    panel.CprSegments = intradayCpr.BuildSegments(
+                        candles1H.Candles,
+                        sessionDate,
+                        IntradayCprService.FiveMinuteChartSegmentMinutes);
+                }
+
+                panel.ChartCandles = result.Candles;
+            }
+            else if (panel.SelectedTimeframe == "1m")
             {
                 var candles15m = await marketData.GetCandlesResultAsync(instrument, "15m", 80);
                 panel.CprSegments = intradayCpr.BuildSegments(candles15m.Candles, sessionDate);
@@ -67,7 +85,9 @@ public static class ChartPanelLoader
             panel.ChartVersion++;
             panel.IsChartFromZerodha = result.IsFromZerodha;
             panel.ChartDataMessage = result.IsFromZerodha
-                ? $"Zerodha {panel.SelectedTimeframe} candles ({panel.ChartCandles.Count} bars) · 1m CPR bands (15m pivot)"
+                ? panel.SelectedTimeframe == "5m"
+                    ? $"Zerodha 5m candles ({panel.ChartCandles.Count} bars) · CPR every 1H · CPR windows {panel.CprSegments.Count}"
+                    : $"Zerodha {panel.SelectedTimeframe} candles ({panel.ChartCandles.Count} bars) · CPR windows {panel.CprSegments.Count}"
                 : result.Error ?? "Demo candle data";
             panel.LastCandleSummary = BuildLastCandleSummary(panel.ChartCandles);
             UpdateIntradayCprState(panel, intradayCpr, livePrice);
