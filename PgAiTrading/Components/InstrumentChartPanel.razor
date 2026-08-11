@@ -1,31 +1,8 @@
 @namespace PgAiTrading.Components
 @using PgAiTrading.ViewModels
 
-<CandlestickChart @key="@ChartSurfaceKey"
-                  CanvasId="@CanvasId"
-                  Candles="ViewModel.ChartCandles"
-                  ChartVersion="ViewModel.ChartVersion"
-                  OverlayVersion="ViewModel.OverlayVersion"
-                  Analysis="ViewModel.Analysis"
-                  CprSegments="ViewModel.CprSegments"
-                  ShowPocLevels="ViewModel.ShowPocOverlay"
-                  ShowPivotLevels="ViewModel.ShowPivotOverlay"
-                  ShowCamarillaLevels="ViewModel.ShowCamarillaOverlay"
-                  ShowKeltnerLevels="ViewModel.ShowKeltnerOverlay"
-                  ShowIntradayCprLevels="ViewModel.ShowIntradayCprOverlay"
-                  ShowSuperTrendOverlay="ViewModel.ShowSuperTrendOverlay"
-                  ShowSuperTrend725Overlay="ViewModel.ShowSuperTrend725Overlay"
-                  ShowEma9Overlay="ViewModel.ShowEma9Overlay"
-                  ShowEma20Overlay="ViewModel.ShowEma20Overlay"
-                  ShowEma50Overlay="ViewModel.ShowEma50Overlay"
-                  ShowEma200Overlay="ViewModel.ShowEma200Overlay"
-                  ShowVwapOverlay="ViewModel.ShowVwapOverlay"
-                  ShowPatternsOverlay="ViewModel.ShowPatternsOverlay"
-                  Timeframe="ViewModel.SelectedTimeframe"
-                  CssClass="@CssClass"
-                  Width="@Width"
-                  Height="@Height" />
-<div class="chart-toolbar">
+@* Toolbar above the plot so 1m/5m/EMA buttons stay visible without scrolling past the chart. *@
+<div class="chart-toolbar chart-toolbar-pinned">
     <div class="timeframe-buttons">
         @foreach (var tf in Timeframes)
         {
@@ -65,6 +42,30 @@
                          ShowVwapChanged="v => ViewModel.SetShowVwapOverlay(v)"
                          ShowPatternsChanged="v => ViewModel.SetShowPatternsOverlay(v)" />
 </div>
+<CandlestickChart @key="@ChartSurfaceKey"
+                  CanvasId="@CanvasId"
+                  Candles="ViewModel.ChartCandles"
+                  ChartVersion="ViewModel.ChartVersion"
+                  OverlayVersion="ViewModel.OverlayVersion"
+                  Analysis="ViewModel.Analysis"
+                  CprSegments="ViewModel.CprSegments"
+                  ShowPocLevels="ViewModel.ShowPocOverlay"
+                  ShowPivotLevels="ViewModel.ShowPivotOverlay"
+                  ShowCamarillaLevels="ViewModel.ShowCamarillaOverlay"
+                  ShowKeltnerLevels="ViewModel.ShowKeltnerOverlay"
+                  ShowIntradayCprLevels="ViewModel.ShowIntradayCprOverlay"
+                  ShowSuperTrendOverlay="ViewModel.ShowSuperTrendOverlay"
+                  ShowSuperTrend725Overlay="ViewModel.ShowSuperTrend725Overlay"
+                  ShowEma9Overlay="ViewModel.ShowEma9Overlay"
+                  ShowEma20Overlay="ViewModel.ShowEma20Overlay"
+                  ShowEma50Overlay="ViewModel.ShowEma50Overlay"
+                  ShowEma200Overlay="ViewModel.ShowEma200Overlay"
+                  ShowVwapOverlay="ViewModel.ShowVwapOverlay"
+                  ShowPatternsOverlay="ViewModel.ShowPatternsOverlay"
+                  Timeframe="ViewModel.SelectedTimeframe"
+                  CssClass="@CssClass"
+                  Width="@Width"
+                  Height="@Height" />
 <div class="chart-legend">
     @if (ViewModel.ShowSuperTrend725Overlay && ViewModel.SupportsSt725Overlays)
     {
@@ -75,23 +76,23 @@
         <span class="legend-item"><span class="legend-color buy"></span> ST(10,3) BUY</span>
         <span class="legend-item"><span class="legend-color sell"></span> ST(10,3) SELL</span>
     }
-    @if (ViewModel.ShowEma9Overlay && ViewModel.SelectedTimeframe == "5m")
+    @if (ViewModel.ShowEma9Overlay)
     {
         <span class="legend-item"><span class="legend-color ema9"></span> EMA 9</span>
     }
-    @if (ViewModel.ShowEma20Overlay && ViewModel.SelectedTimeframe == "5m")
+    @if (ViewModel.ShowEma20Overlay)
     {
         <span class="legend-item"><span class="legend-color ema20"></span> EMA 20</span>
     }
-    @if (ViewModel.ShowEma50Overlay && ViewModel.SelectedTimeframe == "5m")
+    @if (ViewModel.ShowEma50Overlay)
     {
         <span class="legend-item"><span class="legend-color ema50"></span> EMA 50</span>
     }
-    @if (ViewModel.ShowEma200Overlay && ViewModel.SelectedTimeframe == "5m")
+    @if (ViewModel.ShowEma200Overlay)
     {
         <span class="legend-item"><span class="legend-color ema200"></span> EMA 200</span>
     }
-    @if (ViewModel.ShowVwapOverlay && ViewModel.SelectedTimeframe == "5m")
+    @if (ViewModel.ShowVwapOverlay)
     {
         <span class="legend-item"><span class="legend-color vwap"></span> VWAP</span>
     }
