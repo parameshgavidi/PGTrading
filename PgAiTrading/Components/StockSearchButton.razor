@@ -1,0 +1,143 @@
+@namespace PgAiTrading.Components
+@using PgAiTrading.Services
+@inject INseSymbolResolver SymbolResolver
+@implements IDisposable
+
+<div class="dock-search @(IsOpen ? "open" : "")">
+    <button type="button"
+            class="dock-chip @(IsOpen ? "active" : "")"
+            title="Search NSE stock"
+            @onclick="ToggleAsync">
+        Search Stock
+    </button>
+
+    @if (IsOpen)
+    {
+        <div class="dock-search-panel">
+            <input @ref="_input"
+                   class="form-input symbol-search-input dock-search-input"
+                   placeholder="Search symbol e.g. RELIANCE"
+                   value="@_query"
+                   @oninput="OnQueryChanged"
+                   @onkeydown="OnKeyDown" />
+            @if (_suggestions.Count > 0)
+            {
+                <div class="symbol-suggestions dock-search-suggestions">
+                    @for (var i = 0; i < _suggestions.Count; i++)
+                    {
+                        var symbol = _suggestions[i];
+                        var idx = i;
+                        <button type="button"
+                                class="symbol-suggestion-item @(idx == _activeIndex ? "active" : "")"
+                                @onclick="() => SelectAsync(symbol)">
+                            @symbol
+                        </button>
+                    }
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(_query))
+            {
+                <div class="dock-search-empty">No matching NSE symbols</div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback<string> OnSelect { get; set; }
+
+    private ElementReference _input;
+    private bool IsOpen { get; set; }
+    private bool _focusPending;
+    private string _query = string.Empty;
+    private List<string> _suggestions = new();
+    private int _activeIndex;
+    private CancellationTokenSource? _loadCts;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusPending || !IsOpen)
+            return;
+
+        _focusPending = false;
+        try { await _input.FocusAsync(); }
+        catch { /* WebView not ready */ }
+    }
+
+    private async Task ToggleAsync()
+    {
+        IsOpen = !IsOpen;
+        if (!IsOpen)
+        {
+            _query = string.Empty;
+            _suggestions.Clear();
+            _focusPending = false;
+            return;
+        }
+
+        _focusPending = true;
+        _loadCts?.Cancel();
+        _loadCts = new CancellationTokenSource();
+        try
+        {
+            await SymbolResolver.EnsureLoadedAsync(_loadCts.Token);
+        }
+        catch
+        {
+            // Search still works from whatever is already loaded.
+        }
+    }
+
+    private void OnQueryChanged(ChangeEventArgs e)
+    {
+        _query = e.Value?.ToString() ?? string.Empty;
+        _activeIndex = 0;
+        _suggestions = SymbolResolver.Search(_query, 12).ToList();
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            IsOpen = false;
+            _query = string.Empty;
+            _suggestions.Clear();
+            return;
+        }
+
+        if (_suggestions.Count == 0)
+            return;
+
+        if (e.Key == "ArrowDown")
+        {
+            _activeIndex = (_activeIndex + 1) % _suggestions.Count;
+            return;
+        }
+
+        if (e.Key == "ArrowUp")
+        {
+            _activeIndex = (_activeIndex - 1 + _suggestions.Count) % _suggestions.Count;
+            return;
+        }
+
+        if (e.Key is "Enter" or "NumpadEnter")
+        {
+            var idx = Math.Clamp(_activeIndex, 0, _suggestions.Count - 1);
+            await SelectAsync(_suggestions[idx]);
+        }
+    }
+
+    private async Task SelectAsync(string symbol)
+    {
+        IsOpen = false;
+        _query = string.Empty;
+        _suggestions.Clear();
+        await OnSelect.InvokeAsync(symbol);
+    }
+
+    public void Dispose()
+    {
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
+    }
+}

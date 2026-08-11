@@ -1,0 +1,86 @@
+@namespace PgAiTrading.Components
+@using PgAiTrading.Models
+@using PgAiTrading.Services
+@using PgAiTrading.ViewModels
+@inject DashboardViewModel Dashboard
+@inject IWatchlistService Watchlist
+@implements IDisposable
+
+<div class="top-watch-strip">
+    <div class="top-watch-group">
+        <div class="top-watch-group-label">Indices</div>
+        <div class="top-watch-chips">
+            @foreach (var item in IndexItems)
+            {
+                <button type="button"
+                        class="top-watch-chip @(IsSelected(item.Symbol) ? "selected" : "")"
+                        @onclick="() => OnSelect.InvokeAsync(item.Symbol)">
+                    <span class="top-watch-symbol">@InstrumentMapper.ToIndexShortName(item.Symbol)</span>
+                    <span class="top-watch-change @(item.ChangePercent >= 0 ? "positive" : "negative")">
+                        @(item.ChangePercent >= 0 ? "+" : "")@item.ChangePercent.ToString("N2")%
+                    </span>
+                </button>
+            }
+        </div>
+    </div>
+
+    <div class="top-watch-group">
+        <div class="top-watch-group-label">Top 10 weight</div>
+        <div class="top-watch-chips">
+            @if (TopItems.Count == 0)
+            {
+                <span class="top-watch-empty">@(Watchlist.IsLoading ? "Loading…" : "Waiting for quotes…")</span>
+            }
+            else
+            {
+                @foreach (var item in TopItems)
+                {
+                    <button type="button"
+                            class="top-watch-chip @(IsSelected(item.Symbol) ? "selected" : "")"
+                            @onclick="() => OnSelect.InvokeAsync(item.Symbol)">
+                        <span class="top-watch-symbol">@item.Symbol</span>
+                        <span class="top-watch-meta">
+                            @if (item.Weight > 0)
+                            {
+                                <span class="top-watch-weight">@item.Weight.ToString("N1")%</span>
+                            }
+                            <span class="top-watch-change @(item.ChangePercent >= 0 ? "positive" : "negative")">
+                                @(item.ChangePercent >= 0 ? "+" : "")@item.ChangePercent.ToString("N2")%
+                            </span>
+                        </span>
+                    </button>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback<string> OnSelect { get; set; }
+
+    private IReadOnlyList<WatchItem> IndexItems =>
+        Watchlist.IndexItems.Count > 0 ? Watchlist.IndexItems : Dashboard.IndexWatchlist;
+
+    private IReadOnlyList<WatchItem> TopItems =>
+        Watchlist.Top10WeightItems.Count > 0 ? Watchlist.Top10WeightItems : Dashboard.Top10Watchlist;
+
+    protected override void OnInitialized()
+    {
+        Dashboard.PropertyChanged += OnChanged;
+        Watchlist.WatchlistUpdated += OnWatchlistUpdated;
+    }
+
+    private bool IsSelected(string symbol) =>
+        string.Equals(Dashboard.SelectedSymbol, symbol, StringComparison.OrdinalIgnoreCase);
+
+    private void OnChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) =>
+        InvokeAsync(StateHasChanged);
+
+    private void OnWatchlistUpdated() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Dashboard.PropertyChanged -= OnChanged;
+        Watchlist.WatchlistUpdated -= OnWatchlistUpdated;
+    }
+}

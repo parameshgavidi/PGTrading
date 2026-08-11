@@ -4,6 +4,7 @@ window.pgAiTradingChart = (function () {
     const PRICE_AXIS_WIDTH = 56;
     const Y_SCALE_MIN = 0.05;
     const Y_SCALE_MAX = 20;
+    const DEFAULT_VISIBLE_BARS = 100;
     const CHART_PADDING = { top: 10, right: 52, bottom: 22, left: 6 };
 
     function num(v) { return v == null ? null : Number(v); }
@@ -372,40 +373,67 @@ window.pgAiTradingChart = (function () {
         if (canvas.dataset.pgBound === '1') return;
         canvas.dataset.pgBound = '1';
 
-        const interaction = { dragging: false, mode: null, lastX: 0, lastY: 0 };
+        const surface = canvas.parentElement || canvas;
+        const interaction = {
+            dragging: false,
+            mode: null,
+            lastX: 0,
+            lastY: 0,
+            pointerId: null,
+            moved: false
+        };
 
-        canvas.addEventListener('wheel', function (e) {
+        function setPanningClass(on) {
+            if (surface && surface.classList) {
+                surface.classList.toggle('panning', !!on);
+            }
+        }
+
+        function onWheel(e) {
             const st = states[id];
             if (!st) return;
             e.preventDefault();
+            e.stopPropagation();
             const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
             if (e.shiftKey || isPriceAxisEvent(canvas, e)) {
                 scaleYAt(id, factor);
             } else {
-                zoomAt(id, factor);
+                zoomAt(id, factor, e.clientX);
             }
-        }, { passive: false });
+        }
 
-        canvas.addEventListener('mousedown', function (e) {
+        function beginDrag(e) {
+            const st = states[id];
+            if (!st) return;
+            if (e.button != null && e.button !== 0 && e.button !== 1 && e.button !== 2)
+                return;
+
             interaction.dragging = true;
+            interaction.moved = false;
+            interaction.pointerId = e.pointerId != null ? e.pointerId : null;
+            interaction.lastX = e.clientX;
+            interaction.lastY = e.clientY;
+
             if (isPriceAxisEvent(canvas, e) || e.shiftKey) {
                 interaction.mode = 'yScale';
-                interaction.lastY = e.clientY;
-            } else if (e.button === 2 || e.altKey) {
+            } else if (e.button === 1 || e.button === 2 || e.altKey || e.ctrlKey) {
                 interaction.mode = 'yPan';
-                interaction.lastY = e.clientY;
             } else {
                 interaction.mode = 'xPan';
-                interaction.lastX = e.clientX;
             }
-        });
 
-        window.addEventListener('mouseup', function () {
-            interaction.dragging = false;
-            interaction.mode = null;
-        });
+            setPanningClass(true);
+            canvas.style.cursor = interaction.mode === 'yScale' ? 'ns-resize'
+                : interaction.mode === 'yPan' ? 'ns-resize'
+                : 'grabbing';
 
-        canvas.addEventListener('mousemove', function (e) {
+            if (canvas.setPointerCapture && interaction.pointerId != null) {
+                try { canvas.setPointerCapture(interaction.pointerId); } catch (_) { /* ignore */ }
+            }
+            e.preventDefault();
+        }
+
+        function moveDrag(e) {
             const st = states[id];
             if (!st) return;
 
@@ -414,11 +442,14 @@ window.pgAiTradingChart = (function () {
                 return;
             }
 
+            const dx = e.clientX - interaction.lastX;
+            const dy = e.clientY - interaction.lastY;
+            if (dx !== 0 || dy !== 0) interaction.moved = true;
+
             if (interaction.mode === 'yScale') {
-                const deltaY = e.clientY - interaction.lastY;
-                if (deltaY !== 0) {
+                if (dy !== 0) {
                     const yScale = st.yScale != null ? st.yScale : 1;
-                    st.yScale = clamp(yScale * Math.pow(1.008, deltaY), Y_SCALE_MIN, Y_SCALE_MAX);
+                    st.yScale = clamp(yScale * Math.pow(1.008, dy), Y_SCALE_MIN, Y_SCALE_MAX);
                     interaction.lastY = e.clientY;
                     scheduleRender(id);
                 }
@@ -426,31 +457,60 @@ window.pgAiTradingChart = (function () {
             }
 
             if (interaction.mode === 'yPan') {
-                const deltaY = e.clientY - interaction.lastY;
-                if (deltaY !== 0) {
-                    panYByPixels(id, deltaY);
+                if (dy !== 0) {
+                    panYByPixels(id, dy);
                     interaction.lastY = e.clientY;
                 }
                 return;
             }
 
-            const perBar = (canvas.clientWidth - 72) / st.count;
-            const deltaBars = Math.round((e.clientX - interaction.lastX) / perBar);
+            // TradingView-style: drag right reveals older bars (offset increases).
+            const chartW = Math.max(canvas.clientWidth - CHART_PADDING.left - CHART_PADDING.right, 1);
+            const perBar = chartW / Math.max(st.count, 1);
+            const deltaBars = Math.round(dx / perBar);
             if (deltaBars !== 0) {
-                st.offset = clamp(st.offset + deltaBars, 0, st.candles.length - st.count);
+                st.offset = clamp(st.offset + deltaBars, 0, Math.max(0, st.candles.length - st.count));
                 interaction.lastX = e.clientX;
                 scheduleRender(id);
             }
-        });
+        }
 
+        function endDrag(e) {
+            if (!interaction.dragging) return;
+            if (interaction.pointerId != null
+                && e
+                && e.pointerId != null
+                && e.pointerId !== interaction.pointerId) {
+                return;
+            }
+
+            if (canvas.releasePointerCapture && interaction.pointerId != null) {
+                try { canvas.releasePointerCapture(interaction.pointerId); } catch (_) { /* ignore */ }
+            }
+
+            interaction.dragging = false;
+            interaction.mode = null;
+            interaction.pointerId = null;
+            setPanningClass(false);
+            canvas.style.cursor = 'crosshair';
+        }
+
+        // Bind on chart surface so wheel/drag works across the full plot, not only
+        // when the pointer is exactly on the canvas bitmap.
+        surface.addEventListener('wheel', onWheel, { passive: false });
+        canvas.addEventListener('wheel', onWheel, { passive: false });
+
+        canvas.addEventListener('pointerdown', beginDrag);
+        window.addEventListener('pointermove', moveDrag);
+        window.addEventListener('pointerup', endDrag);
+        window.addEventListener('pointercancel', endDrag);
         canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
-        var container = canvas.parentElement;
-        if (container && typeof ResizeObserver !== 'undefined') {
+        if (typeof ResizeObserver !== 'undefined') {
             var ro = new ResizeObserver(function () {
                 if (states[id]) scheduleRender(id);
             });
-            ro.observe(container);
+            ro.observe(surface);
         }
     }
 
@@ -484,12 +544,28 @@ window.pgAiTradingChart = (function () {
         };
     }
 
-    function zoomAt(id, factor) {
+    function zoomAt(id, factor, anchorClientX) {
         const st = states[id];
         if (!st) return;
+        const oldCount = st.count;
         const newCount = clamp(Math.round(st.count / factor), 12, st.candles.length);
-        st.count = newCount;
-        st.offset = clamp(st.offset, 0, st.candles.length - st.count);
+        if (newCount === oldCount) return;
+
+        if (anchorClientX != null && st.canvas) {
+            const rect = st.canvas.getBoundingClientRect();
+            const chartW = Math.max(rect.width - CHART_PADDING.left - CHART_PADDING.right, 1);
+            const frac = clamp((anchorClientX - rect.left - CHART_PADDING.left) / chartW, 0, 1);
+            // Bars from the right edge to the anchor point before zoom.
+            const barsFromRight = st.offset + oldCount * (1 - frac);
+            st.count = newCount;
+            st.offset = clamp(
+                Math.round(barsFromRight - newCount * (1 - frac)),
+                0,
+                Math.max(0, st.candles.length - newCount));
+        } else {
+            st.count = newCount;
+            st.offset = clamp(st.offset, 0, Math.max(0, st.candles.length - st.count));
+        }
         scheduleRender(id);
     }
 
@@ -860,11 +936,12 @@ window.pgAiTradingChart = (function () {
         let count, offset, yScale, yPan;
         if (prev && prev.timeframe === timeframe) {
             count = clamp(prev.count, 12, normalized.length);
-            offset = clamp(prev.offset, 0, normalized.length - count);
+            offset = clamp(prev.offset, 0, Math.max(0, normalized.length - count));
             yScale = prev.yScale != null ? prev.yScale : 1;
             yPan = prev.yPan != null ? prev.yPan : 0;
         } else {
-            count = normalized.length;
+            // Start zoomed to recent bars so mouse pan works immediately (TradingView-like).
+            count = Math.min(normalized.length, DEFAULT_VISIBLE_BARS);
             offset = 0;
             yScale = 1;
             yPan = 0;

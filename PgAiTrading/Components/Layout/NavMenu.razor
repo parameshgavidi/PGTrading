@@ -1,7 +1,5 @@
 @namespace PgAiTrading.Components.Layout
 @using PgAiTrading.Services
-@using PgAiTrading.ViewModels
-@inject DashboardViewModel Dashboard
 @inject IWatchlistService Watchlist
 @inject IUiLayoutService Layout
 @inject NavigationManager Navigation
@@ -19,61 +17,13 @@
         <NavIcon Name="multi-chart" /> Multi Chart
     </NavLink>
 
-    <div class="nav-accordion @(Layout.IsNiftyAccordionOpen ? "open" : "")">
-        <button type="button"
-                class="nav-accordion-toggle"
-                title="Show / hide Nifty Top 10"
-                @onclick="ToggleNiftyAccordionAsync">
-            <NavIcon Name="nifty" />
-            <span class="nav-accordion-title">Nifty Top 10</span>
-            <span class="nav-accordion-chevron" aria-hidden="true"></span>
-        </button>
-        @if (Layout.IsNiftyAccordionOpen)
-        {
-            <div class="nav-accordion-body">
-                <div class="nav-accordion-group-label">Indices</div>
-                @foreach (var item in Watchlist.IndexItems)
-                {
-                    <button type="button"
-                            class="nav-stock-row @(IsSelected(item.Symbol) ? "selected" : "")"
-                            @onclick="() => SelectSymbolAsync(item.Symbol)">
-                        <span class="nav-stock-symbol">@InstrumentMapper.ToIndexShortName(item.Symbol)</span>
-                        <span class="nav-stock-change @(item.ChangePercent >= 0 ? "positive" : "negative")">
-                            @(item.ChangePercent >= 0 ? "+" : "")@item.ChangePercent.ToString("N2")%
-                        </span>
-                    </button>
-                }
-
-                <div class="nav-accordion-group-label">Top 10 weight</div>
-                @if (Watchlist.Top10WeightItems.Count == 0)
-                {
-                    <div class="nav-accordion-empty">
-                        @(Watchlist.IsLoading ? "Loading…" : "Waiting for quotes…")
-                    </div>
-                }
-                else
-                {
-                    @foreach (var item in Watchlist.Top10WeightItems)
-                    {
-                        <button type="button"
-                                class="nav-stock-row @(IsSelected(item.Symbol) ? "selected" : "")"
-                                @onclick="() => SelectSymbolAsync(item.Symbol)">
-                            <span class="nav-stock-symbol">@item.Symbol</span>
-                            <span class="nav-stock-meta">
-                                @if (item.Weight > 0)
-                                {
-                                    <span class="nav-stock-weight">@item.Weight.ToString("N1")%</span>
-                                }
-                                <span class="nav-stock-change @(item.ChangePercent >= 0 ? "positive" : "negative")">
-                                    @(item.ChangePercent >= 0 ? "+" : "")@item.ChangePercent.ToString("N2")%
-                                </span>
-                            </span>
-                        </button>
-                    }
-                }
-            </div>
-        }
-    </div>
+    <button type="button"
+            class="nav-item nav-item-button @(Layout.IsNiftyAccordionOpen ? "active" : "")"
+            title="Show / hide Nifty Top 10 at top of Dashboard"
+            @onclick="ToggleNiftyAccordionAsync">
+        <NavIcon Name="nifty" />
+        <span>Nifty Top 10</span>
+    </button>
 
     <NavLink class="nav-item" href="scanner">
         <NavIcon Name="scanner" /> Scanner
@@ -116,37 +66,23 @@
 @code {
     protected override void OnInitialized()
     {
-        Dashboard.PropertyChanged += OnDashboardChanged;
-        Watchlist.WatchlistUpdated += OnWatchlistUpdated;
         Layout.Changed += OnLayoutChanged;
         _ = Watchlist.RefreshTopWeightageAsync();
     }
 
-    private async Task ToggleNiftyAccordionAsync() => await Layout.ToggleNiftyAccordionAsync();
-
-    private async Task SelectSymbolAsync(string symbol)
+    private async Task ToggleNiftyAccordionAsync()
     {
         var path = Navigation.ToBaseRelativePath(Navigation.Uri).Trim('/');
         if (!string.IsNullOrEmpty(path) && !path.Equals("dashboard", StringComparison.OrdinalIgnoreCase))
             Navigation.NavigateTo("/");
 
-        await Dashboard.SelectInstrumentAsync(symbol);
+        await Layout.ToggleNiftyAccordionAsync();
     }
-
-    private bool IsSelected(string symbol) =>
-        string.Equals(Dashboard.SelectedSymbol, symbol, StringComparison.OrdinalIgnoreCase);
-
-    private void OnDashboardChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) =>
-        InvokeAsync(StateHasChanged);
-
-    private void OnWatchlistUpdated() => InvokeAsync(StateHasChanged);
 
     private void OnLayoutChanged() => InvokeAsync(StateHasChanged);
 
     public void Dispose()
     {
-        Dashboard.PropertyChanged -= OnDashboardChanged;
-        Watchlist.WatchlistUpdated -= OnWatchlistUpdated;
         Layout.Changed -= OnLayoutChanged;
     }
 }
