@@ -425,6 +425,15 @@ html, body {
     border: 1px solid transparent;
 }
 
+button.nav-item-button {
+    appearance: none;
+    width: 100%;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+}
+
 .nav-item:hover {
     background: var(--hover-overlay);
     color: var(--text);
@@ -798,6 +807,127 @@ html, body {
     flex-wrap: wrap;
     align-items: center;
     gap: 6px;
+}
+
+.dashboard-top-watch {
+    padding: 10px 12px;
+}
+
+.top-watch-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.top-watch-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.top-watch-group-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-label-soft);
+}
+
+.top-watch-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.top-watch-chip {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--card-border);
+    background: var(--dock-chip-bg);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 11px;
+    transition: background var(--ease-ui), color var(--ease-ui), border-color var(--ease-ui);
+}
+
+.top-watch-chip:hover {
+    color: var(--text);
+    border-color: var(--dock-chip-hover-border);
+}
+
+.top-watch-chip.selected {
+    color: var(--gold-light);
+    border-color: var(--card-border-gold);
+    background: var(--accent-soft-12);
+}
+
+.top-watch-symbol {
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.top-watch-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.top-watch-weight {
+    color: var(--muted-label);
+    font-variant-numeric: tabular-nums;
+}
+
+.top-watch-change {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+}
+
+.top-watch-change.positive { color: var(--buy); }
+.top-watch-change.negative { color: var(--sell); }
+
+.top-watch-empty {
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding: 4px 2px;
+}
+
+.dock-search {
+    position: relative;
+}
+
+.dock-search-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 30;
+    width: min(320px, 78vw);
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid var(--card-border-gold);
+    background: var(--card-bg);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+.dock-search-input {
+    width: 100%;
+}
+
+.dock-search-suggestions {
+    position: static;
+    margin-top: 8px;
+    max-height: 240px;
+    box-shadow: none;
+}
+
+.dock-search-empty {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
 }
 
 .dock-pill {
@@ -1293,11 +1423,20 @@ html, body {
     height: 430px;
     flex-shrink: 0;
     overflow: hidden;
+    touch-action: none;
+    user-select: none;
 }
 
 .chart-area.large { height: 540px; }
 
-.chart-area canvas { display: block; cursor: crosshair; }
+.chart-area canvas {
+    display: block;
+    cursor: crosshair;
+    touch-action: none;
+    user-select: none;
+}
+
+.chart-area.panning canvas { cursor: grabbing; }
 
 .chart-zoom-controls {
     position: absolute;

@@ -11,12 +11,12 @@
 <div class="dashboard @(Layout.IsFocusChart ? "focus-chart" : "")">
     <div class="dashboard-body @(_showInsightRail ? "rail-open" : "")">
         <div class="dashboard-main">
-            @* Tool dock at top — Nifty accordion lives in left nav. *@
+            @* Tool dock at top — Nifty Top 10 strip opens below when toggled. *@
             <div class="dashboard-dock card dock-top">
                 <div class="dashboard-dock-toggles">
                     <button type="button"
                             class="dock-chip @(Layout.IsNiftyAccordionOpen ? "active" : "")"
-                            title="Show / hide Nifty Top 10 in left menu"
+                            title="Show / hide Nifty Top 10 at top"
                             @onclick="ToggleWatchlistAsync">
                         Nifty Top 10
                     </button>
@@ -40,6 +40,7 @@
                             @onclick="ToggleAnalysis">
                         Analysis
                     </button>
+                    <StockSearchButton OnSelect="SelectSymbol" />
                 </div>
                 <div class="dashboard-dock-summary">
                     <span class="dock-pill @TrendUi.GetClass(ViewModel.Analysis.TradeDirection)">
@@ -49,6 +50,13 @@
                     <span class="dock-pill confidence">@ViewModel.CurrentSignal.Confidence%</span>
                 </div>
             </div>
+
+            @if (Layout.IsNiftyAccordionOpen)
+            {
+                <div class="dashboard-top-watch card">
+                    <TopWatchStrip OnSelect="SelectSymbol" />
+                </div>
+            }
 
             @if (!string.IsNullOrEmpty(_entryAlertMessage))
             {
