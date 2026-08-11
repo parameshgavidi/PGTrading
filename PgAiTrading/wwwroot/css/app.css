@@ -1420,14 +1420,20 @@ button.nav-item-button {
     border-radius: 6px;
     border: 1px solid var(--card-border);
     position: relative;
-    height: 430px;
+    height: 520px;
+    min-height: 360px;
+    flex: 1 1 auto;
     flex-shrink: 0;
     overflow: hidden;
     touch-action: none;
     user-select: none;
 }
 
-.chart-area.large { height: 540px; }
+.chart-area.large { height: 580px; }
+
+.dashboard.focus-chart .chart-area {
+    min-height: 480px;
+}
 
 .chart-area canvas {
     display: block;
@@ -1448,13 +1454,13 @@ button.nav-item-button {
 }
 
 .zoom-btn {
-    width: 26px;
-    height: 26px;
+    width: 28px;
+    height: 28px;
     border: 1px solid var(--card-border);
     background: var(--zoom-btn-bg);
     color: var(--text);
     border-radius: 4px;
-    font-size: 15px;
+    font-size: 16px;
     line-height: 1;
     cursor: pointer;
     display: flex;
@@ -1467,9 +1473,10 @@ button.nav-item-button {
 
 .timeframe-buttons {
     display: flex;
+    flex-wrap: wrap;
     gap: 4px;
-    margin-top: 8px;
-    justify-content: flex-end;
+    margin-top: 0;
+    justify-content: flex-start;
 }
 
 .chart-meta {
@@ -1483,13 +1490,14 @@ button.nav-item-button {
 .chart-meta.warning { color: var(--warning); }
 
 .tf-btn {
-    padding: 4px 12px;
+    padding: 5px 12px;
     background: transparent;
     border: 1px solid var(--card-border);
     color: var(--text-secondary);
     border-radius: 4px;
     cursor: pointer;
     font-size: 12px;
+    white-space: nowrap;
 }
 
 .tf-btn.active, .tf-btn:hover {
@@ -1507,20 +1515,32 @@ button.nav-item-button {
     padding: 8px 12px 0;
 }
 
+.chart-toolbar-pinned {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    padding: 6px 0 10px;
+    margin-bottom: 2px;
+    background: var(--card-bg, var(--bg-elevated, #fff));
+    border-bottom: 1px solid var(--card-border);
+    flex-shrink: 0;
+}
+
 .chart-overlay-toggles {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
 }
 
 .overlay-toggle {
-    padding: 4px 12px;
+    padding: 5px 12px;
     background: transparent;
     border: 1px solid var(--card-border);
     color: var(--text-secondary);
     border-radius: 4px;
     cursor: pointer;
     font-size: 12px;
+    white-space: nowrap;
 }
 
 .overlay-toggle.active {
@@ -1530,7 +1550,7 @@ button.nav-item-button {
 }
 
 .overlay-toggle:not(.active) {
-    opacity: 0.65;
+    opacity: 0.78;
 }
 
 .dashboard-bottom {

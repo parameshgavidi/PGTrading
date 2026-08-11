@@ -1,9 +1,6 @@
 @namespace PgAiTrading.Components.Layout
 @using PgAiTrading.Services
 @inject IWatchlistService Watchlist
-@inject IUiLayoutService Layout
-@inject NavigationManager Navigation
-@implements IDisposable
 
 <div class="nav-menu">
     <div class="nav-section-label">Monitor</div>
@@ -16,15 +13,6 @@
     <NavLink class="nav-item" href="multi-chart">
         <NavIcon Name="multi-chart" /> Multi Chart
     </NavLink>
-
-    <button type="button"
-            class="nav-item nav-item-button @(Layout.IsNiftyAccordionOpen ? "active" : "")"
-            title="Show / hide Nifty Top 10 at top of Dashboard"
-            @onclick="ToggleNiftyAccordionAsync">
-        <NavIcon Name="nifty" />
-        <span>Nifty Top 10</span>
-    </button>
-
     <NavLink class="nav-item" href="scanner">
         <NavIcon Name="scanner" /> Scanner
     </NavLink>
@@ -66,23 +54,6 @@
 @code {
     protected override void OnInitialized()
     {
-        Layout.Changed += OnLayoutChanged;
         _ = Watchlist.RefreshTopWeightageAsync();
-    }
-
-    private async Task ToggleNiftyAccordionAsync()
-    {
-        var path = Navigation.ToBaseRelativePath(Navigation.Uri).Trim('/');
-        if (!string.IsNullOrEmpty(path) && !path.Equals("dashboard", StringComparison.OrdinalIgnoreCase))
-            Navigation.NavigateTo("/");
-
-        await Layout.ToggleNiftyAccordionAsync();
-    }
-
-    private void OnLayoutChanged() => InvokeAsync(StateHasChanged);
-
-    public void Dispose()
-    {
-        Layout.Changed -= OnLayoutChanged;
     }
 }

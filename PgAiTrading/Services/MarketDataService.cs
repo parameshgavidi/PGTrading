@@ -233,18 +233,16 @@ public class MarketDataService : IMarketDataService
                 TrailingStopDefaults.Multiplier,
                 (c, v) => c.SuperTrendEntry = v);
 
-        // Keltner on 1m and 5m; VWAP + EMA20 on 5m.
+        // Keltner on 1m and 5m; VWAP + EMAs on all chart timeframes so overlay buttons always work.
         if (interval is "1m" or "5m")
         {
             var cfg = _settings.Strategy;
             _indicators.ApplyKeltner(candles, cfg.KeltnerEmaLength, cfg.KeltnerAtrLength,
                 cfg.KeltnerMultiplierInner, cfg.KeltnerMultiplierOuter);
-            if (interval == "5m")
-            {
-                _indicators.ApplyVwap(candles);
-                _indicators.ApplyChartEmas(candles);
-            }
         }
+
+        _indicators.ApplyVwap(candles);
+        _indicators.ApplyChartEmas(candles);
 
         _patterns.ApplyPatterns(candles);
         return candles;

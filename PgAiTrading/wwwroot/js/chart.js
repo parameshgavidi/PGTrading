@@ -5,7 +5,10 @@ window.pgAiTradingChart = (function () {
     const Y_SCALE_MIN = 0.05;
     const Y_SCALE_MAX = 20;
     const DEFAULT_VISIBLE_BARS = 100;
+    const MIN_VISIBLE_BARS = 5;
     const CHART_PADDING = { top: 10, right: 52, bottom: 22, left: 6 };
+    const WHEEL_ZOOM_FACTOR = 1.12;
+    const BUTTON_ZOOM_FACTOR = 1.22;
 
     function num(v) { return v == null ? null : Number(v); }
 
@@ -394,11 +397,51 @@ window.pgAiTradingChart = (function () {
             if (!st) return;
             e.preventDefault();
             e.stopPropagation();
-            const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+            // Smooth, continuous zoom — use delta magnitude when available.
+            var intensity = Math.min(Math.abs(e.deltaY) / 100, 2.5);
+            var step = Math.pow(WHEEL_ZOOM_FACTOR, Math.max(intensity, 0.35));
+            const factor = e.deltaY < 0 ? step : 1 / step;
             if (e.shiftKey || isPriceAxisEvent(canvas, e)) {
                 scaleYAt(id, factor);
             } else {
                 zoomAt(id, factor, e.clientX);
+            }
+        }
+
+        // Pinch-to-zoom (trackpad / touch) for flexible chart scaling.
+        var pinch = { active: false, startDist: 0, lastFactor: 1 };
+        function touchDistance(touches) {
+            if (!touches || touches.length < 2) return 0;
+            var dx = touches[0].clientX - touches[1].clientX;
+            var dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+        function pinchMidX(touches) {
+            return (touches[0].clientX + touches[1].clientX) / 2;
+        }
+        function onTouchStart(e) {
+            if (!e.touches || e.touches.length !== 2) return;
+            pinch.active = true;
+            pinch.startDist = touchDistance(e.touches);
+            pinch.lastFactor = 1;
+            e.preventDefault();
+        }
+        function onTouchMove(e) {
+            if (!pinch.active || !e.touches || e.touches.length !== 2) return;
+            var dist = touchDistance(e.touches);
+            if (pinch.startDist < 8 || dist < 8) return;
+            var totalFactor = dist / pinch.startDist;
+            var step = totalFactor / pinch.lastFactor;
+            if (Math.abs(step - 1) < 0.01) return;
+            pinch.lastFactor = totalFactor;
+            zoomAt(id, step, pinchMidX(e.touches));
+            e.preventDefault();
+        }
+        function onTouchEnd(e) {
+            if (!e.touches || e.touches.length < 2) {
+                pinch.active = false;
+                pinch.startDist = 0;
+                pinch.lastFactor = 1;
             }
         }
 
@@ -499,6 +542,10 @@ window.pgAiTradingChart = (function () {
         // when the pointer is exactly on the canvas bitmap.
         surface.addEventListener('wheel', onWheel, { passive: false });
         canvas.addEventListener('wheel', onWheel, { passive: false });
+        surface.addEventListener('touchstart', onTouchStart, { passive: false });
+        surface.addEventListener('touchmove', onTouchMove, { passive: false });
+        surface.addEventListener('touchend', onTouchEnd);
+        surface.addEventListener('touchcancel', onTouchEnd);
 
         canvas.addEventListener('pointerdown', beginDrag);
         window.addEventListener('pointermove', moveDrag);
@@ -548,7 +595,11 @@ window.pgAiTradingChart = (function () {
         const st = states[id];
         if (!st) return;
         const oldCount = st.count;
-        const newCount = clamp(Math.round(st.count / factor), 12, st.candles.length);
+        // Allow denser zooms (down to a few bars) and full history when zooming out.
+        const newCount = clamp(
+            Math.round(st.count / factor),
+            MIN_VISIBLE_BARS,
+            Math.max(MIN_VISIBLE_BARS, st.candles.length));
         if (newCount === oldCount) return;
 
         if (anchorClientX != null && st.canvas) {
@@ -935,7 +986,7 @@ window.pgAiTradingChart = (function () {
 
         let count, offset, yScale, yPan;
         if (prev && prev.timeframe === timeframe) {
-            count = clamp(prev.count, 12, normalized.length);
+            count = clamp(prev.count, MIN_VISIBLE_BARS, normalized.length);
             offset = clamp(prev.offset, 0, Math.max(0, normalized.length - count));
             yScale = prev.yScale != null ? prev.yScale : 1;
             yPan = prev.yPan != null ? prev.yPan : 0;
@@ -972,12 +1023,13 @@ window.pgAiTradingChart = (function () {
         return true;
     }
 
-    function zoom(canvasId, factor) { zoomAt(canvasId, factor); }
+    function zoom(canvasId, factor) { zoomAt(canvasId, factor || BUTTON_ZOOM_FACTOR); }
 
     function resetZoom(canvasId) {
         const st = states[canvasId];
         if (!st) return;
-        st.count = st.candles.length;
+        // TradingView-like: snap back to recent bars, not the entire history.
+        st.count = Math.min(st.candles.length, DEFAULT_VISIBLE_BARS);
         st.offset = 0;
         st.yScale = 1;
         st.yPan = 0;

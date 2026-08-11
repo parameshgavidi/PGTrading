@@ -13,30 +13,7 @@
             }
         </div>
     </div>
-    <CandlestickChart CanvasId="@Panel.CanvasId"
-                      Candles="Panel.ChartCandles"
-                      ChartVersion="Panel.ChartVersion"
-                      OverlayVersion="Panel.OverlayVersion"
-                      Analysis="Analysis"
-                      CprSegments="Panel.CprSegments"
-                      ShowPocLevels="Panel.ShowPocOverlay"
-                      ShowPivotLevels="Panel.ShowPivotOverlay"
-                      ShowCamarillaLevels="Panel.ShowCamarillaOverlay"
-                      ShowKeltnerLevels="Panel.ShowKeltnerOverlay"
-                      ShowIntradayCprLevels="Panel.ShowIntradayCprOverlay"
-                      ShowSuperTrendOverlay="Panel.ShowSuperTrendOverlay"
-                      ShowSuperTrend725Overlay="Panel.ShowSuperTrend725Overlay"
-                      ShowEma9Overlay="Panel.ShowEma9Overlay"
-                      ShowEma20Overlay="Panel.ShowEma20Overlay"
-                      ShowEma50Overlay="Panel.ShowEma50Overlay"
-                      ShowEma200Overlay="Panel.ShowEma200Overlay"
-                      ShowVwapOverlay="Panel.ShowVwapOverlay"
-                      ShowPatternsOverlay="Panel.ShowPatternsOverlay"
-                      Timeframe="Panel.SelectedTimeframe"
-                      CssClass="multi"
-                      Width="700"
-                      Height="360" />
-    <div class="chart-toolbar">
+    <div class="chart-toolbar chart-toolbar-pinned">
         <div class="timeframe-buttons">
             @foreach (var tf in Timeframes)
             {
@@ -76,29 +53,52 @@
                              ShowVwapChanged="v => OnShowVwap(v)"
                              ShowPatternsChanged="v => OnShowPatterns(v)" />
     </div>
+    <CandlestickChart CanvasId="@Panel.CanvasId"
+                      Candles="Panel.ChartCandles"
+                      ChartVersion="Panel.ChartVersion"
+                      OverlayVersion="Panel.OverlayVersion"
+                      Analysis="Analysis"
+                      CprSegments="Panel.CprSegments"
+                      ShowPocLevels="Panel.ShowPocOverlay"
+                      ShowPivotLevels="Panel.ShowPivotOverlay"
+                      ShowCamarillaLevels="Panel.ShowCamarillaOverlay"
+                      ShowKeltnerLevels="Panel.ShowKeltnerOverlay"
+                      ShowIntradayCprLevels="Panel.ShowIntradayCprOverlay"
+                      ShowSuperTrendOverlay="Panel.ShowSuperTrendOverlay"
+                      ShowSuperTrend725Overlay="Panel.ShowSuperTrend725Overlay"
+                      ShowEma9Overlay="Panel.ShowEma9Overlay"
+                      ShowEma20Overlay="Panel.ShowEma20Overlay"
+                      ShowEma50Overlay="Panel.ShowEma50Overlay"
+                      ShowEma200Overlay="Panel.ShowEma200Overlay"
+                      ShowVwapOverlay="Panel.ShowVwapOverlay"
+                      ShowPatternsOverlay="Panel.ShowPatternsOverlay"
+                      Timeframe="Panel.SelectedTimeframe"
+                      CssClass="multi"
+                      Width="700"
+                      Height="360" />
     <div class="chart-legend compact">
-        @if (Panel.ShowSuperTrendOverlay && Panel.Supports5mStudyToggles)
+        @if (Panel.ShowSuperTrendOverlay && Panel.SupportsIntradayStOverlays)
         {
             <span class="legend-item"><span class="legend-color buy"></span> ST BUY</span>
             <span class="legend-item"><span class="legend-color sell"></span> ST SELL</span>
         }
-        @if (Panel.ShowEma9Overlay && Panel.Supports5mStudyToggles)
+        @if (Panel.ShowEma9Overlay)
         {
             <span class="legend-item"><span class="legend-color ema9"></span> EMA 9</span>
         }
-        @if (Panel.ShowEma20Overlay && Panel.Supports5mStudyToggles)
+        @if (Panel.ShowEma20Overlay)
         {
             <span class="legend-item"><span class="legend-color ema20"></span> EMA 20</span>
         }
-        @if (Panel.ShowEma50Overlay && Panel.Supports5mStudyToggles)
+        @if (Panel.ShowEma50Overlay)
         {
             <span class="legend-item"><span class="legend-color ema50"></span> EMA 50</span>
         }
-        @if (Panel.ShowEma200Overlay && Panel.Supports5mStudyToggles)
+        @if (Panel.ShowEma200Overlay)
         {
             <span class="legend-item"><span class="legend-color ema200"></span> EMA 200</span>
         }
-        @if (Panel.ShowVwapOverlay && Panel.Supports5mStudyToggles)
+        @if (Panel.ShowVwapOverlay)
         {
             <span class="legend-item"><span class="legend-color vwap"></span> VWAP</span>
         }

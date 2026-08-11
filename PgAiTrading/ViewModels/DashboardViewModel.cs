@@ -51,7 +51,8 @@ public class DashboardViewModel : INotifyPropertyChanged
     public bool ShowEma200Overlay { get; private set; } = false;
     public bool ShowVwapOverlay { get; private set; } = false;
     public bool ShowPatternsOverlay { get; private set; } = false;
-    public bool Supports5mStudyToggles => SelectedTimeframe == "5m";
+    /// <summary>EMA / VWAP study toggles stay visible on every chart timeframe.</summary>
+    public bool Supports5mStudyToggles => true;
     public bool SupportsIntradayStOverlays => SelectedTimeframe is not "1W";
     public bool SupportsSt725Overlays => SelectedTimeframe is "1m" or "5m" or "15m";
     public IReadOnlyList<IntradayCprSegment> CprSegments { get; private set; } = Array.Empty<IntradayCprSegment>();
