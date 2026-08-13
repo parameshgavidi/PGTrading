@@ -43,11 +43,8 @@
                 <Label x:Name="errorMessage"
                        TextColor="#B0B0B0"
                        LineBreakMode="WordWrap" />
-                <Label Text="Check that Developer Mode is enabled and rebuild the app."
+                <Label Text="Try force-closing the app and opening it again. On Windows, enable Developer Mode if packaging requires it."
                        TextColor="#B0B0B0"
-                       LineBreakMode="WordWrap" />
-                <Label Text="Enable: Win+R → ms-settings:developers"
-                       TextColor="#2196F3"
                        LineBreakMode="WordWrap" />
             </VerticalStackLayout>
         </Border>
