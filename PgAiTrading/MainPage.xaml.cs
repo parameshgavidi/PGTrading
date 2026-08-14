@@ -50,16 +50,10 @@ public partial class MainPage : ContentPage
 
                 ShowWebViewError(
                     "The trading UI did not load within 30 seconds. " +
-#if WINDOWS
                     "Common fixes: run .\\sync-maui-version.ps1 then rebuild; " +
                     "install WebView2 Runtime (install-webview2.ps1); " +
                     "run .\\clean.ps1 and press F5 again. " +
-                    "In DEBUG builds, check the WebView2 DevTools console for errors."
-#else
-                    "Force-close the app and reopen it. If this persists, reinstall the APK " +
-                    "or check that network access is allowed for PG AI Trading."
-#endif
-                    );
+                    "In DEBUG builds, check the WebView2 DevTools console for errors.");
             });
         });
     }

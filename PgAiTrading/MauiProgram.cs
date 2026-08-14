@@ -1,10 +1,8 @@
-using Microsoft.Extensions.Logging;
-#if WINDOWS
 using Microsoft.AspNetCore.Components.WebView.Maui;
+using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Handlers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
-#endif
 using PgAiTrading.Services;
 using PgAiTrading.ViewModels;
 
@@ -14,13 +12,11 @@ public static class MauiProgram
 {
     static MauiProgram()
     {
-#if WINDOWS
         // Fixes BlazorWebView rendering as a blank/empty rectangle on Windows.
         // Newer WebView2/WinAppSDK builds changed the internal host address used
         // to serve Blazor content; this restores the working 0.0.0.0 behavior.
         // https://learn.microsoft.com/en-us/dotnet/maui/user-interface/controls/blazorwebview
         AppContext.SetSwitch("BlazorWebView.AppHostAddressAlways0000", true);
-#endif
     }
 
     public static MauiApp CreateMauiApp()
@@ -34,9 +30,7 @@ public static class MauiProgram
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
 
-#if WINDOWS
         ConfigureWebView2();
-#endif
 
         builder.Services.AddMauiBlazorWebView();
 
@@ -94,7 +88,6 @@ public static class MauiProgram
         return builder.Build();
     }
 
-#if WINDOWS
     private static void ConfigureWebView2()
     {
         // UserDataFolder and GPU flags are set via ModuleInitializer in
@@ -134,5 +127,4 @@ public static class MauiProgram
             };
         });
     }
-#endif
 }

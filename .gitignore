@@ -17,8 +17,3 @@ Thumbs.db
 
 ## Sibling repo cloned for multi-repo cloud work (not part of PGTrading)
 PGCryptoTrading/
-
-## Android signing (local sideload keystores — never commit)
-*.keystore
-*.jks
-PgAiTrading/android-signing.keystore
