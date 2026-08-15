@@ -59,7 +59,7 @@
                             {
                                 <tr>
                                     <td>@item.Rank</td>
-                                    <td><strong>@item.Symbol</strong></td>
+                                    <td>@SymbolChartLink(item.Symbol)</td>
                                     <td>@(item.LastPrice > 0 ? item.LastPrice.ToString("N2") : "—")</td>
                                     <td class="@GetTrendClass(item.Trend)">@item.Trend</td>
                                 </tr>
@@ -178,7 +178,7 @@
                             @foreach (var item in ViewModel.TrailingStopItems)
                             {
                                 <tr class="@GetTrailingRowClass(item)">
-                                    <td><strong>@item.Symbol</strong></td>
+                                    <td>@SymbolChartLink(item.Symbol)</td>
                                     <td><span class="exchange-badge">@item.Exchange</span></td>
                                     <td class="@(item.Side == TrendDirection.Buy ? "buy" : "sell")">@item.Side</td>
                                     <td>@item.Quantity</td>
@@ -308,7 +308,7 @@
                             @foreach (var item in ViewModel.LongTermExitItems)
                             {
                                 <tr class="@(item.IsExitSignal ? "review-row" : "aligned-row")">
-                                    <td><strong>@item.Symbol</strong></td>
+                                    <td>@SymbolChartLink(item.Symbol)</td>
                                     <td><span class="exchange-badge">@item.Exchange</span></td>
                                     <td>@item.Quantity</td>
                                     <td>@item.AveragePrice.ToString("N2")</td>
@@ -392,6 +392,28 @@
       ? "neutral"
       : item.IsTriggered ? "sell" : "buy";
 
+  private static string ChartHref(string symbol)
+  {
+    var normalized = (symbol ?? string.Empty).Trim().ToUpperInvariant();
+    return $"chart?symbol={Uri.EscapeDataString(normalized)}";
+  }
+
+  private RenderFragment SymbolChartLink(string symbol) => __builder =>
+  {
+    var label = (symbol ?? string.Empty).Trim().ToUpperInvariant();
+    if (string.IsNullOrEmpty(label))
+      return;
+
+    __builder.OpenElement(0, "a");
+    __builder.AddAttribute(1, "class", "symbol-chart-link");
+    __builder.AddAttribute(2, "href", ChartHref(label));
+    __builder.AddAttribute(3, "title", $"Open {label} chart on Dashboard");
+    __builder.OpenElement(4, "strong");
+    __builder.AddContent(5, label);
+    __builder.CloseElement();
+    __builder.CloseElement();
+  };
+
   private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     => InvokeAsync(StateHasChanged);
 
@@ -440,9 +462,7 @@
       __builder.AddAttribute(seq++, "class", "aligned-row");
 
       __builder.OpenElement(seq++, "td");
-      __builder.OpenElement(seq++, "strong");
-      __builder.AddContent(seq++, item.Symbol);
-      __builder.CloseElement();
+      __builder.AddContent(seq++, SymbolChartLink(item.Symbol));
       __builder.CloseElement();
 
       __builder.OpenElement(seq++, "td");

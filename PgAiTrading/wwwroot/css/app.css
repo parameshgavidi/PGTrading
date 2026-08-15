@@ -1814,6 +1814,22 @@ a.btn {
 
 .data-table tr:hover { background: var(--accent-soft-04); }
 
+.symbol-chart-link {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    transition: color var(--ease-ui), border-color var(--ease-ui);
+}
+
+.symbol-chart-link:hover {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+}
+
+.symbol-chart-link strong {
+    font-weight: 700;
+}
+
 .aligned-row { background: rgba(0,200,83,0.05) !important; }
 
 .review-row { background: rgba(255,82,82,0.04) !important; }
@@ -3348,6 +3364,16 @@ code {
 [data-theme="classic"] .data-table td strong {
     color: var(--text);
     font-weight: 700;
+}
+
+[data-theme="classic"] .symbol-chart-link {
+    color: #2563EB;
+    border-bottom-color: rgba(37, 99, 235, 0.35);
+}
+
+[data-theme="classic"] .symbol-chart-link:hover {
+    color: #1D4ED8;
+    border-bottom-color: #2563EB;
 }
 
 [data-theme="classic"] .top-bar {
