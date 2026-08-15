@@ -2321,15 +2321,15 @@ a.btn {
 }
 
 .signal-options-table-wrap {
-    /* Critical: let the flex child shrink so the order footer stays on-screen */
-    flex: 1 1 auto;
-    min-height: 0;
+    /* Grow to fill space, but never collapse to a single row */
+    flex: 1 1 280px;
+    min-height: 220px;
+    max-height: min(420px, 50vh);
     overflow: auto;
     border: 1px solid var(--card-border);
     border-radius: 6px;
     margin-bottom: 12px;
-    /* Cap chain height so Buy/Sell + Place Order are never pushed off-screen */
-    max-height: min(240px, 32vh);
+    -webkit-overflow-scrolling: touch;
 }
 
 .signal-options-table {
@@ -2366,10 +2366,10 @@ a.btn {
     bottom: 0;
     border-top: 1px solid var(--card-border);
     margin: 0 -4px -4px;
-    padding: 12px 4px 4px;
+    padding: 10px 4px 4px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     background: var(--card-bg, #121212);
     z-index: 3;
     box-shadow: 0 -8px 16px rgba(0, 0, 0, 0.35);
@@ -2432,7 +2432,8 @@ a.btn {
     }
 
     .signal-options-table-wrap {
-        max-height: 220px;
+        min-height: 200px;
+        max-height: min(360px, 45vh);
     }
 
     .signal-order-box {
