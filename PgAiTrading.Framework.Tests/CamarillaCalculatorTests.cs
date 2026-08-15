@@ -73,4 +73,50 @@ public class CamarillaCalculatorTests
         Assert.False(CamarillaCalculator.IsPlausibleSessionBar(demo, 1220m));
         Assert.True(CamarillaCalculator.IsPlausibleSessionBar(demo, 1005m));
     }
+
+    [Theory]
+    [InlineData("1m", "1D")]
+    [InlineData("5m", "1D")]
+    [InlineData("15m", "1D")]
+    [InlineData("1H", "1D")]
+    [InlineData("1D", "1W")]
+    [InlineData("1W", "1M")]
+    public void ResolvePivotTimeframe_follows_tradingview_auto(string chartTf, string expectedPivot)
+    {
+        Assert.Equal(expectedPivot, CamarillaCalculator.ResolvePivotTimeframe(chartTf));
+    }
+
+    [Fact]
+    public void ForChartTimeframe_daily_chart_uses_previous_week()
+    {
+        var asOf = new DateTime(2026, 8, 15); // Saturday
+        var daily = new List<Candle>();
+        // Two prior weeks of flat-ish daily bars
+        for (var d = -20; d <= 0; d++)
+        {
+            var day = asOf.AddDays(d);
+            if (day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+                continue;
+            daily.Add(new Candle
+            {
+                Timestamp = day,
+                Open = 1200m + d,
+                High = 1210m + d,
+                Low = 1190m + d,
+                Close = 1205m + d
+            });
+        }
+
+        var cam = CamarillaCalculator.ForChartTimeframe(
+            "1D",
+            daily,
+            daily,
+            previousIntradaySession: null,
+            referencePrice: 1205m,
+            asOfDate: asOf);
+
+        Assert.True(cam.HasData);
+        Assert.Equal("1W", cam.PivotTimeframe);
+        Assert.InRange(cam.Pivot, 1100m, 1300m);
+    }
 }

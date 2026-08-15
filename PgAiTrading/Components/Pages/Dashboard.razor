@@ -295,7 +295,7 @@
                     @if (ViewModel.Analysis.Camarilla.HasData)
                     {
                         <tr>
-                            <td>Camarilla</td>
+                            <td>Camarilla (@ViewModel.Analysis.Camarilla.PivotTimeframe)</td>
                             <td class="@TrendUi.GetClass(ViewModel.Analysis.CamarillaBias)">
                                 H4 @ViewModel.Analysis.Camarilla.H4.ToString("N2") · H3 @ViewModel.Analysis.Camarilla.H3.ToString("N2") · H2 @ViewModel.Analysis.Camarilla.H2.ToString("N2") · PP @ViewModel.Analysis.Camarilla.Pivot.ToString("N2") · L2 @ViewModel.Analysis.Camarilla.L2.ToString("N2") · L3 @ViewModel.Analysis.Camarilla.L3.ToString("N2") · L4 @ViewModel.Analysis.Camarilla.L4.ToString("N2")
                                 — @TrendUi.GetBiasLabel(ViewModel.Analysis.CamarillaBias)

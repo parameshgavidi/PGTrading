@@ -1,7 +1,8 @@
 namespace PgAiTrading.Models;
 
 /// <summary>
-/// Camarilla pivot levels from previous session H/L/C. H1/L1 omitted (mild S/R).
+/// Camarilla pivot levels from the previous pivot-period H/L/C. H1/L1 omitted (mild S/R).
+/// Pivot period follows chart timeframe (TradingView Auto-style).
 /// </summary>
 public class CamarillaLevels
 {
@@ -16,6 +17,8 @@ public class CamarillaLevels
   public decimal PrevLow { get; set; }
   public decimal PrevClose { get; set; }
   public bool HasData { get; set; }
+  /// <summary>Pivot period used: 1D, 1W, or 1M.</summary>
+  public string PivotTimeframe { get; set; } = "1D";
 
   public TrendDirection GetBias(decimal price)
   {
@@ -49,22 +52,34 @@ public class CamarillaLevels
 public static class CamarillaCalculator
 {
   /// <summary>
-  /// Standard Camarilla from previous session OHLC.
+  /// TradingView-style Auto mapping: intraday → daily, daily → weekly, weekly → monthly.
+  /// </summary>
+  public static string ResolvePivotTimeframe(string? chartTimeframe) =>
+      (chartTimeframe ?? "5m").Trim().ToUpperInvariant() switch
+      {
+          "1W" => "1M",
+          "1D" => "1W",
+          _ => "1D"
+      };
+
+  /// <summary>
+  /// Standard Camarilla from previous period OHLC.
   /// H4/L4 = C ± (H−L)×1.1/2; H3/L3 ÷4; H2/L2 ÷6; PP = (H+L+C)/3.
   /// </summary>
-  public static CamarillaLevels FromPreviousDay(Candle prevDay)
+  public static CamarillaLevels FromPreviousDay(Candle prevDay, string pivotTimeframe = "1D")
   {
     var range = prevDay.High - prevDay.Low;
     var close = prevDay.Close;
 
     if (range <= 0 || close <= 0 || prevDay.High < prevDay.Low)
-      return new CamarillaLevels();
+      return new CamarillaLevels { PivotTimeframe = pivotTimeframe };
 
     var scaled = range * 1.1m;
 
     return new CamarillaLevels
     {
       HasData = true,
+      PivotTimeframe = pivotTimeframe,
       H4 = Round(close + scaled / 2m),
       H3 = Round(close + scaled / 4m),
       H2 = Round(close + scaled / 6m),
@@ -79,7 +94,43 @@ public static class CamarillaCalculator
   }
 
   /// <summary>
-  /// Build Camarilla from the best available previous session bar.
+  /// Build Camarilla for the chart timeframe (Auto pivot period).
+  /// </summary>
+  public static CamarillaLevels ForChartTimeframe(
+      string? chartTimeframe,
+      IReadOnlyList<Candle> chartCandles,
+      IReadOnlyList<Candle> dailyCandles,
+      IReadOnlyList<Candle>? previousIntradaySession,
+      decimal referencePrice,
+      DateTime? asOfDate = null)
+  {
+    var pivotTf = ResolvePivotTimeframe(chartTimeframe);
+
+    if (pivotTf == "1D")
+    {
+      var levels = FromAvailableSessions(dailyCandles, previousIntradaySession, referencePrice, asOfDate);
+      levels.PivotTimeframe = "1D";
+      return levels;
+    }
+
+    if (pivotTf == "1W")
+    {
+      // On a weekly chart the candles are already weeks; on daily, aggregate.
+      var weekly = string.Equals(chartTimeframe, "1W", StringComparison.OrdinalIgnoreCase)
+          && chartCandles.Count >= 2
+          ? chartCandles.ToList()
+          : ToWeeklyBars(dailyCandles.Count > 0 ? dailyCandles : chartCandles);
+      return FromPreviousCompletedBar(weekly, referencePrice, "1W", asOfDate);
+    }
+
+    // 1M — aggregate daily (or chart candles) into months
+    var source = dailyCandles.Count > 0 ? dailyCandles : chartCandles;
+    var monthly = ToMonthlyBars(source);
+    return FromPreviousCompletedBar(monthly, referencePrice, "1M", asOfDate);
+  }
+
+  /// <summary>
+  /// Build Camarilla from the best available previous session bar (daily pivot period).
   /// Prefers completed daily candles near <paramref name="referencePrice"/>;
   /// falls back to aggregating the prior intraday session — never a single 1H bar.
   /// </summary>
@@ -90,7 +141,7 @@ public static class CamarillaCalculator
       DateTime? asOfDate = null)
   {
     var prevDay = ResolvePreviousSessionBar(dailyCandles, previousIntradaySession, referencePrice, asOfDate);
-    return prevDay is null ? new CamarillaLevels() : FromPreviousDay(prevDay);
+    return prevDay is null ? new CamarillaLevels() : FromPreviousDay(prevDay, "1D");
   }
 
   public static Candle? ResolvePreviousSessionBar(
@@ -109,7 +160,6 @@ public static class CamarillaCalculator
           .OrderBy(c => c.Timestamp)
           .LastOrDefault();
 
-      // If feed has no "today" bar yet, last bar may still be yesterday.
       if (fromDaily is null && dailyCandles.Count >= 1)
       {
         var last = dailyCandles[^1];
@@ -130,7 +180,6 @@ public static class CamarillaCalculator
         return aggregated;
     }
 
-    // Prefer aggregated intraday even when slightly off, before a mismatched daily demo bar.
     if (previousIntradaySession is { Count: > 0 })
     {
       var aggregated = AggregateSession(previousIntradaySession);
@@ -141,6 +190,53 @@ public static class CamarillaCalculator
     return fromDaily is not null && fromDaily.High > fromDaily.Low && fromDaily.Close > 0
         ? fromDaily
         : null;
+  }
+
+  public static CamarillaLevels FromPreviousCompletedBar(
+      IReadOnlyList<Candle> periodBars,
+      decimal referencePrice,
+      string pivotTimeframe,
+      DateTime? asOfDate = null)
+  {
+    if (periodBars.Count < 2)
+      return new CamarillaLevels { PivotTimeframe = pivotTimeframe };
+
+    var asOf = asOfDate ?? DateTime.Today;
+    Candle? prev = null;
+    for (var i = periodBars.Count - 1; i >= 0; i--)
+    {
+      var bar = periodBars[i];
+      if (IsCompletedPeriodBar(bar, pivotTimeframe, asOf))
+      {
+        prev = bar;
+        break;
+      }
+    }
+
+    prev ??= periodBars.Count >= 2 ? periodBars[^2] : periodBars[^1];
+
+    if (!IsPlausibleSessionBar(prev, referencePrice) && periodBars.Count >= 3)
+    {
+      var earlier = periodBars[^3];
+      if (IsPlausibleSessionBar(earlier, referencePrice))
+        prev = earlier;
+    }
+
+    return prev.Close > 0 && prev.High >= prev.Low
+        ? FromPreviousDay(prev, pivotTimeframe)
+        : new CamarillaLevels { PivotTimeframe = pivotTimeframe };
+  }
+
+  public static bool IsCompletedPeriodBar(Candle bar, string pivotTimeframe, DateTime asOf)
+  {
+    var asOfDate = asOf.Date;
+    return pivotTimeframe switch
+    {
+        "1W" => GetWeekStart(bar.Timestamp) < GetWeekStart(asOfDate),
+        "1M" => new DateTime(bar.Timestamp.Year, bar.Timestamp.Month, 1)
+            < new DateTime(asOfDate.Year, asOfDate.Month, 1),
+        _ => bar.Timestamp.Date < asOfDate
+    };
   }
 
   public static Candle AggregateSession(IReadOnlyList<Candle> session)
@@ -171,6 +267,50 @@ public static class CamarillaCalculator
     var ratio = bar.Close / referencePrice;
     return ratio >= 0.88m && ratio <= 1.12m;
   }
+
+  private static DateTime GetWeekStart(DateTime date)
+  {
+    var diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
+    return date.Date.AddDays(-diff);
+  }
+
+  private static List<Candle> ToWeeklyBars(IReadOnlyList<Candle> daily) =>
+      daily
+          .GroupBy(c => GetWeekStart(c.Timestamp))
+          .OrderBy(g => g.Key)
+          .Select(g =>
+          {
+            var ordered = g.OrderBy(c => c.Timestamp).ToList();
+            return new Candle
+            {
+              Timestamp = g.Key,
+              Open = ordered[0].Open,
+              High = ordered.Max(c => c.High),
+              Low = ordered.Min(c => c.Low),
+              Close = ordered[^1].Close,
+              Volume = ordered.Sum(c => c.Volume)
+            };
+          })
+          .ToList();
+
+  private static List<Candle> ToMonthlyBars(IReadOnlyList<Candle> daily) =>
+      daily
+          .GroupBy(c => new DateTime(c.Timestamp.Year, c.Timestamp.Month, 1))
+          .OrderBy(g => g.Key)
+          .Select(g =>
+          {
+            var ordered = g.OrderBy(c => c.Timestamp).ToList();
+            return new Candle
+            {
+              Timestamp = g.Key,
+              Open = ordered[0].Open,
+              High = ordered.Max(c => c.High),
+              Low = ordered.Min(c => c.Low),
+              Close = ordered[^1].Close,
+              Volume = ordered.Sum(c => c.Volume)
+            };
+          })
+          .ToList();
 
   private static decimal Round(decimal value) => Math.Round(value, 2);
 }

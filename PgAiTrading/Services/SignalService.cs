@@ -6,7 +6,7 @@ public interface ISignalService
 {
     Task<Signal> GenerateSignalAsync(string instrument = "NIFTY");
     Task<Signal> GenerateSignalFromAnalysisAsync(string instrument, MultiTimeframeAnalysis analysis);
-    Task<MultiTimeframeAnalysis> AnalyzeAsync(string instrument = "NIFTY");
+    Task<MultiTimeframeAnalysis> AnalyzeAsync(string instrument = "NIFTY", string? chartTimeframe = null);
     Task<MultiTimeframeAnalysis> AnalyzeForFrameworkAsync(string instrument);
     /// <summary>Phase-1 intraday screen: 1H + 5m only. Returns prefetch when Step 1 passes (bullish bias).</summary>
     Task<IntradayPrefetch?> TryScreenIntradayPhase1Async(string instrument);
@@ -38,8 +38,8 @@ public class SignalService : ISignalService
         _volumeProfile = volumeProfile;
     }
 
-    public async Task<MultiTimeframeAnalysis> AnalyzeAsync(string instrument = "NIFTY")
-        => await AnalyzeWithConfigAsync(instrument, _settings.Strategy);
+    public async Task<MultiTimeframeAnalysis> AnalyzeAsync(string instrument = "NIFTY", string? chartTimeframe = null)
+        => await AnalyzeWithConfigAsync(instrument, _settings.Strategy, chartTimeframe: chartTimeframe);
 
     public Task<MultiTimeframeAnalysis> AnalyzeForFrameworkAsync(string instrument)
         => AnalyzeWithConfigAsync(instrument, FrameworkDefaults.Intraday);
@@ -96,14 +96,22 @@ public class SignalService : ISignalService
     private async Task<MultiTimeframeAnalysis> AnalyzeWithConfigAsync(
         string instrument,
         StrategyConfig config,
-        IntradayPrefetch? prefetch = null)
+        IntradayPrefetch? prefetch = null,
+        string? chartTimeframe = null)
     {
         var symbol = MapInstrument(instrument);
 
         var candles1H = prefetch?.Candles1H ?? await _marketData.GetCandlesAsync(symbol, "1H", 200);
         var candles5M = prefetch?.Candles5M ?? await _marketData.GetCandlesAsync(symbol, "5m", 200);
         var candles15M = await _marketData.GetCandlesAsync(symbol, "15m", 200);
-        var candlesDay = await _marketData.GetCandlesAsync(symbol, "1D", 10);
+        // Extra daily history so weekly/monthly Camarilla Auto periods have enough bars.
+        var dailyCount = CamarillaCalculator.ResolvePivotTimeframe(chartTimeframe) switch
+        {
+            "1M" => 120,
+            "1W" => 60,
+            _ => 15
+        };
+        var candlesDay = await _marketData.GetCandlesAsync(symbol, "1D", dailyCount);
 
         var trend1H = _superTrend.GetTrend(candles1H, config.SuperTrend1HPeriod, config.SuperTrend1HMultiplier);
         var trend15M = _superTrend.GetTrend(candles15M, config.SuperTrend15MPeriod, config.SuperTrend15MMultiplier);
@@ -145,9 +153,18 @@ public class SignalService : ISignalService
         var volumeProfile = _volumeProfile.BuildLevels(sessionCandles, prevSessionCandles);
         var sessionOpen = sessionCandles.Count > 0 ? sessionCandles[0].Open : 0m;
 
-        // Camarilla must use previous *day* OHLC near the live price — never a lone 1H bar
-        // (that produced tiny levels clustered far below the chart when daily feed fell back).
-        var camarilla = CamarillaCalculator.FromAvailableSessions(
+        // Camarilla Auto: pivot period follows chart TF (intraday→1D, 1D→1W, 1W→1M).
+        var chartCandlesForCam = (chartTimeframe ?? "5m") switch
+        {
+            "1W" => candlesDay,
+            "1D" => candlesDay,
+            "1H" => candles1H,
+            "15m" => candles15M,
+            _ => candles5M
+        };
+        var camarilla = CamarillaCalculator.ForChartTimeframe(
+            chartTimeframe ?? "5m",
+            chartCandlesForCam,
             candlesDay,
             prevSessionCandles,
             last5MClose,

@@ -116,7 +116,9 @@
     }
     @if (ViewModel.ShowCamarillaOverlay)
     {
-        <span class="legend-item"><span class="legend-color camarilla"></span> Camarilla</span>
+        <span class="legend-item"><span class="legend-color camarilla"></span>
+            Camarilla (@(ViewModel.Analysis.Camarilla.PivotTimeframe))
+        </span>
     }
     @if (ViewModel.ShowKeltnerOverlay)
     {
