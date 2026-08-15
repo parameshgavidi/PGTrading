@@ -140,15 +140,18 @@ public class SignalService : ISignalService
         var cprCandles = candlesDay.Count >= 2 ? candlesDay : candles1H;
         var cprAnalysis = _indicators.GetCprAnalysis(cprCandles);
 
-        var prevDayCandle = cprCandles.Count >= 2 ? cprCandles[^2] : null;
-        var camarilla = prevDayCandle is not null
-            ? CamarillaCalculator.FromPreviousDay(prevDayCandle)
-            : new CamarillaLevels();
-
         var sessionCandles = GetTodaySessionCandles(candles5M);
         var prevSessionCandles = GetPreviousSessionCandles(candles5M);
         var volumeProfile = _volumeProfile.BuildLevels(sessionCandles, prevSessionCandles);
         var sessionOpen = sessionCandles.Count > 0 ? sessionCandles[0].Open : 0m;
+
+        // Camarilla must use previous *day* OHLC near the live price — never a lone 1H bar
+        // (that produced tiny levels clustered far below the chart when daily feed fell back).
+        var camarilla = CamarillaCalculator.FromAvailableSessions(
+            candlesDay,
+            prevSessionCandles,
+            last5MClose,
+            MarketHours.GetIstNow().Date);
 
         var tpo = TpoConfirmationEvaluator.Evaluate(
             last5MClose,
