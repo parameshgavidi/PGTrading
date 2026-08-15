@@ -202,7 +202,8 @@
 
             case WatchlistTab.LongTermScan:
                 <p class="text-secondary">
-                    Scans all NSE equities for long-term framework match. Quantity is sized to ~₹10,000 per stock.
+                    Scans NSE equities for long-term framework match. First scan runs in the background and saves results;
+                    opening this tab again shows the last snapshot instantly. Quantity is sized to ~₹10,000 per stock.
                 </p>
 
                 <div class="framework-panel">
@@ -220,9 +221,27 @@
 
                 <div class="button-row">
                     <button class="btn btn-primary" @onclick="ScanLongTermAsync" disabled="@ViewModel.IsLongTermScanning">
-                        @(ViewModel.IsLongTermScanning ? "Scanning..." : "Scan all NSE stocks")
+                        @if (ViewModel.IsLongTermScanning)
+                        {
+                            <text>Scanning in background...</text>
+                        }
+                        else if (ViewModel.HasLongTermCache)
+                        {
+                            <text>Rescan (background)</text>
+                        }
+                        else
+                        {
+                            <text>Scan all NSE stocks</text>
+                        }
                     </button>
                 </div>
+
+                @if (ViewModel.LongTermLastScannedAtUtc is { } scannedAt && !ViewModel.IsLongTermScanning)
+                {
+                    <div class="text-secondary" style="margin-bottom: 0.5rem;">
+                        Last scan: @scannedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")
+                    </div>
+                }
 
                 @if (!string.IsNullOrEmpty(ViewModel.LongTermScanProgressMessage))
                 {
@@ -236,7 +255,7 @@
 
                 @RenderScanTable(
                     ViewModel.LongTermScanItems,
-                    ViewModel.IsLongTermScanning,
+                    ViewModel.IsLongTermScanning && ViewModel.LongTermScanItems.Count == 0,
                     ScanNotional.LongTerm,
                     "long-term framework",
                     "CNC LIMIT",

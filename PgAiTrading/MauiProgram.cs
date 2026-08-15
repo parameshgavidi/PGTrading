@@ -71,6 +71,8 @@ public static class MauiProgram
             new LocalFileAutoBuyStore(
                 Microsoft.Maui.Storage.FileSystem.AppDataDirectory,
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)));
+        builder.Services.AddSingleton<ILongTermScanStore>(_ =>
+            new LocalFileLongTermScanStore(Microsoft.Maui.Storage.FileSystem.AppDataDirectory));
         builder.Services.AddSingleton<IAutoBuyService, AutoBuyService>();
 
         builder.Services.AddSingleton<DashboardViewModel>();
