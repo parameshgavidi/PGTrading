@@ -22,11 +22,7 @@
                         @onclick="() => OnTimeframeAsync(tf)">@tf</button>
             }
         </div>
-        <ChartOverlayToggles ShowKeltnerToggle="@(Panel.SelectedTimeframe == "1m" || Panel.SelectedTimeframe == "5m")"
-                             ShowIntradayStToggles="Panel.SupportsIntradayStOverlays"
-                             ShowSt725Toggle="Panel.SupportsSt725Overlays"
-                             Show5mStudyToggles="Panel.Supports5mStudyToggles"
-                             ShowPoc="Panel.ShowPocOverlay"
+        <ChartOverlayToggles ShowPoc="Panel.ShowPocOverlay"
                              ShowDayCpr="Panel.ShowPivotOverlay"
                              ShowCamarilla="Panel.ShowCamarillaOverlay"
                              ShowIntradayCpr="Panel.ShowIntradayCprOverlay"
@@ -125,7 +121,7 @@
         {
             <span class="legend-item"><span class="legend-color camarilla"></span> Camarilla</span>
         }
-        @if (Panel.ShowKeltnerOverlay && (Panel.SelectedTimeframe == "1m" || Panel.SelectedTimeframe == "5m"))
+        @if (Panel.ShowKeltnerOverlay)
         {
             <span class="legend-item"><span class="legend-color keltner"></span> Keltner</span>
         }

@@ -103,7 +103,7 @@ public class MarketDataService : IMarketDataService
             var result = await _zerodha.GetHistoricalCandlesResultAsync(instrument, interval, count + WarmupBars);
             if (result.IsFromZerodha && result.Candles.Count > 0)
             {
-                var withIndicators = AttachIndicators(result.Candles, interval);
+                var withIndicators = AttachIndicators(result.Candles);
                 var display = TrimToDisplayCount(withIndicators, count);
 
                 return new CandleSeriesResult
@@ -119,7 +119,7 @@ public class MarketDataService : IMarketDataService
 
         return new CandleSeriesResult
         {
-            Candles = AttachIndicators(await GenerateDemoCandlesAsync(instrument, interval, count), interval),
+            Candles = AttachIndicators(await GenerateDemoCandlesAsync(instrument, interval, count)),
             IsFromZerodha = false,
             Error = _zerodha.IsConnected ? "Using demo candles because Zerodha historical data was unavailable." : null
         };
@@ -135,7 +135,7 @@ public class MarketDataService : IMarketDataService
             if (dailyResult.IsFromZerodha && dailyResult.Candles.Count > 0)
             {
                 var weekly = CandleAggregator.ToWeekly(dailyResult.Candles);
-                var weeklyWithIndicators = AttachIndicators(weekly, "1W");
+                var weeklyWithIndicators = AttachIndicators(weekly);
                 var weeklyDisplay = TrimToDisplayCount(weeklyWithIndicators, count);
 
                 return new CandleSeriesResult
@@ -151,7 +151,7 @@ public class MarketDataService : IMarketDataService
 
         var demoDaily = await GenerateDemoCandlesAsync(instrument, "1D", dailyBarsNeeded);
         var demoWeekly = CandleAggregator.ToWeekly(demoDaily);
-        var demoWeeklyWithIndicators = AttachIndicators(demoWeekly, "1W");
+        var demoWeeklyWithIndicators = AttachIndicators(demoWeekly);
         var demoWeeklyDisplay = TrimToDisplayCount(demoWeeklyWithIndicators, count);
 
         return new CandleSeriesResult
@@ -219,27 +219,23 @@ public class MarketDataService : IMarketDataService
         if (candles.Count == 0)
             return;
 
-        AttachIndicators(candles, interval);
+        AttachIndicators(candles);
     }
 
-    private List<Candle> AttachIndicators(List<Candle> candles, string interval)
+    private List<Candle> AttachIndicators(List<Candle> candles)
     {
         AttachSuperTrendValues(candles, 10, 3.0, (c, v) => c.SuperTrend = v);
 
-        if (interval is "1m" or "5m" or "15m")
-            AttachSuperTrendValues(
-                candles,
-                TrailingStopDefaults.Period,
-                TrailingStopDefaults.Multiplier,
-                (c, v) => c.SuperTrendEntry = v);
+        // ST(7,2.5) + Keltner on every timeframe so overlay buttons always have data.
+        AttachSuperTrendValues(
+            candles,
+            TrailingStopDefaults.Period,
+            TrailingStopDefaults.Multiplier,
+            (c, v) => c.SuperTrendEntry = v);
 
-        // Keltner on 1m and 5m; VWAP + EMAs on all chart timeframes so overlay buttons always work.
-        if (interval is "1m" or "5m")
-        {
-            var cfg = _settings.Strategy;
-            _indicators.ApplyKeltner(candles, cfg.KeltnerEmaLength, cfg.KeltnerAtrLength,
-                cfg.KeltnerMultiplierInner, cfg.KeltnerMultiplierOuter);
-        }
+        var cfg = _settings.Strategy;
+        _indicators.ApplyKeltner(candles, cfg.KeltnerEmaLength, cfg.KeltnerAtrLength,
+            cfg.KeltnerMultiplierInner, cfg.KeltnerMultiplierOuter);
 
         _indicators.ApplyVwap(candles);
         _indicators.ApplyChartEmas(candles);

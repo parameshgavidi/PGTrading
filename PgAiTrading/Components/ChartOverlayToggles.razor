@@ -21,58 +21,46 @@
             @onclick="ToggleCamarillaAsync">
         Camarilla
     </button>
-    @if (ShowKeltnerToggle)
-    {
-        <button type="button"
-                class="btn overlay-toggle @(ShowKeltner ? "active" : "")"
-                @onclick="ToggleKeltnerAsync">
-            Keltner
-        </button>
-    }
-    @if (ShowSt725Toggle)
-    {
-        <button type="button"
-                class="btn overlay-toggle @(ShowSuperTrend725 ? "active" : "")"
-                @onclick="ToggleSuperTrend725Async">
-            ST 7,2.5
-        </button>
-    }
-    @if (ShowIntradayStToggles)
-    {
-        <button type="button"
-                class="btn overlay-toggle @(ShowSuperTrend ? "active" : "")"
-                @onclick="ToggleSuperTrendAsync">
-            ST 10,3
-        </button>
-    }
-    @if (Show5mStudyToggles)
-    {
-        <button type="button"
-                class="btn overlay-toggle @(ShowEma9 ? "active" : "")"
-                @onclick="ToggleEma9Async">
-            EMA 9
-        </button>
-        <button type="button"
-                class="btn overlay-toggle @(ShowEma20 ? "active" : "")"
-                @onclick="ToggleEma20Async">
-            EMA 20
-        </button>
-        <button type="button"
-                class="btn overlay-toggle @(ShowEma50 ? "active" : "")"
-                @onclick="ToggleEma50Async">
-            EMA 50
-        </button>
-        <button type="button"
-                class="btn overlay-toggle @(ShowEma200 ? "active" : "")"
-                @onclick="ToggleEma200Async">
-            EMA 200
-        </button>
-        <button type="button"
-                class="btn overlay-toggle @(ShowVwap ? "active" : "")"
-                @onclick="ToggleVwapAsync">
-            VWAP
-        </button>
-    }
+    <button type="button"
+            class="btn overlay-toggle @(ShowKeltner ? "active" : "")"
+            @onclick="ToggleKeltnerAsync">
+        Keltner
+    </button>
+    <button type="button"
+            class="btn overlay-toggle @(ShowSuperTrend725 ? "active" : "")"
+            @onclick="ToggleSuperTrend725Async">
+        ST 7,2.5
+    </button>
+    <button type="button"
+            class="btn overlay-toggle @(ShowSuperTrend ? "active" : "")"
+            @onclick="ToggleSuperTrendAsync">
+        ST 10,3
+    </button>
+    <button type="button"
+            class="btn overlay-toggle @(ShowEma9 ? "active" : "")"
+            @onclick="ToggleEma9Async">
+        EMA 9
+    </button>
+    <button type="button"
+            class="btn overlay-toggle @(ShowEma20 ? "active" : "")"
+            @onclick="ToggleEma20Async">
+        EMA 20
+    </button>
+    <button type="button"
+            class="btn overlay-toggle @(ShowEma50 ? "active" : "")"
+            @onclick="ToggleEma50Async">
+        EMA 50
+    </button>
+    <button type="button"
+            class="btn overlay-toggle @(ShowEma200 ? "active" : "")"
+            @onclick="ToggleEma200Async">
+        EMA 200
+    </button>
+    <button type="button"
+            class="btn overlay-toggle @(ShowVwap ? "active" : "")"
+            @onclick="ToggleVwapAsync">
+        VWAP
+    </button>
     <button type="button"
             class="btn overlay-toggle @(ShowPatterns ? "active" : "")"
             title="Important candlestick patterns (engulfing, stars, hammer, doji…)"
@@ -86,11 +74,7 @@
     [Parameter] public bool ShowDayCpr { get; set; }
     [Parameter] public bool ShowCamarilla { get; set; }
     [Parameter] public bool ShowIntradayCpr { get; set; }
-    [Parameter] public bool ShowKeltnerToggle { get; set; }
     [Parameter] public bool ShowKeltner { get; set; }
-    [Parameter] public bool ShowIntradayStToggles { get; set; }
-    [Parameter] public bool ShowSt725Toggle { get; set; }
-    [Parameter] public bool Show5mStudyToggles { get; set; }
     [Parameter] public bool ShowSuperTrend { get; set; }
     [Parameter] public bool ShowSuperTrend725 { get; set; }
     [Parameter] public bool ShowEma9 { get; set; }
