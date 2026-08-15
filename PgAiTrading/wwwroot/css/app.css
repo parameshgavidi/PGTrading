@@ -1914,7 +1914,23 @@ a.btn {
 }
 
 .sentiment-order-cell {
-    min-width: 110px;
+    min-width: 140px;
+}
+
+.sentiment-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: stretch;
+}
+
+.sentiment-actions .btn {
+    width: 100%;
+}
+
+.sentiment-view-chart.active,
+.btn.sentiment-view-chart.btn-primary {
+    box-shadow: 0 0 0 1px var(--accent-border-35);
 }
 
 .order-message {
