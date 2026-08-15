@@ -77,7 +77,16 @@ public class WatchlistViewModel : INotifyPropertyChanged, IDisposable
 
     public async Task ScanIntradayAsync() => await _intradayScanner.ScanAsync();
 
-    public async Task ScanLongTermAsync() => await _longTermScanner.ScanAsync();
+    public async Task ScanLongTermAsync()
+    {
+        await _longTermScanner.EnsureLoadedAsync();
+        await _longTermScanner.StartScanAsync();
+    }
+
+    public Task EnsureLongTermCacheAsync() => _longTermScanner.EnsureLoadedAsync();
+
+    public bool HasLongTermCache => _longTermScanner.HasCachedResults;
+    public DateTime? LongTermLastScannedAtUtc => _longTermScanner.LastScannedAtUtc;
 
     public async Task RefreshTrailingStopAsync() => await _trailingStop.RefreshAsync();
 
@@ -101,6 +110,7 @@ public class WatchlistViewModel : INotifyPropertyChanged, IDisposable
                 break;
 
             case WatchlistTab.LongTermScan:
+                await EnsureLongTermCacheAsync();
                 if (rescan)
                     await ScanLongTermAsync();
                 break;
@@ -188,6 +198,8 @@ public class WatchlistViewModel : INotifyPropertyChanged, IDisposable
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsConnected)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IntradayScanProgressMessage)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LongTermScanProgressMessage)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasLongTermCache)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LongTermLastScannedAtUtc)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TrailingStopStatusMessage)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LongTermExitStatusMessage)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsTrailingStopMonitoring)));

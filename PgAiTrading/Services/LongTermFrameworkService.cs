@@ -51,24 +51,44 @@ public class LongTermFrameworkService : ILongTermFrameworkService
     public async Task<LongTermEvaluation> EvaluateAsync(string symbol, decimal lastPrice, string exchange = "NSE")
     {
         var cfg = Framework;
-        var instrument = InstrumentMapper.ToZerodhaKey(symbol, exchange);
-        var daily = await _marketData.GetCandlesAsync(instrument, "1D", 300);
-        var weekly = CandleAggregator.ToWeekly(daily);
         var fundamentals = _fundamentals.GetFundamentals(symbol);
         var conditions = new List<FrameworkConditionResult>();
 
-        if (fundamentals is not null)
-        {
-            conditions.Add(Condition("Yearly ROE % > 15", fundamentals.RoePercent > cfg.MinRoePercent, $"{fundamentals.RoePercent:0.#}%"));
-            conditions.Add(Condition("Yearly ROCE % > 15", fundamentals.RocePercent > cfg.MinRocePercent, $"{fundamentals.RocePercent:0.#}%"));
-            conditions.Add(Condition("Debt/Equity < 1", fundamentals.DebtEquityRatio < cfg.MaxDebtEquityRatio, $"{fundamentals.DebtEquityRatio:0.##}"));
-            conditions.Add(Condition("P/B < 5", fundamentals.PriceToBook < cfg.MaxPriceToBook, $"{fundamentals.PriceToBook:0.##}"));
-            conditions.Add(Condition("Market Cap > 1000 Cr", fundamentals.MarketCapCr > cfg.MinMarketCapCr, $"₹{fundamentals.MarketCapCr:N0} Cr"));
-        }
-        else
+        // Fail fast — no candle fetch when fundamentals are missing (most of NSE today).
+        if (fundamentals is null)
         {
             conditions.Add(Condition("Fundamental data", false, "Unavailable for this symbol"));
+            return new LongTermEvaluation
+            {
+                Satisfied = false,
+                Score = 0,
+                Status = "No fundamentals",
+                Conditions = conditions
+            };
         }
+
+        conditions.Add(Condition("Yearly ROE % > 15", fundamentals.RoePercent > cfg.MinRoePercent, $"{fundamentals.RoePercent:0.#}%"));
+        conditions.Add(Condition("Yearly ROCE % > 15", fundamentals.RocePercent > cfg.MinRocePercent, $"{fundamentals.RocePercent:0.#}%"));
+        conditions.Add(Condition("Debt/Equity < 1", fundamentals.DebtEquityRatio < cfg.MaxDebtEquityRatio, $"{fundamentals.DebtEquityRatio:0.##}"));
+        conditions.Add(Condition("P/B < 5", fundamentals.PriceToBook < cfg.MaxPriceToBook, $"{fundamentals.PriceToBook:0.##}"));
+        conditions.Add(Condition("Market Cap > 1000 Cr", fundamentals.MarketCapCr > cfg.MinMarketCapCr, $"₹{fundamentals.MarketCapCr:N0} Cr"));
+
+        // Cheap fundamental gate before historical candles.
+        if (conditions.Any(c => !c.Passed))
+        {
+            var passedEarly = conditions.Count(c => c.Passed);
+            return new LongTermEvaluation
+            {
+                Satisfied = false,
+                Score = (int)Math.Round(passedEarly * 100m / FrameworkConditions.Count),
+                Status = GetStatus(conditions),
+                Conditions = conditions
+            };
+        }
+
+        var instrument = InstrumentMapper.ToZerodhaKey(symbol, exchange);
+        var daily = await _marketData.GetCandlesAsync(instrument, "1D", 300);
+        var weekly = CandleAggregator.ToWeekly(daily);
 
         if (daily.Count > 0)
         {

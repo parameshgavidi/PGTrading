@@ -5,6 +5,8 @@ namespace PgAiTrading.Services;
 public interface IFundamentalDataService
 {
     StockFundamentals? GetFundamentals(string symbol);
+    bool HasFundamentals(string symbol);
+    IReadOnlyList<string> KnownSymbols { get; }
 }
 
 public class FundamentalDataService : IFundamentalDataService
@@ -25,6 +27,11 @@ public class FundamentalDataService : IFundamentalDataService
         ["KOTAKBANK"] = new() { RoePercent = 14.8m, RocePercent = 8.1m, DebtEquityRatio = 0.72m, PriceToBook = 2.8m, MarketCapCr = 390000m }
     };
 
+    public IReadOnlyList<string> KnownSymbols { get; } = Data.Keys.OrderBy(k => k).ToList();
+
     public StockFundamentals? GetFundamentals(string symbol) =>
         Data.TryGetValue(symbol.Trim(), out var fundamentals) ? fundamentals : null;
+
+    public bool HasFundamentals(string symbol) =>
+        Data.ContainsKey(symbol.Trim());
 }
