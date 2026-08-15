@@ -1821,6 +1821,23 @@ a.btn {
     transition: color var(--ease-ui), border-color var(--ease-ui);
 }
 
+button.symbol-chart-link.scanner-symbol-btn {
+    background: none;
+    border: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    font: inherit;
+    color: var(--accent);
+}
+
+button.symbol-chart-link.scanner-symbol-btn:hover,
+button.symbol-chart-link.scanner-symbol-btn.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+}
+
 .symbol-chart-link:hover {
     color: var(--text);
     border-bottom-color: var(--accent);
