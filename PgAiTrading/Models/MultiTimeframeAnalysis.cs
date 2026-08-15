@@ -67,6 +67,8 @@ public class MultiTimeframeAnalysis
     public FootprintAnalysis Footprint { get; set; } = new();
     public VolumeProfileLevels VolumeProfile { get; set; } = new();
     public CamarillaLevels Camarilla { get; set; } = new();
+    /// <summary>Historical Camarilla periods for TradingView-style stepped chart lines.</summary>
+    public IReadOnlyList<CamarillaSegment> CamarillaSegments { get; set; } = Array.Empty<CamarillaSegment>();
     public TrendDirection CamarillaBias { get; set; }
     public TrendDirection CamarillaBandBias { get; set; }
     public decimal ReferencePrice { get; set; }

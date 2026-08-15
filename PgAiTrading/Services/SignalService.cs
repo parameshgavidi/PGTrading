@@ -104,12 +104,12 @@ public class SignalService : ISignalService
         var candles1H = prefetch?.Candles1H ?? await _marketData.GetCandlesAsync(symbol, "1H", 200);
         var candles5M = prefetch?.Candles5M ?? await _marketData.GetCandlesAsync(symbol, "5m", 200);
         var candles15M = await _marketData.GetCandlesAsync(symbol, "15m", 200);
-        // Extra daily history so weekly/monthly Camarilla Auto periods have enough bars.
+        // Extra daily history so TradingView-style Camarilla Auto segments have enough bars.
         var dailyCount = CamarillaCalculator.ResolvePivotTimeframe(chartTimeframe) switch
         {
-            "1M" => 120,
-            "1W" => 60,
-            _ => 15
+            "1M" => 400,
+            "1W" => 100,
+            _ => 40
         };
         var candlesDay = await _marketData.GetCandlesAsync(symbol, "1D", dailyCount);
 
@@ -162,13 +162,20 @@ public class SignalService : ISignalService
             "15m" => candles15M,
             _ => candles5M
         };
+        var camAsOf = MarketHours.GetIstNow().Date;
         var camarilla = CamarillaCalculator.ForChartTimeframe(
             chartTimeframe ?? "5m",
             chartCandlesForCam,
             candlesDay,
             prevSessionCandles,
             last5MClose,
-            MarketHours.GetIstNow().Date);
+            camAsOf);
+        var camarillaSegments = CamarillaCalculator.BuildHistory(
+            chartTimeframe ?? "5m",
+            chartCandlesForCam,
+            candlesDay,
+            last5MClose,
+            camAsOf);
 
         var tpo = TpoConfirmationEvaluator.Evaluate(
             last5MClose,
@@ -281,6 +288,7 @@ public class SignalService : ISignalService
             Footprint = footprint,
             VolumeProfile = volumeProfile,
             Camarilla = camarilla,
+            CamarillaSegments = camarillaSegments,
             CamarillaBias = camarilla.GetBias(last5MClose),
             CamarillaBandBias = camarilla.GetBandBias(last5MClose),
             ReferencePrice = last5MClose,

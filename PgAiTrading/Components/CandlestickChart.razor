@@ -61,6 +61,8 @@
     private bool _lastShowPatterns;
     private int _lastCprSegmentCount;
     private string _lastCprSegmentKey = string.Empty;
+    private int _lastCamSegmentCount;
+    private string _lastCamSegmentKey = string.Empty;
     private int _pendingRenderRetries;
     private CancellationTokenSource? _retryCts;
 
@@ -70,6 +72,7 @@
             return;
 
         var segmentKey = BuildCprSegmentKey();
+        var camSegmentKey = BuildCamarillaSegmentKey();
 
         if (ChartVersion == _lastRenderedVersion
             && OverlayVersion == _lastOverlayVersion
@@ -88,7 +91,9 @@
             && ShowVwapOverlay == _lastShowVwapOverlay
             && ShowPatternsOverlay == _lastShowPatterns
             && CprSegments.Count == _lastCprSegmentCount
-            && segmentKey == _lastCprSegmentKey)
+            && segmentKey == _lastCprSegmentKey
+            && (Analysis?.CamarillaSegments.Count ?? 0) == _lastCamSegmentCount
+            && camSegmentKey == _lastCamSegmentKey)
             return;
 
         if (!await RenderAsync())
@@ -97,10 +102,10 @@
             return;
         }
 
-        MarkRenderSuccessful(segmentKey);
+        MarkRenderSuccessful(segmentKey, camSegmentKey);
     }
 
-    private void MarkRenderSuccessful(string segmentKey)
+    private void MarkRenderSuccessful(string segmentKey, string camSegmentKey)
     {
         _lastRenderedVersion = ChartVersion;
         _lastOverlayVersion = OverlayVersion;
@@ -120,6 +125,8 @@
         _lastShowPatterns = ShowPatternsOverlay;
         _lastCprSegmentCount = CprSegments.Count;
         _lastCprSegmentKey = segmentKey;
+        _lastCamSegmentCount = Analysis?.CamarillaSegments.Count ?? 0;
+        _lastCamSegmentKey = camSegmentKey;
         _pendingRenderRetries = 0;
     }
 
@@ -129,7 +136,9 @@
             && OverlayVersion != _lastOverlayVersion
             && Timeframe == _lastTimeframe
             && CprSegments.Count == _lastCprSegmentCount
-            && BuildCprSegmentKey() == _lastCprSegmentKey;
+            && BuildCprSegmentKey() == _lastCprSegmentKey
+            && (Analysis?.CamarillaSegments.Count ?? 0) == _lastCamSegmentCount
+            && BuildCamarillaSegmentKey() == _lastCamSegmentKey;
     }
 
     private bool IsStudyOverlayToggleOnly()
@@ -229,6 +238,15 @@
     private string BuildCprSegmentKey() =>
         string.Join('|', CprSegments.Select(s => $"{s.Start:O}:{s.Pivot}:{s.Tc}:{s.Bc}"));
 
+    private string BuildCamarillaSegmentKey()
+    {
+        if (Analysis?.CamarillaSegments is not { Count: > 0 } segs)
+            return string.Empty;
+
+        return string.Join('|', segs.Select(s =>
+            $"{s.Start:O}:{s.End:O}:{s.R4}:{s.R3}:{s.Pivot}:{s.S3}:{s.S4}"));
+    }
+
     private async Task ZoomIn() => await InvokeSafe("pgAiTradingChart.zoom", CanvasId, 1.22);
     private async Task ZoomOut() => await InvokeSafe("pgAiTradingChart.zoom", CanvasId, 1 / 1.22);
     private async Task ResetZoom() => await InvokeSafe("pgAiTradingChart.resetZoom", CanvasId);
@@ -286,6 +304,7 @@
         }
 
         var segmentPayload = BuildCprSegmentPayload();
+        var camSegmentPayload = BuildCamarillaSegmentPayload();
 
         var showIntradayCpr = ShowIntradayCprLevels && segmentPayload.Count > 0;
 
@@ -296,6 +315,7 @@
             showCamarilla = ShowCamarillaLevels ? 1 : 0,
             showIntradaCpr = showIntradayCpr ? 1 : 0,
             intradayCpr = segmentPayload,
+            camarillaSegments = camSegmentPayload,
             showKeltner = ShowKeltnerLevels ? 1 : 0,
             showVwap = ShowVwapOverlay ? 1 : 0,
             showSuperTrend = ShowSuperTrendOverlay ? 1 : 0,
@@ -399,6 +419,23 @@
             tc = (double)s.Tc,
             bc = (double)s.Bc
         }).Cast<object>().ToList();
+
+    private List<object> BuildCamarillaSegmentPayload()
+    {
+        if (Analysis?.CamarillaSegments is not { Count: > 0 } segs)
+            return new List<object>();
+
+        return segs.Select(s => new
+        {
+            start = ChartJsTime.ToEpochMs(s.Start),
+            end = ChartJsTime.ToEpochMs(s.End),
+            r4 = (double)s.R4,
+            r3 = (double)s.R3,
+            pivot = (double)s.Pivot,
+            s3 = (double)s.S3,
+            s4 = (double)s.S4
+        }).Cast<object>().ToList();
+    }
 
     private string BuildCprSegmentsJson() =>
         JsonSerializer.Serialize(BuildCprSegmentPayload(), ChartJson);
@@ -608,10 +645,13 @@
         if (Analysis is null)
             return new List<object>();
 
+        // Prefer TradingView-style stepped Camarilla segments over full-width cam lines.
+        var useCamSegments = Analysis.CamarillaSegments.Count > 0;
+
         return SupportResistanceLadderBuilder.Build(Analysis)
             .Where(row => row.Group switch
             {
-                "cam" => ShowCamarillaLevels,
+                "cam" => ShowCamarillaLevels && !useCamSegments,
                 "cpr" => ShowPivotLevels,
                 "today" or "prev" => ShowPocLevels,
                 _ => true

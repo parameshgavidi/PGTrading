@@ -119,4 +119,86 @@ public class CamarillaCalculatorTests
         Assert.Equal("1W", cam.PivotTimeframe);
         Assert.InRange(cam.Pivot, 1100m, 1300m);
     }
+
+    [Fact]
+    public void BuildHistory_daily_chart_builds_weekly_stepped_segments()
+    {
+        var asOf = new DateTime(2026, 8, 14); // Friday
+        var daily = new List<Candle>();
+        for (var d = -90; d <= 0; d++)
+        {
+            var day = asOf.AddDays(d);
+            if (day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+                continue;
+            daily.Add(new Candle
+            {
+                Timestamp = day,
+                Open = 1200m + d,
+                High = 1220m + d,
+                Low = 1180m + d,
+                Close = 1210m + d
+            });
+        }
+
+        var segments = CamarillaCalculator.BuildHistory(
+            "1D",
+            daily,
+            daily,
+            referencePrice: 1210m,
+            asOfDate: asOf,
+            lookbackPeriods: 8);
+
+        Assert.NotEmpty(segments);
+        Assert.True(segments.Count <= 8);
+        // Each segment must have R4 > R3 > PP > S3 > S4
+        foreach (var seg in segments)
+        {
+            Assert.True(seg.R4 > seg.R3);
+            Assert.True(seg.R3 > seg.Pivot);
+            Assert.True(seg.Pivot > seg.S3);
+            Assert.True(seg.S3 > seg.S4);
+            Assert.True(seg.End > seg.Start);
+        }
+
+        // Segments should be chronological and non-overlapping starts
+        for (var i = 1; i < segments.Count; i++)
+            Assert.True(segments[i].Start >= segments[i - 1].Start);
+    }
+
+    [Fact]
+    public void BuildHistory_intraday_chart_builds_daily_segments()
+    {
+        var asOf = new DateTime(2026, 8, 14);
+        var daily = new List<Candle>();
+        for (var d = -20; d <= 0; d++)
+        {
+            var day = asOf.AddDays(d);
+            if (day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+                continue;
+            daily.Add(new Candle
+            {
+                Timestamp = day,
+                Open = 100m + d,
+                High = 110m + d,
+                Low = 90m + d,
+                Close = 105m + d
+            });
+        }
+
+        var segments = CamarillaCalculator.BuildHistory(
+            "5m",
+            daily,
+            daily,
+            referencePrice: 105m,
+            asOfDate: asOf,
+            lookbackPeriods: 10);
+
+        Assert.NotEmpty(segments);
+        Assert.All(segments, s =>
+        {
+            Assert.True(s.R4 > s.S4);
+            Assert.True((s.End - s.Start).TotalHours >= 23);
+            Assert.Equal(s.Start.Date, s.Start);
+        });
+    }
 }
