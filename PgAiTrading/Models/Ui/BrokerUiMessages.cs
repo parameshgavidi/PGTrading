@@ -17,6 +17,10 @@ public static class BrokerUiMessages
     public const string BrokerOfflinePositions = "Broker offline — connect Zerodha to view live positions.";
     public const string BrokerOfflineOrders = "Broker offline — connect Zerodha to view today’s orders.";
 
+    /// <summary>Shown when Kite rejects the session (bad API key or expired access token).</summary>
+    public const string InvalidCredentials =
+        "Incorrect API key or access token. Update credentials in Settings and reconnect to Zerodha.";
+
     /// <summary>Sentiment / UI quantity validation.</summary>
     public const string QuantityInvalid = "Quantity must be at least 1.";
 
@@ -26,4 +30,14 @@ public static class BrokerUiMessages
     public const string CouldNotFetchPrice = "Could not fetch price for limit order.";
     public const string OrderPlacementFailed = "Order placement failed.";
     public const string OrderRejected = "Order rejected";
+
+    /// <summary>True when a Kite error message indicates a bad API key or access token.</summary>
+    public static bool IsInvalidCredentialsError(string? error)
+    {
+        if (string.IsNullOrWhiteSpace(error))
+            return false;
+
+        return error.Contains("api_key", StringComparison.OrdinalIgnoreCase)
+            && error.Contains("access_token", StringComparison.OrdinalIgnoreCase);
+    }
 }
