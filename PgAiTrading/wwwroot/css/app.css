@@ -2580,6 +2580,22 @@ a.btn {
     gap: 10px;
 }
 
+.scanner-progress-track {
+    height: 6px;
+    margin: 0 0 14px;
+    border-radius: 999px;
+    background: var(--surface-inset, #0A0A0A);
+    border: 1px solid var(--card-border);
+    overflow: hidden;
+}
+
+.scanner-progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--gold-gradient, linear-gradient(135deg, #E8C84A 0%, #D4AF37 100%));
+    transition: width 0.25s ease;
+}
+
 .loading-inline {
     display: inline-flex;
     align-items: center;
