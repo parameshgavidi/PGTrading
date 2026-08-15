@@ -3,6 +3,8 @@
 @inject ISignalService SignalService
 @inject IZerodhaService Zerodha
 @inject INiftyIndexService NiftyIndex
+@inject DashboardViewModel Dashboard
+@inject NavigationManager Navigation
 @implements IDisposable
 
 <div class="page-container">
@@ -69,7 +71,14 @@
                     @foreach (var result in _results)
                     {
                         <tr class="@(result.Aligned ? "aligned-row" : "")">
-                            <td><strong>@result.Symbol</strong></td>
+                            <td>
+                                <button type="button"
+                                        class="symbol-chart-link scanner-symbol-btn @(IsChartSymbol(result.Symbol) ? "active" : "")"
+                                        title="Open @result.Symbol chart on Dashboard"
+                                        @onclick="() => ViewChartAsync(result.Symbol)">
+                                    <strong>@result.Symbol</strong>
+                                </button>
+                            </td>
                             <td><span class="scanner-stars">@RenderStars(result)</span></td>
                             <td>@(result.Price > 0 ? result.Price.ToString("N2") : "—")</td>
                             <td class="@GetTrendClass(result.Trend1H)">@GetBadgeLabel(result.Trend1H)</td>
@@ -269,6 +278,25 @@
         }
 
         return quotes;
+    }
+
+    private bool IsChartSymbol(string symbol) =>
+        string.Equals(Dashboard.SelectedSymbol, symbol, StringComparison.OrdinalIgnoreCase);
+
+    private async Task ViewChartAsync(string symbol)
+    {
+        if (string.IsNullOrWhiteSpace(symbol))
+            return;
+
+        var normalized = symbol.Trim().ToUpperInvariant();
+        await Dashboard.SelectInstrumentAsync(normalized);
+
+        var path = Navigation.ToBaseRelativePath(Navigation.Uri).Trim('/');
+        if (!string.IsNullOrEmpty(path)
+            && !path.Equals("dashboard", StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo("/");
+        }
     }
 
     private static string GetTrendClass(TrendDirection trend) => TrendUi.GetClass(trend);
