@@ -1,7 +1,9 @@
 @namespace PgAiTrading.Components.Layout
 @using PgAiTrading.Services
+@using PgAiTrading.Models.Ui
 @inherits LayoutComponentBase
 @inject IZerodhaService ZerodhaService
+@inject SettingsViewModel SettingsViewModel
 @inject IUiLayoutService Layout
 @inject IThemeService Theme
 @inject NavigationManager Navigation
@@ -88,6 +90,7 @@
         AppUiEvents.RaiseShellRendered();
         _isConnected = ZerodhaService.IsConnected;
         ZerodhaService.ConnectionChanged += OnConnectionChanged;
+        ZerodhaService.CredentialsInvalid += OnCredentialsInvalid;
         Navigation.LocationChanged += OnNavigationChanged;
         Layout.Changed += OnLayoutChanged;
         Theme.ThemeChanged += OnThemeChanged;
@@ -116,6 +119,19 @@
     {
         _isConnected = connected;
         InvokeAsync(StateHasChanged);
+    }
+
+    private void OnCredentialsInvalid()
+    {
+        SettingsViewModel.SetStatusMessage(BrokerUiMessages.InvalidCredentials);
+        InvokeAsync(() =>
+        {
+            _isConnected = false;
+            var path = Navigation.ToBaseRelativePath(Navigation.Uri).Trim('/').ToLowerInvariant();
+            if (path != "settings")
+                Navigation.NavigateTo("settings");
+            StateHasChanged();
+        });
     }
 
     private void OnLayoutChanged() => InvokeAsync(StateHasChanged);
@@ -157,6 +173,7 @@
     public void Dispose()
     {
         ZerodhaService.ConnectionChanged -= OnConnectionChanged;
+        ZerodhaService.CredentialsInvalid -= OnCredentialsInvalid;
         Navigation.LocationChanged -= OnNavigationChanged;
         Layout.Changed -= OnLayoutChanged;
         Theme.ThemeChanged -= OnThemeChanged;

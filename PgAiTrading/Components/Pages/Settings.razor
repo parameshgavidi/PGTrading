@@ -197,7 +197,7 @@
     {
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         await ViewModel.LoadAsync();
-        _statusMessage = ViewModel.StatusMessage;
+        ApplyStatusMessage(ViewModel.StatusMessage);
     }
 
     private bool IsTheme(string theme) =>
@@ -237,19 +237,29 @@
     {
         if (e.PropertyName == nameof(SettingsViewModel.StatusMessage))
         {
-            var message = ViewModel.StatusMessage;
-            if (message is "Settings saved!" or "Disconnected from Zerodha.")
-            {
-                _statusMessage = message;
-            }
-            else
-            {
-                _connectStatusMessage = message;
-                _connectStatusIsSuccess = message.StartsWith("Connected as", StringComparison.Ordinal);
-            }
-
+            ApplyStatusMessage(ViewModel.StatusMessage);
             InvokeAsync(StateHasChanged);
         }
+    }
+
+    private void ApplyStatusMessage(string message)
+    {
+        if (string.IsNullOrEmpty(message))
+            return;
+
+        if (message.StartsWith("Settings saved!", StringComparison.Ordinal)
+            || message is "Disconnected from Zerodha."
+            || message.StartsWith("Theme set to", StringComparison.Ordinal)
+            || message.StartsWith("Played ", StringComparison.Ordinal)
+            || message.StartsWith("Could not play sound", StringComparison.Ordinal))
+        {
+            _statusMessage = message;
+            return;
+        }
+
+        // Broker connect / auth errors (including redirected invalid credentials).
+        _connectStatusMessage = message;
+        _connectStatusIsSuccess = message.StartsWith("Connected as", StringComparison.Ordinal);
     }
 
     private async Task Save() => await ViewModel.SaveAsync();

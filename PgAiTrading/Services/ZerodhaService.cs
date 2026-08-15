@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using PgAiTrading.Models;
+using PgAiTrading.Models.Ui;
 
 namespace PgAiTrading.Services;
 
@@ -12,6 +13,8 @@ public interface IZerodhaService
     bool IsConnected { get; }
     string? UserId { get; }
     event Action<bool>? ConnectionChanged;
+    /// <summary>Raised when Kite rejects the API key or access token; UI should open Settings.</summary>
+    event Action? CredentialsInvalid;
     string GetLoginUrl();
     Task<(bool Success, string Message)> GenerateSessionAsync(string requestToken);
     Task<decimal> GetLtpAsync(string instrument);
@@ -49,6 +52,7 @@ public class ZerodhaService : IZerodhaService
     public bool IsConnected { get; private set; }
     public string? UserId { get; private set; }
     public event Action<bool>? ConnectionChanged;
+    public event Action? CredentialsInvalid;
 
     public ZerodhaService(ISettingsService settings)
     {
@@ -108,6 +112,8 @@ public class ZerodhaService : IZerodhaService
             {
                 var error = TryReadKiteError(json)
                     ?? $"Zerodha rejected the token (HTTP {(int)response.StatusCode}). Generate a fresh request_token and try again.";
+                if (BrokerUiMessages.IsInvalidCredentialsError(error))
+                    return (false, BrokerUiMessages.InvalidCredentials);
                 return (false, error);
             }
 
@@ -143,6 +149,23 @@ public class ZerodhaService : IZerodhaService
         return null;
     }
 
+    /// <summary>
+    /// Kite returns "Incorrect api_key or access_token." when the session is invalid.
+    /// Clears the local session and notifies the UI to open Settings.
+    /// </summary>
+    private bool TryHandleInvalidCredentials(string? error)
+    {
+        if (!BrokerUiMessages.IsInvalidCredentialsError(error))
+            return false;
+
+        Disconnect();
+        CredentialsInvalid?.Invoke();
+        return true;
+    }
+
+    private bool TryHandleFailedResponse(string json)
+        => TryHandleInvalidCredentials(TryReadKiteError(json));
+
     public async Task<decimal> GetLtpAsync(string instrument)
     {
         var quote = await GetQuoteAsync(instrument);
@@ -162,7 +185,10 @@ public class ZerodhaService : IZerodhaService
             var json = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
+            {
+                TryHandleFailedResponse(json);
                 return null;
+            }
 
             using var doc = JsonDocument.Parse(json);
             if (!doc.RootElement.GetProperty("data").TryGetProperty(instrument, out var item))
@@ -214,6 +240,8 @@ public class ZerodhaService : IZerodhaService
             {
                 var error = TryReadKiteError(json)
                     ?? $"Zerodha historical API failed (HTTP {(int)response.StatusCode}).";
+                if (TryHandleInvalidCredentials(error))
+                    return new CandleSeriesResult { Error = BrokerUiMessages.InvalidCredentials };
                 return new CandleSeriesResult { Error = error };
             }
 
@@ -264,7 +292,10 @@ public class ZerodhaService : IZerodhaService
             var json = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
+            {
+                TryHandleFailedResponse(json);
                 return GetDemoQuotes(instruments);
+            }
 
             using var doc = JsonDocument.Parse(json);
             var result = new Dictionary<string, decimal>();
@@ -294,7 +325,10 @@ public class ZerodhaService : IZerodhaService
             var json = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
+            {
+                TryHandleFailedResponse(json);
                 return GetDemoInstrumentQuotes(instruments);
+            }
 
             using var doc = JsonDocument.Parse(json);
             var result = new Dictionary<string, InstrumentQuote>();
@@ -334,7 +368,10 @@ public class ZerodhaService : IZerodhaService
             var json = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
+            {
+                TryHandleFailedResponse(json);
                 return new List<Position>();
+            }
 
             using var doc = JsonDocument.Parse(json);
             var net = doc.RootElement.GetProperty("data").GetProperty("net");
@@ -386,7 +423,10 @@ public class ZerodhaService : IZerodhaService
             var json = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
+            {
+                TryHandleFailedResponse(json);
                 return new List<Position>();
+            }
 
             using var doc = JsonDocument.Parse(json);
             var day = doc.RootElement.GetProperty("data").GetProperty("day");
@@ -462,6 +502,9 @@ public class ZerodhaService : IZerodhaService
             {
                 var error = TryReadKiteError(json)
                     ?? $"Holdings API failed (HTTP {(int)response.StatusCode}).";
+                if (TryHandleInvalidCredentials(error))
+                    return new List<Holding>();
+
                 throw new InvalidOperationException(error);
             }
 
@@ -521,7 +564,10 @@ public class ZerodhaService : IZerodhaService
             var json = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
+            {
+                TryHandleFailedResponse(json);
                 return new List<Order>();
+            }
 
             using var doc = JsonDocument.Parse(json);
             var orders = new List<Order>();
@@ -647,6 +693,8 @@ public class ZerodhaService : IZerodhaService
             {
                 var error = TryReadKiteError(json)
                     ?? $"Order rejected (HTTP {(int)response.StatusCode}).";
+                if (TryHandleInvalidCredentials(error))
+                    return OrderPlacementResult.Fail(BrokerUiMessages.InvalidCredentials);
                 return OrderPlacementResult.Fail(error);
             }
 
@@ -657,6 +705,8 @@ public class ZerodhaService : IZerodhaService
                 && status.GetString() is "error")
             {
                 var error = TryReadKiteError(json) ?? "Order rejected by Zerodha.";
+                if (TryHandleInvalidCredentials(error))
+                    return OrderPlacementResult.Fail(BrokerUiMessages.InvalidCredentials);
                 return OrderPlacementResult.Fail(error);
             }
 
@@ -719,10 +769,14 @@ public class ZerodhaService : IZerodhaService
         {
             var request = CreateRequest(HttpMethod.Get, "/instruments");
             var response = await _http.SendAsync(request);
+            var body = await response.Content.ReadAsStringAsync();
             if (!response.IsSuccessStatusCode)
+            {
+                TryHandleFailedResponse(body);
                 return;
+            }
 
-            using var reader = new StringReader(await response.Content.ReadAsStringAsync());
+            using var reader = new StringReader(body);
             _ = reader.ReadLine();
 
             while (reader.ReadLine() is { } line)
@@ -927,7 +981,10 @@ public class ZerodhaService : IZerodhaService
             var csv = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
+            {
+                TryHandleFailedResponse(csv);
                 return NiftyConstituents.ScanUniverse.ToList();
+            }
 
             var symbols = new List<string>();
             using var reader = new StringReader(csv);
