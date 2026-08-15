@@ -285,13 +285,25 @@ window.pgAiTradingChart = (function () {
         const collect = (key) => view.map(c => c[key]).filter(v => v != null && !Number.isNaN(v));
         const highs = view.map(c => c.high);
         const lows = view.map(c => c.low);
-        const levelPrices = filterLevels(st).map(l => Number(l.price)).filter(v => !Number.isNaN(v));
+        const candleMax = Math.max(...highs);
+        const candleMin = Math.min(...lows);
+        const candleMid = (candleMax + candleMin) / 2 || candleMax || 1;
+        // Ignore level outliers far from candles (bad Camarilla/demo mismatch) so they
+        // don't collapse price action to the top of the pane.
+        const levelPrices = filterLevels(st)
+            .map(levelPrice)
+            .filter(function (v) {
+                return v != null && !Number.isNaN(v) && v > 0 && Math.abs(v - candleMid) / candleMid <= 0.35;
+            });
         var intradayPrices = [];
         if (st.showIntradaCpr && st.intradayCprSegments) {
             st.intradayCprSegments.forEach(function (s) {
                 intradayPrices.push(Number(s.tc), Number(s.pivot), Number(s.bc));
             });
         }
+        intradayPrices = intradayPrices.filter(function (v) {
+            return !Number.isNaN(v) && v > 0 && Math.abs(v - candleMid) / candleMid <= 0.35;
+        });
         const extra = [];
         if (st.showSuperTrend) extra.push.apply(extra, collect('superTrend'));
         if (st.showSuperTrend725) {
@@ -322,18 +334,25 @@ window.pgAiTradingChart = (function () {
         pushEma(getEma50Value, st.showEma50);
         pushEma(getEma200Value, st.showEma200);
         const maxPrice = Math.max(
-            ...highs,
-            ...(extra.length ? extra : [Number.MIN_VALUE]),
-            ...(levelPrices.length ? levelPrices : [Number.MIN_VALUE]),
-            ...(intradayPrices.length ? intradayPrices : [Number.MIN_VALUE])
+            candleMax,
+            ...(extra.length ? extra : [candleMax]),
+            ...(levelPrices.length ? levelPrices : [candleMax]),
+            ...(intradayPrices.length ? intradayPrices : [candleMax])
         );
         const minPrice = Math.min(
-            ...lows,
-            ...(extra.length ? extra : [Number.MAX_VALUE]),
-            ...(levelPrices.length ? levelPrices : [Number.MAX_VALUE]),
-            ...(intradayPrices.length ? intradayPrices : [Number.MAX_VALUE])
+            candleMin,
+            ...(extra.length ? extra : [candleMin]),
+            ...(levelPrices.length ? levelPrices : [candleMin]),
+            ...(intradayPrices.length ? intradayPrices : [candleMin])
         );
         return { minPrice, maxPrice, priceRange: (maxPrice - minPrice) || 1 };
+    }
+
+    function levelPrice(lv) {
+        if (!lv) return null;
+        var v = lv.price != null ? lv.price : lv.Price;
+        v = Number(v);
+        return Number.isNaN(v) ? null : v;
     }
 
     function getVisiblePriceBounds(st, view) {
@@ -858,20 +877,27 @@ window.pgAiTradingChart = (function () {
         ctx.fillText(text, x + padX, y);
     }
 
-    function drawLevels(ctx, levels, padding, width, toY) {
+    function drawLevels(ctx, levels, padding, width, chartH, toY) {
         if (!levels || levels.length === 0) return;
 
+        const top = padding.top;
+        const bottom = padding.top + chartH;
+
         levels.forEach(function (lv) {
-            const price = Number(lv.price);
-            if (!price || Number.isNaN(price)) return;
+            const price = levelPrice(lv);
+            if (price == null || !(price > 0)) return;
 
             const y = toY(price);
+            // Skip mismatched levels that sit far outside the visible pane.
+            if (y < top - 4 || y > bottom + 4) return;
+
             const color = levelColor(lv);
             const dash = lv.group === 'prev' ? [5, 4] : [8, 4];
             const isPocToday = (lv.label || '').toLowerCase().startsWith('poc today');
+            const label = formatLevelLabel(lv.label || '', price, lv.group);
 
             ctx.strokeStyle = color;
-            ctx.lineWidth = isPocToday ? 1.75 : lv.group === 'today' ? 1.35 : 1;
+            ctx.lineWidth = isPocToday ? 1.75 : lv.group === 'today' ? 1.35 : lv.group === 'cam' ? 1.35 : 1;
             ctx.setLineDash(dash);
             ctx.beginPath();
             ctx.moveTo(padding.left, y);
@@ -879,8 +905,18 @@ window.pgAiTradingChart = (function () {
             ctx.stroke();
             ctx.setLineDash([]);
 
-            drawLevelLabel(ctx, padding.left + 2, y, lv.label || '', color);
+            drawLevelLabel(ctx, padding.left + 2, y, label, color);
         });
+    }
+
+    function formatLevelLabel(label, price, group) {
+        if (!label) return '';
+        // TradingView-style Camarilla labels: "R4 (1437.5)"
+        if (group === 'cam' && price > 0) {
+            var p = price >= 100 ? price.toFixed(1) : price.toFixed(2);
+            return label + ' (' + p + ')';
+        }
+        return label;
     }
 
     function patternColor(bias) {
@@ -1184,7 +1220,7 @@ window.pgAiTradingChart = (function () {
         };
 
         // Day CPR / POC / Camarilla — full-width dashed lines + labels on chart
-        drawLevels(ctx, filterLevels(st), padding, width, toY);
+        drawLevels(ctx, filterLevels(st), padding, width, chartH, toY);
 
         view.forEach((candle, i) => {
             const open = candle.open;

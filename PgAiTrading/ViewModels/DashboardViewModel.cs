@@ -133,7 +133,7 @@ public class DashboardViewModel : INotifyPropertyChanged
             var watchlistTask = _watchlist.RefreshTopWeightageAsync();
             await chartTask;
             await UpdatePriceAsync();
-            Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
+            Analysis = await _signal.AnalyzeAsync(SelectedSymbol, SelectedTimeframe);
             CurrentSignal = await _signal.GenerateSignalFromAnalysisAsync(SelectedSymbol, Analysis);
             OverlayVersion++;
             UpdateSelectedTrend();
@@ -164,7 +164,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         SelectedInstrument = InstrumentMapper.ToZerodhaKey(SelectedSymbol);
         await LoadChartAsync();
         await UpdatePriceAsync();
-        Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
+        Analysis = await _signal.AnalyzeAsync(SelectedSymbol, SelectedTimeframe);
         CurrentSignal = await _signal.GenerateSignalFromAnalysisAsync(SelectedSymbol, Analysis);
         OverlayVersion++;
         UpdateSelectedTrend();
@@ -180,10 +180,14 @@ public class DashboardViewModel : INotifyPropertyChanged
 
         SelectedTimeframe = timeframe;
         await LoadChartAsync();
+        // Camarilla Auto pivots follow chart TF — refresh analysis so levels update.
+        Analysis = await _signal.AnalyzeAsync(SelectedSymbol, SelectedTimeframe);
+        CurrentSignal = await _signal.GenerateSignalFromAnalysisAsync(SelectedSymbol, Analysis);
         OverlayVersion++;
 
         await UpdatePriceAsync();
         UpdateSelectedTrend();
+        EvaluateEntryAlert();
         Notify(nameof(SelectedTimeframe));
         Notify(nameof(Supports5mStudyToggles));
         Notify(nameof(SupportsIntradayStOverlays));
@@ -198,7 +202,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         await LoadChartAsync();
         await UpdatePriceAsync();
         var watchlistTask = _watchlist.RefreshTopWeightageAsync();
-        Analysis = await _signal.AnalyzeAsync(SelectedSymbol);
+        Analysis = await _signal.AnalyzeAsync(SelectedSymbol, SelectedTimeframe);
         CurrentSignal = await _signal.GenerateSignalFromAnalysisAsync(SelectedSymbol, Analysis);
         OverlayVersion++;
         UpdateSelectedTrend();
