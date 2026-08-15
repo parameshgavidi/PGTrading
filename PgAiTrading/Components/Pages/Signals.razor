@@ -200,13 +200,31 @@
                 </div>
 
                 <button type="button"
-                        class="btn btn-primary btn-large"
+                        class="btn btn-primary btn-large btn-place-order"
                         disabled="@(!ViewModel.CanPlaceSelectedOrder)"
                         @onclick="PlaceOrderAsync">
                     @(ViewModel.IsPlacingOrder
                         ? "Placing…"
                         : $"Place {ViewModel.OrderSide} {ViewModel.OrderProduct}")
                 </button>
+
+                @if (!ViewModel.CanPlaceSelectedOrder && !ViewModel.IsPlacingOrder)
+                {
+                    <div class="text-secondary form-hint">
+                        @if (ViewModel.SelectedOption is null)
+                        {
+                            <text>Select a CE/PE row above to enable Place Order.</text>
+                        }
+                        else if (ViewModel.IsLoadingOptions)
+                        {
+                            <text>Wait for the option chain to finish loading.</text>
+                        }
+                        else if (!ViewModel.IsBrokerConnected)
+                        {
+                            <text>Connect Zerodha in Settings to place orders.</text>
+                        }
+                    </div>
+                }
 
                 @if (!string.IsNullOrEmpty(ViewModel.PlaceOrderMessage))
                 {

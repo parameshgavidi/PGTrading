@@ -61,6 +61,8 @@ public class SignalViewModel : INotifyPropertyChanged
         && OrderSides.IsValid(OrderSide)
         && ProductTypes.IsUiProduct(OrderProduct);
 
+    public bool IsBrokerConnected => _zerodha.IsConnected;
+
     public SignalViewModel(
         ISignalService signal,
         IZerodhaService zerodha,
