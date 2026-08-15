@@ -30,8 +30,9 @@ public class ChartPanelModel
     public TrendDirection ChartTrend { get; set; } = TrendDirection.Neutral;
 
     public bool SupportsIntradayCprOverlay => true;
-    public bool SupportsIntradayStOverlays => SelectedTimeframe is not "1W";
-    public bool SupportsSt725Overlays => SelectedTimeframe is "1m" or "5m" or "15m";
+    /// <summary>SuperTrend overlays stay visible on every chart timeframe.</summary>
+    public bool SupportsIntradayStOverlays => true;
+    public bool SupportsSt725Overlays => true;
     /// <summary>EMA / VWAP study toggles stay visible on every chart timeframe.</summary>
     public bool Supports5mStudyToggles => true;
     public string CprPositionLabel => AboveCpr ? "Above CPR" : "Below CPR";
