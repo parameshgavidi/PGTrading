@@ -1,5 +1,7 @@
 @page "/sentiment"
 @inject SentimentViewModel ViewModel
+@inject DashboardViewModel Dashboard
+@inject NavigationManager Navigation
 @implements IDisposable
 
 <div class="page-container">
@@ -175,18 +177,22 @@
                                 }
                             </td>
                             <td class="sentiment-order-cell">
-                                @if (row.Prediction == SentimentPrediction.Bullish)
-                                {
-                                    <button class="btn btn-primary btn-sm"
-                                            disabled="@(!ViewModel.IsConnected)"
-                                            @onclick="() => OpenOrderModal(row)">
-                                        Buy CNC
+                                <div class="sentiment-actions">
+                                    <button type="button"
+                                            class="btn btn-sm @(IsChartSymbol(row.Symbol) ? "btn-primary sentiment-view-chart active" : "btn-secondary sentiment-view-chart")"
+                                            title="Open @row.Symbol chart on Dashboard"
+                                            @onclick="() => ViewChartAsync(row.Symbol)">
+                                        View chart
                                     </button>
-                                }
-                                else
-                                {
-                                    <span class="text-secondary">—</span>
-                                }
+                                    @if (row.Prediction == SentimentPrediction.Bullish)
+                                    {
+                                        <button class="btn btn-primary btn-sm"
+                                                disabled="@(!ViewModel.IsConnected)"
+                                                @onclick="() => OpenOrderModal(row)">
+                                            Buy CNC
+                                        </button>
+                                    }
+                                </div>
                                 @if (!string.IsNullOrEmpty(row.OrderMessage))
                                 {
                                     <div class="order-message">@row.OrderMessage</div>
@@ -279,6 +285,25 @@
     private async Task ScanSymbolsAsync() => await ViewModel.ScanSymbolsAsync();
     private async Task ScanTopTenAsync() => await ViewModel.ScanTopTenAsync();
     private async Task RefreshTopLiveNewsAsync() => await ViewModel.RefreshTopLiveNewsAsync();
+
+    private bool IsChartSymbol(string symbol) =>
+        string.Equals(Dashboard.SelectedSymbol, symbol, StringComparison.OrdinalIgnoreCase);
+
+    private async Task ViewChartAsync(string symbol)
+    {
+        if (string.IsNullOrWhiteSpace(symbol))
+            return;
+
+        var normalized = symbol.Trim().ToUpperInvariant();
+        await Dashboard.SelectInstrumentAsync(normalized);
+
+        var path = Navigation.ToBaseRelativePath(Navigation.Uri).Trim('/');
+        if (!string.IsNullOrEmpty(path)
+            && !path.Equals("dashboard", StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo("/");
+        }
+    }
 
     private void OpenOrderModal(StockSentimentResult row)
     {
