@@ -21,11 +21,26 @@ public static class AiInsightHelper
             return new AiInsightRecommendation
             {
                 Probability = Math.Min(probability, 42),
-                Strength = "Reversal Risk",
+                Strength = "Reversal Wait",
                 ActionHeadline = "WAIT",
                 ActionDetail = FormatDetail(
-                    analysis.ReversalReason ?? $"5m RSI {analysis.Rsi5M:N0} — avoid new entries until RSI recovers."),
+                    analysis.ReversalReason
+                    ?? $"5m RSI {analysis.Rsi5M:N0} + bullish pattern — avoid new entries until RSI recovers."),
                 ActionKind = "wait"
+            };
+        }
+
+        if (analysis.ExpectReversal)
+        {
+            return new AiInsightRecommendation
+            {
+                Probability = Math.Min(probability, 58),
+                Strength = "Expect Reversal",
+                ActionHeadline = "EXPECT REVERSAL",
+                ActionDetail = FormatDetail(
+                    analysis.ReversalReason
+                    ?? $"5m RSI {analysis.Rsi5M:N0} oversold — watch for bounce; WAIT if a bullish 5m pattern prints."),
+                ActionKind = "neutral"
             };
         }
 

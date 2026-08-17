@@ -41,9 +41,13 @@ public class MultiTimeframeAnalysis
     public bool IsRangebound { get; set; }
     public bool IsRotationRegime { get; set; }
 
-    // Reversal guard — 5m RSI below threshold: no new entries.
+    // G0: 5m RSI below threshold → expect reversal (advisory).
+    public bool ExpectReversal { get; set; }
+
+    // G0 WAIT: 5m RSI below threshold + bullish 5m pattern → no new entries.
     public bool WaitForReversal { get; set; }
     public string? ReversalReason { get; set; }
+    public string? BullishPatternLabel { get; set; }
 
     public decimal Rsi5M { get; set; }
     public decimal Rsi15M { get; set; }

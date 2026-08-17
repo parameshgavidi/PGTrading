@@ -7,10 +7,14 @@ public static class FrameworkPlaybook
 {
   private static readonly IReadOnlyList<FrameworkRule> GlobalGates =
   [
-    Rule("G0", "5m RSI reversal guard",
+    Rule("G0", "5m RSI oversold — expect reversal",
       "5m RSI(14) < 30",
+      "EXPECT REVERSAL — watch for bounce; not a hard block alone",
+      "Oversold on entry timeframe."),
+    Rule("G0b", "5m RSI + bullish pattern WAIT",
+      "5m RSI(14) < 30 AND any bullish candlestick pattern on 5m (Hammer, Bull Engulf, Morning Star, Piercing, 3 White Soldiers, Bull Marubozu)",
       "WAIT — no new entry",
-      "Possible reversal / oversold on entry timeframe."),
+      "Reversal likely starting — stand aside until RSI recovers / pattern resolves."),
     Rule("G1", "Rotation inside value area",
       "ADX(1H) < 18 AND price inside current-day Value Area (between VAL and VAH)",
       "RANGE TRADE only — Keltner (20,1.5)/(20,2) fade + VWAP. Do NOT take breakout trades.",
@@ -274,7 +278,10 @@ public static class FrameworkPlaybook
 
   private static readonly IReadOnlyList<FrameworkRule> ReadyRules =
   [
-    Rule("OK-1", "No reversal guard", "5m RSI(14) ≥ 30", "✓", null),
+    Rule("OK-1", "No reversal WAIT guard",
+      "NOT (5m RSI(14) < 30 AND bullish 5m pattern)",
+      "✓",
+      "RSI < 30 alone is expect-reversal advisory only"),
     Rule("OK-2", "Not rotation regime", "NOT (ADX < 18 inside VA)", "✓", null),
     Rule("OK-3", "Not range-bound", "1H RSI(28) NOT between 45–55", "✓", null),
     Rule("OK-4", "Market bias", "Step 1 passed", "✓", null),
@@ -287,7 +294,7 @@ public static class FrameworkPlaybook
   private static readonly IReadOnlyList<FrameworkRule> ScanRules =
   [
     Rule("SC-1", "Universe", "Nifty 50 only (~50 stocks from bundled list)", "Fast scan vs full NSE", null),
-    Rule("SC-2", "Phase 1 screen", "Parallel quick screen: 1H ST + session VWAP + 5m RSI/ADX/rotation gates", "Candidates only pass Step 1 bias", null),
+    Rule("SC-2", "Phase 1 screen", "Parallel quick screen: 1H ST + session VWAP + 5m RSI+bullish-pattern WAIT / ADX/rotation gates", "Candidates only pass Step 1 bias", null),
     Rule("SC-3", "Phase 2 framework", "Full 5-step framework on phase-1 candidates (15m/5m/footprint)", "FrameworkReady required for match", null),
     Rule("SC-4", "Direction filter", "LONG MIS buy orders only (no auto short stock orders)", "BUY MIS ~₹5,000 notional", null),
     Rule("SC-5", "Scanner page", "Nifty top-weight watchlist — shows framework + footprint columns", "Alignment = FrameworkReady", null)
@@ -298,7 +305,7 @@ public static class FrameworkPlaybook
     Rule("N1", "Footprint alone", "Never enter on delta/imbalance without full framework", null, null),
     Rule("N2", "Breakout in rotation", "ADX < 18 inside VA — no breakout trades", null, null),
     Rule("N3", "Chase", "Do not enter without 5M entry ST trigger", null, null),
-    Rule("N4", "Ignore 5m RSI", "Below 30 = stand aside for new entries", null, null),
+    Rule("N4", "Ignore 5m RSI + pattern", "RSI < 30 alone = expect reversal; RSI < 30 + bullish 5m pattern = stand aside", null, null),
     Rule("N5", "Long-term scan", "Uses separate fundamentals + daily/weekly ST — not this playbook", null, null)
   ];
 

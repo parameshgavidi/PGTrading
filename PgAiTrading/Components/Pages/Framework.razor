@@ -94,7 +94,7 @@
         <div class="card framework-subcard framework-flow">
             <h3>Decision order (top to bottom)</h3>
             <ol class="framework-steps">
-                <li><span class="tag wait">G0</span> 5m RSI(14) &lt; 30 → <strong>WAIT</strong></li>
+                <li><span class="tag wait">G0</span> 5m RSI(14) &lt; 30 → <strong>EXPECT REVERSAL</strong>; + any bullish 5m pattern → <strong>WAIT</strong></li>
                 <li><span class="tag range">G1</span> ADX &lt; 18 inside VA → <strong>ROTATION</strong> (Keltner, no breakouts)</li>
                 <li><span class="tag range">G2</span> RSI(28) 45–55 → <strong>RANGE-BOUND</strong> (Keltner)</li>
                 <li><span class="tag step">1</span> 1H ST (10,3) + session VWAP → market bias (both must align)</li>
@@ -192,7 +192,7 @@
         ("VWAP", "Intraday (5m session)", "Session-anchored on latest 5m bar", "Bullish if price ≥ VWAP with bullish 1H ST"),
         ("ADX", "1 Hour", "Length 14", "Choppy / moderate / strong"),
         ("RSI", "1 Hour", "Length 28", "Momentum; 45–55 = range"),
-        ("RSI", "5 Minutes", "Length 14", "Reversal guard only (< 30)"),
+        ("RSI", "5 Minutes", "Length 14", "Expect reversal (< 30); WAIT with bullish pattern"),
         ("Footprint", "5 Minutes", "Delta + imbalances", "Final confirmation"),
         ("POC / VAH / VAL", "Current session", "Label only", "Bullish if > POC and > VAH"),
         ("Prev POC / VAH / VAL", "Previous session", "Label only", "Same rules on prev levels"),

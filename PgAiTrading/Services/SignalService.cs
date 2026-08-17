@@ -21,6 +21,7 @@ public class SignalService : ISignalService
     private readonly ISettingsService _settings;
     private readonly IFootprintService _footprint;
     private readonly IVolumeProfileService _volumeProfile;
+    private readonly IChartPatternService _patterns;
 
     public SignalService(
         IMarketDataService marketData,
@@ -28,7 +29,8 @@ public class SignalService : ISignalService
         IIndicatorService indicators,
         ISettingsService settings,
         IFootprintService footprint,
-        IVolumeProfileService volumeProfile)
+        IVolumeProfileService volumeProfile,
+        IChartPatternService patterns)
     {
         _marketData = marketData;
         _superTrend = superTrend;
@@ -36,6 +38,7 @@ public class SignalService : ISignalService
         _settings = settings;
         _footprint = footprint;
         _volumeProfile = volumeProfile;
+        _patterns = patterns;
     }
 
     public async Task<MultiTimeframeAnalysis> AnalyzeAsync(string instrument = "NIFTY", string? chartTimeframe = null)
@@ -69,7 +72,9 @@ public class SignalService : ISignalService
             return null;
 
         var rsi5M = _indicators.CalculateRsi(candles5M, config.RsiLength);
-        if (rsi5M < config.RsiReversalThreshold)
+        var hasBullishPattern = _patterns.TryGetLatestBullishPattern(candles5M, out _);
+        // Phase 1 hard filter matches G0 WAIT: oversold RSI + bullish 5m pattern.
+        if (TradeFrameworkEvaluator.ShouldWaitForReversal(rsi5M, hasBullishPattern, config))
             return null;
 
         var rsiTrend = _indicators.CalculateRsi(candles1H, config.RsiTrendLength);
@@ -136,8 +141,20 @@ public class SignalService : ISignalService
             : TrendStrength.Strong;
 
         string? reversalReason = null;
-        if (rsi5M < config.RsiReversalThreshold)
-            reversalReason = $"5m RSI {rsi5M:0} < {config.RsiReversalThreshold:0}";
+        var hasBullishPattern = _patterns.TryGetLatestBullishPattern(candles5M, out var bullishPatternLabel);
+        var rsiOversold = TradeFrameworkEvaluator.IsRsiOversold(rsi5M, config);
+        var waitForReversal = TradeFrameworkEvaluator.ShouldWaitForReversal(rsi5M, hasBullishPattern, config);
+        var expectReversal = rsiOversold && !waitForReversal;
+        if (waitForReversal)
+        {
+            reversalReason = string.IsNullOrWhiteSpace(bullishPatternLabel)
+                ? $"5m RSI {rsi5M:0} < {config.RsiReversalThreshold:0} + bullish pattern"
+                : $"5m RSI {rsi5M:0} < {config.RsiReversalThreshold:0} + {bullishPatternLabel}";
+        }
+        else if (expectReversal)
+        {
+            reversalReason = $"5m RSI {rsi5M:0} < {config.RsiReversalThreshold:0} — expect reversal";
+        }
 
         var vwap5M = candles5M.Count > 0
             ? candles5M[^1].Vwap ?? candles5M.LastOrDefault(c => c.Vwap.HasValue)?.Vwap ?? 0m
@@ -205,7 +222,7 @@ public class SignalService : ISignalService
             tradeDirection,
             trend5MEntry,
             footprint,
-            reversalReason is not null,
+            waitForReversal,
             isRotationRegime,
             isRangebound);
 
@@ -220,7 +237,7 @@ public class SignalService : ISignalService
             aboveVwap,
             footprint,
             tpo,
-            reversalReason is not null,
+            waitForReversal,
             isRotationRegime,
             isRangebound,
             config);
@@ -263,8 +280,10 @@ public class SignalService : ISignalService
             AboveVwap = aboveVwap,
             IsRangebound = isRangebound,
             IsRotationRegime = isRotationRegime,
-            WaitForReversal = reversalReason is not null,
+            ExpectReversal = expectReversal,
+            WaitForReversal = waitForReversal,
             ReversalReason = reversalReason,
+            BullishPatternLabel = bullishPatternLabel,
             Rsi5M = rsi5M,
             Rsi15M = rsi15M,
             MarketBias = marketBias,
@@ -323,7 +342,12 @@ public class SignalService : ISignalService
         if (analysis.WaitForReversal)
         {
             reasons.Insert(0, $"⚠ No new entry: {analysis.ReversalReason}");
-            return NoTrade(instrument, "Wait — 5m RSI oversold", analysis.OverallScore, reasons);
+            return NoTrade(instrument, "Wait — 5m RSI oversold + bullish pattern", analysis.OverallScore, reasons);
+        }
+
+        if (analysis.ExpectReversal)
+        {
+            reasons.Insert(0, $"⚠ Expect reversal: {analysis.ReversalReason}");
         }
 
         if (analysis.IsRotationRegime)

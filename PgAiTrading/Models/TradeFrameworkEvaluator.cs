@@ -25,6 +25,14 @@ public static class TradeFrameworkEvaluator
   public static bool IsRangebound(decimal rsi1H, StrategyConfig config) =>
     rsi1H >= config.RsiBearThreshold && rsi1H <= config.RsiBullThreshold;
 
+  /// <summary>5m RSI below threshold — expect a bounce/reversal (advisory, not a hard WAIT).</summary>
+  public static bool IsRsiOversold(decimal rsi5M, StrategyConfig config) =>
+    rsi5M < config.RsiReversalThreshold;
+
+  /// <summary>Hard WAIT only when oversold RSI coincides with a bullish 5m candlestick pattern.</summary>
+  public static bool ShouldWaitForReversal(decimal rsi5M, bool hasBullishPattern, StrategyConfig config) =>
+    IsRsiOversold(rsi5M, config) && hasBullishPattern;
+
   public static TrendDirection GetTradeDirection(
     TrendDirection marketBias,
     TrendDirection trend15M,
@@ -220,7 +228,7 @@ public static class TradeFrameworkEvaluator
     StrategyConfig config)
   {
     if (waitForReversal)
-      return "Wait — 5m RSI oversold";
+      return "Wait — 5m RSI oversold + bullish pattern";
 
     if (isRotationRegime)
       return "Rotation inside VA — avoid breakouts";
