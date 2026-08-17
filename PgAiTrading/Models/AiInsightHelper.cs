@@ -309,23 +309,45 @@ public static class AiInsightHelper
 
     private static string FormatBlockingDetail(MultiTimeframeAnalysis analysis)
     {
+        if (!string.IsNullOrWhiteSpace(analysis.FrameworkStatus)
+            && !analysis.FrameworkStatus.Equals("Ready", StringComparison.OrdinalIgnoreCase)
+            && !analysis.FrameworkStatus.StartsWith("Ready", StringComparison.OrdinalIgnoreCase))
+        {
+            // Prefer evaluator status — it already encodes structure / regime / sweep / VP / BOS order.
+            if (analysis.TradeDirection == TrendDirection.Neutral
+                || analysis.FrameworkStatus.Contains("structure", StringComparison.OrdinalIgnoreCase)
+                || analysis.FrameworkStatus.Contains("15M", StringComparison.OrdinalIgnoreCase)
+                || analysis.FrameworkStatus.Contains("sweep", StringComparison.OrdinalIgnoreCase)
+                || analysis.FrameworkStatus.Contains("chop", StringComparison.OrdinalIgnoreCase)
+                || analysis.FrameworkStatus.Contains("Developing", StringComparison.OrdinalIgnoreCase)
+                || analysis.FrameworkStatus.Contains("neutral", StringComparison.OrdinalIgnoreCase)
+                || analysis.FrameworkStatus.Contains("POC", StringComparison.OrdinalIgnoreCase)
+                || analysis.FrameworkStatus.Contains("VWAP", StringComparison.OrdinalIgnoreCase)
+                || analysis.FrameworkStatus.Contains("BOS", StringComparison.OrdinalIgnoreCase)
+                || analysis.FrameworkStatus.Contains("ADX", StringComparison.OrdinalIgnoreCase))
+            {
+                return FormatDetail(analysis.FrameworkStatus);
+            }
+        }
+
         if (analysis.MarketBias == TrendDirection.Neutral && analysis.Trend1H != TrendDirection.Neutral)
         {
             if (analysis.Trend1H == TrendDirection.Buy && !analysis.AboveVwap)
-                return "Step 1 incomplete — 1H SuperTrend is bullish but price is below session VWAP. Wait for reclaim above VWAP.";
+                return "Step 1 incomplete — bullish structure/ST but price is below session VWAP. Wait for reclaim above VWAP.";
 
             if (analysis.Trend1H == TrendDirection.Sell && analysis.AboveVwap)
-                return "Step 1 incomplete — 1H SuperTrend is bearish but price is above session VWAP. Wait for rejection below VWAP.";
+                return "Step 1 incomplete — bearish structure/ST but price is above session VWAP. Wait for rejection below VWAP.";
         }
 
-        if (!analysis.TpoConfirmed && analysis.MarketBias != TrendDirection.Neutral)
+        if (analysis.TradeDirection == TrendDirection.Neutral && analysis.MarketBias != TrendDirection.Neutral)
+            return $"Setup incomplete — wait 15M BOS / volume-profile location for {TrendUi.GetBiasLabel(analysis.MarketBias)}. Regime: {TradeFrameworkEvaluator.RegimeLabel(analysis.Regime)}.";
+
+        // Only treat POC as blocking when trade direction already exists.
+        if (!analysis.TpoConfirmed && analysis.TradeDirection != TrendDirection.Neutral)
             return $"POC not confirmed — {analysis.Tpo.Summary}. {NextStepHint(analysis)}";
 
         if (!analysis.EntryTriggered && analysis.TradeDirection != TrendDirection.Neutral)
-            return $"Entry ST (7,2.5) not triggered — 5m shows {TrendUi.GetSuperTrendLabel(analysis.Trend5MEntry)} vs need {TrendUi.GetBiasLabel(analysis.TradeDirection)}.";
-
-        if (analysis.TradeDirection == TrendDirection.Neutral && analysis.MarketBias != TrendDirection.Neutral)
-            return $"Step 2 incomplete — ADX {analysis.Adx:N0}, RSI(28) {analysis.RsiTrend:N0}, or POC blocking {TrendUi.GetBiasLabel(analysis.MarketBias)} direction.";
+            return $"5M BOS not triggered — structure shows {analysis.Structure.Structure5M.Summary}; need {TrendUi.GetBiasLabel(analysis.TradeDirection)} break.";
 
         if (!analysis.FootprintConfirmed && analysis.TradeDirection != TrendDirection.Neutral)
             return FootprintDisplayHelper.GetStep4BlockingDetail(analysis.Footprint, analysis.TradeDirection);
@@ -336,7 +358,7 @@ public static class AiInsightHelper
     private static string NextStepHint(MultiTimeframeAnalysis analysis)
     {
         if (!analysis.EntryTriggered)
-            return "Watch 5m entry SuperTrend (7,2.5).";
+            return "Watch 5M BOS / CHOCH for entry.";
 
         if (!analysis.FootprintConfirmed)
             return FootprintDisplayHelper.GetStep4BlockingDetail(

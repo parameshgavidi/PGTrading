@@ -87,10 +87,6 @@ public sealed class MarketStructureService : IMarketStructureService
             return StructureBias.Bearish;
 
         // Soft classification when only one leg confirms.
-        if (s.HasHigherHigh && s.HasHigherLow)
-            return StructureBias.Bullish;
-        if (s.HasLowerHigh && s.HasLowerLow)
-            return StructureBias.Bearish;
         if ((s.HasHigherHigh || s.HasHigherLow) && !(s.HasLowerHigh || s.HasLowerLow))
             return StructureBias.Bullish;
         if ((s.HasLowerHigh || s.HasLowerLow) && !(s.HasHigherHigh || s.HasHigherLow))

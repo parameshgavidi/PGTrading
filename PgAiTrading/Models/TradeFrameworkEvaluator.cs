@@ -193,7 +193,7 @@ public static class TradeFrameworkEvaluator
       _ => false
     };
 
-  /// <summary>Entry: 5M BOS/CHOCH in trade direction (primary). ST(7,2.5) remains stop/trailing.</summary>
+  /// <summary>Entry: 5M BOS/CHOCH in trade direction. SuperTrend (7,2.5) is trailing stop, not the entry gate.</summary>
   public static bool EntryTriggered(
     TrendDirection tradeDirection,
     MarketStructureAnalysis structure5M,
@@ -202,7 +202,10 @@ public static class TradeFrameworkEvaluator
     if (tradeDirection == TrendDirection.Neutral)
       return false;
 
-    var bosAligned = tradeDirection switch
+    // trend5MEntry retained for callers/UI; entry gate is 5M structure break.
+    _ = trend5MEntry;
+
+    return tradeDirection switch
     {
       TrendDirection.Buy => structure5M.BosBullish
         || structure5M.LatestEvent is StructureEvent.BosBullish or StructureEvent.ChochBullish,
@@ -210,9 +213,6 @@ public static class TradeFrameworkEvaluator
         || structure5M.LatestEvent is StructureEvent.BosBearish or StructureEvent.ChochBearish,
       _ => false
     };
-
-    // Accept either 5M BOS or entry SuperTrend alignment.
-    return bosAligned || trend5MEntry == tradeDirection;
   }
 
   public static bool FootprintConfirmed(TrendDirection tradeDirection, FootprintAnalysis footprint) =>
@@ -456,7 +456,7 @@ public static class TradeFrameworkEvaluator
 
     if (!EntryTriggered(tradeDirection == TrendDirection.Neutral ? marketBias : tradeDirection,
           structure.Structure5M, trend5MEntry))
-      return "Wait — 5M BOS / entry ST not triggered";
+      return "Wait — 5M BOS not triggered";
 
     var dir = tradeDirection != TrendDirection.Neutral ? tradeDirection : marketBias;
     if (!footprint.Confirms(dir))
