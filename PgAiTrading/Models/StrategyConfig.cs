@@ -11,7 +11,7 @@ public class StrategyConfig
 
     public int RsiLength { get; set; } = 14;
 
-    // RSI trend thresholds — 1H RSI(28): >55 long, <45 short, between = range-bound.
+    // RSI trend thresholds — 1H RSI(28): >55 long, <45 short; mid band combined with ADX for regime.
     public int RsiTrendLength { get; set; } = 28;
     public decimal RsiBullThreshold { get; set; } = 55m;
     public decimal RsiBearThreshold { get; set; } = 45m;

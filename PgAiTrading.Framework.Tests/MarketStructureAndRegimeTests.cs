@@ -22,9 +22,64 @@ public class MarketStructureAndRegimeTests
   }
 
   [Fact]
-  public void Regime_rsi_high_is_trending_bullish()
+  public void Regime_rsi_mid_adx_soft_is_soft_neutral()
   {
-    Assert.Equal(MarketRegime.TrendingBullish, TradeFrameworkEvaluator.GetRegime(60m, 15m, Config));
+    Assert.Equal(MarketRegime.SoftNeutral, TradeFrameworkEvaluator.GetRegime(50m, 20m, Config));
+  }
+
+  [Fact]
+  public void Entry_requires_5m_bos_not_supertrend_alone()
+  {
+    var structure5M = new MarketStructureAnalysis
+    {
+      Bias = StructureBias.Bullish,
+      BosBullish = false,
+      LatestEvent = StructureEvent.None
+    };
+
+    Assert.False(TradeFrameworkEvaluator.EntryTriggered(
+      TrendDirection.Buy, structure5M, TrendDirection.Buy));
+
+    structure5M.BosBullish = true;
+    structure5M.LatestEvent = StructureEvent.BosBullish;
+    Assert.True(TradeFrameworkEvaluator.EntryTriggered(
+      TrendDirection.Buy, structure5M, TrendDirection.Neutral));
+  }
+
+  [Fact]
+  public void Major_direction_comes_from_1h_only()
+  {
+    var mtf = new MultiTimeframeStructure
+    {
+      Structure1H = new MarketStructureAnalysis { Bias = StructureBias.Bullish },
+      Structure15M = new MarketStructureAnalysis { Bias = StructureBias.Bearish },
+      Structure5M = new MarketStructureAnalysis { Bias = StructureBias.Bearish }
+    };
+
+    Assert.Equal(TrendDirection.Buy, mtf.MajorDirection);
+  }
+
+  [Fact]
+  public void Ai_blocking_prefers_framework_status_over_false_poc_wait()
+  {
+    var analysis = new MultiTimeframeAnalysis
+    {
+      MarketBias = TrendDirection.Buy,
+      TradeDirection = TrendDirection.Neutral,
+      Trend1H = TrendDirection.Buy,
+      AboveVwap = true,
+      Regime = MarketRegime.DevelopingTrend,
+      TpoConfirmed = false,
+      FrameworkReady = false,
+      FrameworkStatus = "Developing — wait 15M BOS with 1H structure",
+      OverallScore = 55,
+      Strength = "Developing"
+    };
+
+    var rec = AiInsightHelper.BuildRecommendation(new Signal(), analysis);
+    Assert.Equal("WAIT STRUCTURE", rec.ActionHeadline);
+    Assert.Contains("15M", rec.ActionDetail, StringComparison.OrdinalIgnoreCase);
+    Assert.DoesNotContain("POC not confirmed", rec.ActionDetail, StringComparison.OrdinalIgnoreCase);
   }
 
   [Fact]

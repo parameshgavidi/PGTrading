@@ -8,7 +8,10 @@ public interface ISignalService
     Task<Signal> GenerateSignalFromAnalysisAsync(string instrument, MultiTimeframeAnalysis analysis);
     Task<MultiTimeframeAnalysis> AnalyzeAsync(string instrument = "NIFTY", string? chartTimeframe = null);
     Task<MultiTimeframeAnalysis> AnalyzeForFrameworkAsync(string instrument);
-    /// <summary>Phase-1 intraday screen: 1H + 5m only. Returns prefetch when Step 1 passes (bullish bias).</summary>
+    /// <summary>
+    /// Phase-1 intraday screen: 1H structure + regime gates (also loads 15m for structure).
+    /// Trending path requires bullish bias; StrongChop passes through for sweep evaluation in phase 2.
+    /// </summary>
     Task<IntradayPrefetch?> TryScreenIntradayPhase1Async(string instrument);
     Task<MultiTimeframeAnalysis> AnalyzeForFrameworkAsync(string instrument, IntradayPrefetch prefetch);
 }
@@ -65,18 +68,6 @@ public class SignalService : ISignalService
             return null;
 
         var structure = _structure.AnalyzeMulti(candles1H, candles15M, candles5M);
-        if (structure.MajorDirection != TrendDirection.Buy)
-            return null;
-
-        var trend1H = _superTrend.GetTrend(candles1H, config.SuperTrend1HPeriod, config.SuperTrend1HMultiplier);
-        var vwap5M = candles5M.Count > 0
-            ? candles5M[^1].Vwap ?? candles5M.LastOrDefault(c => c.Vwap.HasValue)?.Vwap ?? 0m
-            : 0m;
-        var last5MClose = candles5M[^1].Close;
-        var aboveVwap = vwap5M > 0 && last5MClose >= vwap5M;
-        var marketBias = TradeFrameworkEvaluator.GetMarketBias(structure, trend1H, aboveVwap);
-        if (marketBias != TrendDirection.Buy)
-            return null;
 
         var rsi5M = _indicators.CalculateRsi(candles5M, config.RsiLength);
         var hasBullishPattern = _patterns.TryGetLatestBullishPattern(candles5M, out _);
@@ -87,9 +78,26 @@ public class SignalService : ISignalService
         var adx1H = _indicators.CalculateAdx(candles1H, config.AdxLength);
         var regime = TradeFrameworkEvaluator.GetRegime(rsiTrend, adx1H, config);
 
-        // Soft neutral is not a long-scan candidate; strong chop is handled in phase 2 via sweeps.
+        // Soft neutral is not a scan candidate.
         if (regime == MarketRegime.SoftNeutral)
             return null;
+
+        // Strong chop: pass to phase 2 for liquidity-sweep mean-reversion (may be long after reclaim).
+        if (regime != MarketRegime.StrongChop)
+        {
+            if (structure.MajorDirection != TrendDirection.Buy)
+                return null;
+
+            var trend1H = _superTrend.GetTrend(candles1H, config.SuperTrend1HPeriod, config.SuperTrend1HMultiplier);
+            var vwap5M = candles5M.Count > 0
+                ? candles5M[^1].Vwap ?? candles5M.LastOrDefault(c => c.Vwap.HasValue)?.Vwap ?? 0m
+                : 0m;
+            var last5MClose = candles5M[^1].Close;
+            var aboveVwap = vwap5M > 0 && last5MClose >= vwap5M;
+            var marketBias = TradeFrameworkEvaluator.GetMarketBias(structure, trend1H, aboveVwap);
+            if (marketBias != TrendDirection.Buy)
+                return null;
+        }
 
         return new IntradayPrefetch
         {
