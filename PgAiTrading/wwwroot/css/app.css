@@ -3182,6 +3182,64 @@ code {
     margin-bottom: 16px;
 }
 
+.auto-buy-ip-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 220px;
+    flex: 0 1 260px;
+}
+
+.auto-buy-ip-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.auto-buy-ip-input {
+    min-width: 140px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+
+.auto-buy-failed-block {
+    margin: 0 0 18px;
+    padding: 14px 16px;
+    border: 1px solid var(--card-border-gold);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--sell) 6%, var(--card-bg));
+}
+
+.auto-buy-failed-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.auto-buy-failed-hint {
+    margin: 4px 0 0;
+    font-size: 12px;
+}
+
+.auto-buy-failed-empty {
+    padding: 12px 0 4px;
+    font-size: 13px;
+}
+
+.auto-buy-failed-table {
+    margin-top: 4px;
+}
+
+.auto-buy-failed-when,
+.auto-buy-failed-ip {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    font-size: 12px;
+}
+
 .symbol-search-wrap {
     position: relative;
     flex: 1 1 280px;

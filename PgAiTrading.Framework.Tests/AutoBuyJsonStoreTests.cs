@@ -49,6 +49,74 @@ public class AutoBuyJsonStoreTests
     }
 
     [Fact]
+    public void Json_roundtrip_preserves_failed_entries_and_ip()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"auto_buy_failed_{Guid.NewGuid():N}.json");
+        try
+        {
+            var failedAt = new DateTime(2026, 8, 17, 10, 15, 30);
+            var doc = AutoBuyDocument.FromRuntime(
+                true,
+                new List<AutoBuyRow>
+                {
+                    new() { Symbol = "INFY", Exchange = "NSE", Timeframe = "5m", Lots = 2, AutomationEnabled = true }
+                },
+                new List<AutoBuyFailedEntry>
+                {
+                    new()
+                    {
+                        Symbol = "INFY",
+                        Exchange = "NSE",
+                        Timeframe = "5m",
+                        Quantity = 2,
+                        Status = "Order failed",
+                        Detail = "Rejected by exchange",
+                        IpAddress = "203.0.113.10",
+                        FailedAt = failedAt
+                    }
+                });
+
+            AutoBuyJsonFile.Save(path, doc);
+            var loaded = AutoBuyJsonFile.Load(path);
+
+            Assert.NotNull(loaded);
+            Assert.Equal(AutoBuyDocument.CurrentVersion, loaded!.Version);
+            Assert.Single(loaded.FailedEntries);
+            Assert.Equal("INFY", loaded.FailedEntries[0].Symbol);
+            Assert.Equal("203.0.113.10", loaded.FailedEntries[0].IpAddress);
+            Assert.Equal(failedAt, loaded.FailedEntries[0].FailedAt);
+            Assert.Equal("Rejected by exchange", loaded.FailedEntries[0].Detail);
+
+            var runtimeFailed = loaded.ToRuntime().FailedEntries[0];
+            Assert.Equal("INFY", runtimeFailed.Symbol);
+            Assert.Equal("203.0.113.10", runtimeFailed.IpAddress);
+        }
+        finally
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void FromRuntime_caps_failed_entries_at_max()
+    {
+        var failed = Enumerable.Range(0, AutoBuyDefaults.MaxFailedEntries + 25)
+            .Select(i => new AutoBuyFailedEntry
+            {
+                Symbol = "TCS",
+                Detail = $"fail-{i}",
+                IpAddress = "198.51.100.1",
+                FailedAt = DateTime.Now.AddMinutes(-i)
+            })
+            .ToList();
+
+        var doc = AutoBuyDocument.FromRuntime(false, Array.Empty<AutoBuyRow>(), failed);
+        Assert.Equal(AutoBuyDefaults.MaxFailedEntries, doc.FailedEntries.Count);
+        Assert.Equal("fail-0", doc.FailedEntries[0].Detail);
+    }
+
+    [Fact]
     public async Task LocalStore_migrates_same_folder_csv_to_json()
     {
         var appData = Path.Combine(Path.GetTempPath(), $"pg_app_{Guid.NewGuid():N}");

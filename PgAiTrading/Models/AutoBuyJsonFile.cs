@@ -33,6 +33,7 @@ public static class AutoBuyJsonFile
                 doc.Version = AutoBuyDocument.CurrentVersion;
 
             doc.Rows ??= new List<AutoBuyPersistedRow>();
+            doc.FailedEntries ??= new List<AutoBuyFailedEntry>();
             return doc;
         }
         catch (JsonException)
@@ -45,6 +46,7 @@ public static class AutoBuyJsonFile
     {
         document.Version = document.Version <= 0 ? AutoBuyDocument.CurrentVersion : document.Version;
         document.Rows ??= new List<AutoBuyPersistedRow>();
+        document.FailedEntries ??= new List<AutoBuyFailedEntry>();
 
         var dir = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(dir))

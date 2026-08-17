@@ -25,16 +25,21 @@ public class AutoBuyViewModel : INotifyPropertyChanged, IDisposable
 
     public bool MasterAutomationEnabled => _autoBuy.MasterAutomationEnabled;
     public IReadOnlyList<AutoBuyRow> Rows => _autoBuy.Rows;
+    public IReadOnlyList<AutoBuyFailedEntry> FailedEntries => _autoBuy.FailedEntries;
     public IReadOnlyList<string> NseSymbols => _autoBuy.NseSymbols;
     public bool IsLoadingSymbols => _autoBuy.IsLoadingSymbols;
     public bool IsMonitoring => _autoBuy.IsMonitoring;
     public string? StatusMessage => _autoBuy.StatusMessage;
     public string StoragePath => _autoBuy.StoragePath;
+    public string? CurrentIpAddress => _autoBuy.CurrentIpAddress;
+    public bool IsRefreshingIp => _autoBuy.IsRefreshingIp;
     public bool IsConnected => _zerodha.IsConnected;
 
     public async Task InitializeAsync() => await _autoBuy.InitializeAsync();
 
     public async Task RefreshSymbolsAsync() => await _autoBuy.RefreshSymbolsAsync();
+
+    public async Task RefreshIpAddressAsync() => await _autoBuy.RefreshIpAddressAsync();
 
     public IReadOnlyList<string> SearchSymbols(string query) => _autoBuy.SearchSymbols(query);
 
@@ -50,6 +55,8 @@ public class AutoBuyViewModel : INotifyPropertyChanged, IDisposable
     public async Task SetMasterAutomationAsync(bool enabled) =>
         await _autoBuy.SetMasterAutomationAsync(enabled);
 
+    public async Task ClearFailedEntriesAsync() => await _autoBuy.ClearFailedEntriesAsync();
+
     public async Task RefreshDeployedAmountsAsync() =>
         await _autoBuy.RefreshDeployedAmountsAsync();
 
@@ -62,9 +69,12 @@ public class AutoBuyViewModel : INotifyPropertyChanged, IDisposable
     {
         Notify(nameof(MasterAutomationEnabled));
         Notify(nameof(Rows));
+        Notify(nameof(FailedEntries));
         Notify(nameof(IsMonitoring));
         Notify(nameof(StatusMessage));
         Notify(nameof(IsAutoTradingEnabled));
+        Notify(nameof(CurrentIpAddress));
+        Notify(nameof(IsRefreshingIp));
     }
 
     private void Notify([CallerMemberName] string? name = null) =>
