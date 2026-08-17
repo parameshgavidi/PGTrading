@@ -85,7 +85,7 @@ public class FootprintDisplayHelperTests
     var line = FootprintDisplayHelper.GetStep4BreakdownLine(fp, TrendDirection.Buy, footprintConfirmed: false);
 
     Assert.Equal("Δ ✓ · stacked ✗ · no absorption ✓", line);
-    Assert.Contains("stacked", FootprintDisplayHelper.GetStep4BlockingDetail(fp, TrendDirection.Buy));
+    Assert.Contains("≥3 consecutive", FootprintDisplayHelper.GetStep4BlockingDetail(fp, TrendDirection.Buy));
   }
 
   [Fact]

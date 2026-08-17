@@ -18,8 +18,10 @@ public class StrategyConfig
     public decimal RsiReversalThreshold { get; set; } = 30m;
 
     // ADX(14) on 1H — <18 choppy, 18–25 moderate, >25 strong.
+    // ADX > AdxDevelopingThreshold with mid RSI = developing trend (not auto-chop).
     public int AdxLength { get; set; } = 14;
     public decimal AdxWeakThreshold { get; set; } = 18m;
+    public decimal AdxDevelopingThreshold { get; set; } = 22m;
     public decimal AdxStrongThreshold { get; set; } = 25m;
     public int MinimumAdx { get; set; } = 20;
 

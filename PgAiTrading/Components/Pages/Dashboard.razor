@@ -214,12 +214,30 @@
                         </td>
                     </tr>
                     <tr>
-                        <td>Market Bias (1H ST + VWAP)</td>
+                        <td>1H Market Structure</td>
+                        <td class="@TrendUi.GetClass(ViewModel.Analysis.Structure.MajorDirection)">
+                            @ViewModel.Analysis.Structure.Structure1H.Summary
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>15M Structure (setup)</td>
+                        <td>@ViewModel.Analysis.Structure.Structure15M.Summary</td>
+                    </tr>
+                    <tr>
+                        <td>5M Structure (entry)</td>
+                        <td>@ViewModel.Analysis.Structure.Structure5M.Summary</td>
+                    </tr>
+                    <tr>
+                        <td>Market Bias (structure + ST/VWAP)</td>
                         <td class="@TrendUi.GetClass(ViewModel.Analysis.MarketBias)">@TrendUi.GetIcon(ViewModel.Analysis.MarketBias) @TrendUi.GetBiasLabel(ViewModel.Analysis.MarketBias)</td>
                     </tr>
                     <tr>
-                        <td>Trade Direction (15M + ADX + RSI)</td>
+                        <td>Trade Direction</td>
                         <td class="@TrendUi.GetClass(ViewModel.Analysis.TradeDirection)">@TrendUi.GetIcon(ViewModel.Analysis.TradeDirection) @TrendUi.GetBiasLabel(ViewModel.Analysis.TradeDirection)</td>
+                    </tr>
+                    <tr>
+                        <td>Regime (RSI + ADX)</td>
+                        <td>@TradeFrameworkEvaluator.RegimeLabel(ViewModel.Analysis.Regime)</td>
                     </tr>
                     <tr>
                         <td>ADX(14) 1H</td>
@@ -234,8 +252,12 @@
                         <td>@ViewModel.Analysis.Rsi</td>
                     </tr>
                     <tr>
-                        <td>POC bias</td>
+                        <td>Volume Profile / POC</td>
                         <td class="@TrendUi.GetClass(ViewModel.Analysis.PocBias)">@ViewModel.Analysis.Tpo.Summary @(ViewModel.Analysis.PocBias != TrendDirection.Neutral ? TrendUi.GetBiasLabel(ViewModel.Analysis.PocBias) : "")</td>
+                    </tr>
+                    <tr>
+                        <td>Liquidity Sweep</td>
+                        <td>@ViewModel.Analysis.LiquiditySweep.Summary</td>
                     </tr>
                     <tr>
                         <td>1 Hour SuperTrend</td>
@@ -286,6 +308,15 @@
                             </td>
                         </tr>
                     }
+                    @if (ViewModel.Analysis.VolumeProfile.Pdh > 0 || ViewModel.Analysis.VolumeProfile.Pdl > 0)
+                    {
+                        <tr>
+                            <td>PDH / PDL</td>
+                            <td>
+                                PDH @ViewModel.Analysis.VolumeProfile.Pdh.ToString("N2") · PDL @ViewModel.Analysis.VolumeProfile.Pdl.ToString("N2")
+                            </td>
+                        </tr>
+                    }
                     @if (ViewModel.Analysis.VolumeProfile.PrevDayPoc > 0)
                     {
                         <tr>
@@ -299,7 +330,7 @@
                     @if (ViewModel.Analysis.Camarilla.HasData)
                     {
                         <tr>
-                            <td>Camarilla (@ViewModel.Analysis.Camarilla.PivotTimeframe)</td>
+                            <td>Camarilla (chart only)</td>
                             <td class="@TrendUi.GetClass(ViewModel.Analysis.CamarillaBias)">
                                 H4 @ViewModel.Analysis.Camarilla.H4.ToString("N2") · H3 @ViewModel.Analysis.Camarilla.H3.ToString("N2") · H2 @ViewModel.Analysis.Camarilla.H2.ToString("N2") · PP @ViewModel.Analysis.Camarilla.Pivot.ToString("N2") · L2 @ViewModel.Analysis.Camarilla.L2.ToString("N2") · L3 @ViewModel.Analysis.Camarilla.L3.ToString("N2") · L4 @ViewModel.Analysis.Camarilla.L4.ToString("N2")
                                 — @TrendUi.GetBiasLabel(ViewModel.Analysis.CamarillaBias)
@@ -307,15 +338,11 @@
                         </tr>
                     }
                     <tr>
-                        <td>Regime</td>
-                        <td>@(ViewModel.Analysis.IsRangebound ? "Range-bound → Keltner" : "Trending")</td>
-                    </tr>
-                    <tr>
                         <td>Framework</td>
                         <td class="@(ViewModel.Analysis.FrameworkReady ? "buy" : "sell")">@ViewModel.Analysis.FrameworkStatus</td>
                     </tr>
                     <tr>
-                        <td>CPR</td>
+                        <td>CPR (chart only)</td>
                         <td>@ViewModel.Analysis.Cpr @(ViewModel.Analysis.CprNarrow ? $"narrow ({ViewModel.Analysis.CprWidthPercent}%)" : "")</td>
                     </tr>
                 </table>

@@ -37,9 +37,13 @@ public class MultiTimeframeAnalysis
     public decimal Vwap5M { get; set; }
     public bool AboveVwap { get; set; }
 
-    // Rotation regime (ADX < 18 inside VA) or legacy RSI-neutral range.
+    // Rotation regime (ADX < 18 inside VA) or soft/strong chop from RSI+ADX.
     public bool IsRangebound { get; set; }
     public bool IsRotationRegime { get; set; }
+    public MarketRegime Regime { get; set; }
+
+    public MultiTimeframeStructure Structure { get; set; } = new();
+    public LiquiditySweepAnalysis LiquiditySweep { get; set; } = new();
 
     // G0: 5m RSI below threshold → expect reversal (advisory).
     public bool ExpectReversal { get; set; }
