@@ -37,6 +37,7 @@ public class StrategyService : IStrategyService
         _settings.Strategy.RsiReversalThreshold = config.RsiReversalThreshold;
         _settings.Strategy.AdxLength = config.AdxLength;
         _settings.Strategy.AdxWeakThreshold = config.AdxWeakThreshold;
+        _settings.Strategy.AdxDevelopingThreshold = config.AdxDevelopingThreshold;
         _settings.Strategy.AdxStrongThreshold = config.AdxStrongThreshold;
         _settings.Strategy.MinimumAdx = config.MinimumAdx;
         _settings.Strategy.KeltnerEmaLength = config.KeltnerEmaLength;
