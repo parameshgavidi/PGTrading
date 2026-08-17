@@ -242,6 +242,100 @@ public class TradeFrameworkEvaluatorTests
   }
 
   [Fact]
+  public void Rsi_oversold_alone_does_not_wait()
+  {
+    Assert.True(TradeFrameworkEvaluator.IsRsiOversold(25m, Config));
+    Assert.False(TradeFrameworkEvaluator.ShouldWaitForReversal(25m, hasBullishPattern: false, Config));
+  }
+
+  [Fact]
+  public void Rsi_oversold_with_bullish_pattern_waits()
+  {
+    Assert.True(TradeFrameworkEvaluator.ShouldWaitForReversal(25m, hasBullishPattern: true, Config));
+    Assert.False(TradeFrameworkEvaluator.ShouldWaitForReversal(35m, hasBullishPattern: true, Config));
+  }
+
+  [Fact]
+  public void Framework_not_ready_when_wait_for_reversal()
+  {
+    var footprint = new FootprintAnalysis
+    {
+      PositiveDelta = true,
+      StackedBuyImbalance = true
+    };
+
+    Assert.False(TradeFrameworkEvaluator.IsFrameworkReady(
+      TrendDirection.Buy,
+      TrendDirection.Buy,
+      footprint,
+      waitForReversal: true,
+      isRotationRegime: false,
+      isRangebound: false));
+  }
+
+  [Fact]
+  public void Blocking_reason_wait_mentions_bullish_pattern()
+  {
+    Assert.Equal(
+      "Wait — 5m RSI oversold + bullish pattern",
+      TradeFrameworkEvaluator.GetBlockingReason(
+        TrendDirection.Buy,
+        TrendDirection.Buy,
+        TrendDirection.Buy,
+        TrendDirection.Buy,
+        TrendDirection.Buy,
+        adx1H: 25m,
+        rsi1H: 60m,
+        aboveVwap: true,
+        new FootprintAnalysis { PositiveDelta = true, StackedBuyImbalance = true },
+        new TpoConfirmationAnalysis { BuyConfirmed = true },
+        waitForReversal: true,
+        isRotationRegime: false,
+        isRangebound: false,
+        Config));
+  }
+
+  [Fact]
+  public void Ai_expect_reversal_is_advisory_not_wait()
+  {
+    var analysis = new MultiTimeframeAnalysis
+    {
+      ExpectReversal = true,
+      Rsi5M = 24m,
+      ReversalReason = "5m RSI 24 < 30 — expect reversal",
+      OverallScore = 70,
+      Strength = "Moderate Setup"
+    };
+
+    var rec = AiInsightHelper.BuildRecommendation(
+      new Signal { Trend = TrendDirection.Neutral },
+      analysis);
+
+    Assert.Equal("EXPECT REVERSAL", rec.ActionHeadline);
+    Assert.Equal("neutral", rec.ActionKind);
+  }
+
+  [Fact]
+  public void Ai_wait_for_reversal_blocks_entry()
+  {
+    var analysis = new MultiTimeframeAnalysis
+    {
+      WaitForReversal = true,
+      Rsi5M = 24m,
+      ReversalReason = "5m RSI 24 < 30 + Hammer",
+      OverallScore = 70,
+      Strength = "Moderate Setup"
+    };
+
+    var rec = AiInsightHelper.BuildRecommendation(
+      new Signal { Trend = TrendDirection.Neutral },
+      analysis);
+
+    Assert.Equal("WAIT", rec.ActionHeadline);
+    Assert.Equal("wait", rec.ActionKind);
+  }
+
+  [Fact]
   public void Camarilla_levels_from_prev_day()
   {
     var prev = new Candle { High = 23850m, Low = 23650m, Close = 23773.30m };

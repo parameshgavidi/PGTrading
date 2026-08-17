@@ -9,6 +9,11 @@ public interface IChartPatternService
     /// (TradingView-style important candlestick patterns).
     /// </summary>
     void ApplyPatterns(IList<Candle> candles);
+
+    /// <summary>
+    /// True when the latest candle has a bullish pattern bias (Buy).
+    /// </summary>
+    bool TryGetLatestBullishPattern(IReadOnlyList<Candle> candles, out string? label);
 }
 
 /// <summary>
@@ -44,6 +49,22 @@ public sealed class ChartPatternService : IChartPatternService
             candles[i].PatternLabel = match.Value.Label;
             candles[i].PatternBias = match.Value.Bias;
         }
+    }
+
+    public bool TryGetLatestBullishPattern(IReadOnlyList<Candle> candles, out string? label)
+    {
+        label = null;
+        if (candles.Count == 0)
+            return false;
+
+        var latest = candles[^1];
+        if (!string.Equals(latest.PatternBias, ChartPatternBias.Buy, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        label = !string.IsNullOrWhiteSpace(latest.PatternLabel)
+            ? latest.PatternLabel
+            : latest.PatternCode;
+        return true;
     }
 
     private static (string Code, string Label, string Bias)? DetectAt(IList<Candle> candles, int i)

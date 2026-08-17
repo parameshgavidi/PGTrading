@@ -206,6 +206,9 @@ public class HoldingsService : IHoldingsService
         if (analysis.WaitForReversal)
             return $"Review — {analysis.ReversalReason}";
 
+        if (analysis.ExpectReversal)
+            return $"Watch — {analysis.ReversalReason}";
+
         var instrument = InstrumentMapper.ToZerodhaKey(holding.Symbol, holding.Exchange);
         var config = FrameworkDefaults.Intraday;
         var candles5M = await _marketData.GetCandlesAsync(instrument, "5m", 200);

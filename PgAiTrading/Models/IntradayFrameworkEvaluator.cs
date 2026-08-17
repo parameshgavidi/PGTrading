@@ -11,7 +11,7 @@ public static class IntradayFrameworkEvaluator
         "Step 4 — Footprint: Delta + imbalances, no opposing absorption",
         "Step 5 — Targets: Prev POC / VAH / VAL; stop: 5M ST reversal",
         "RSI(28) 45–55 on 1H = range-bound",
-        "No new entry when 5m RSI < 30",
+        "5m RSI < 30 = expect reversal; WAIT only with bullish 5m pattern",
         "MIS quantity sized to ~₹5,000 notional per stock"
     ];
 
@@ -24,7 +24,10 @@ public static class IntradayFrameworkEvaluator
             return analysis.TradeDirection == TrendDirection.Sell ? "Short" : "Long";
 
         if (analysis.WaitForReversal)
-            return "Reversal risk";
+            return "Reversal wait";
+
+        if (analysis.ExpectReversal)
+            return "Expect reversal";
 
         if (analysis.IsRotationRegime)
             return "Rotation inside VA";

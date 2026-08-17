@@ -117,7 +117,11 @@
                     </div>
                     @if (ViewModel.Analysis.WaitForReversal)
                     {
-                        <div class="signal-check sell">⚠ Reversal risk: @ViewModel.Analysis.ReversalReason</div>
+                        <div class="signal-check sell">⚠ WAIT: @ViewModel.Analysis.ReversalReason</div>
+                    }
+                    else if (ViewModel.Analysis.ExpectReversal)
+                    {
+                        <div class="signal-check">⚠ Expect reversal: @ViewModel.Analysis.ReversalReason</div>
                     }
                     <div class="signal-checks">
                         <div class="signal-check">Market bias : @TrendUi.GetBiasLabel(ViewModel.Analysis.MarketBias) (1H ST + VWAP)</div>

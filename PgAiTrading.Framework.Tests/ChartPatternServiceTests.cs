@@ -134,6 +134,33 @@ public class ChartPatternServiceTests
         Assert.NotEqual("D", candles[1].PatternCode);
     }
 
+    [Fact]
+    public void TryGetLatestBullishPattern_true_for_hammer()
+    {
+        var candles = new List<Candle>
+        {
+            Bar(100, 101, 90, 100.5m)
+        };
+
+        _sut.ApplyPatterns(candles);
+
+        Assert.True(_sut.TryGetLatestBullishPattern(candles, out var label));
+        Assert.Equal("Hammer", label);
+    }
+
+    [Fact]
+    public void TryGetLatestBullishPattern_false_for_doji()
+    {
+        var candles = new List<Candle>
+        {
+            Bar(100, 105, 95, 100.2m)
+        };
+
+        _sut.ApplyPatterns(candles);
+
+        Assert.False(_sut.TryGetLatestBullishPattern(candles, out _));
+    }
+
     private static Candle Bar(decimal open, decimal high, decimal low, decimal close) => new()
     {
         Timestamp = DateTime.UtcNow,
