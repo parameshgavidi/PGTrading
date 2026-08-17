@@ -9,20 +9,25 @@ public interface IAutoBuyService
     event Action? Updated;
     bool MasterAutomationEnabled { get; }
     IReadOnlyList<AutoBuyRow> Rows { get; }
+    IReadOnlyList<AutoBuyFailedEntry> FailedEntries { get; }
     IReadOnlyList<string> NseSymbols { get; }
     bool IsLoadingSymbols { get; }
     bool IsMonitoring { get; }
     string? StatusMessage { get; }
     string StoragePath { get; }
+    string? CurrentIpAddress { get; }
+    bool IsRefreshingIp { get; }
 
     Task InitializeAsync();
     Task RefreshSymbolsAsync();
+    Task RefreshIpAddressAsync();
     IReadOnlyList<string> SearchSymbols(string query, int limit = 20);
     Task AddSymbolAsync(string symbol);
     Task RemoveSymbolAsync(string symbol);
     Task UpdateRowAsync(AutoBuyRow row);
     Task SetRowAutomationAsync(string symbol, bool enabled);
     Task SetMasterAutomationAsync(bool enabled);
+    Task ClearFailedEntriesAsync();
     Task SaveAsync();
     Task RefreshDeployedAmountsAsync();
     Task RefreshSettingsAsync();
@@ -42,8 +47,10 @@ public class AutoBuyService : IAutoBuyService, IDisposable
     private readonly IAutoBuyStore _store;
     private readonly IUserContext _userContext;
     private readonly INseSymbolResolver _nseSymbolsResolver;
+    private readonly IPublicIpAddressService _publicIp;
 
     private readonly List<AutoBuyRow> _rows = new();
+    private readonly List<AutoBuyFailedEntry> _failedEntries = new();
     private List<string> _nseSymbols = new();
     private readonly HashSet<string> _orderedBarKeys = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>ST buy flips detected while orders could not place (e.g. market closed) — retry when ready.</summary>
@@ -57,11 +64,14 @@ public class AutoBuyService : IAutoBuyService, IDisposable
 
     public bool MasterAutomationEnabled { get; private set; }
     public IReadOnlyList<AutoBuyRow> Rows => _rows;
+    public IReadOnlyList<AutoBuyFailedEntry> FailedEntries => _failedEntries;
     public IReadOnlyList<string> NseSymbols => _nseSymbols;
     public bool IsLoadingSymbols { get; private set; }
     public bool IsMonitoring => MasterAutomationEnabled && _monitorCts is not null;
     public string? StatusMessage { get; private set; }
     public string StoragePath { get; private set; } = LocalFileAutoBuyStore.JsonFileName;
+    public string? CurrentIpAddress => _publicIp.CurrentIpAddress;
+    public bool IsRefreshingIp { get; private set; }
 
     public AutoBuyService(
         IZerodhaService zerodha,
@@ -71,7 +81,8 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         IOrderExecutionService orders,
         IAutoBuyStore store,
         IUserContext userContext,
-        INseSymbolResolver nseSymbolsResolver)
+        INseSymbolResolver nseSymbolsResolver,
+        IPublicIpAddressService publicIp)
     {
         _zerodha = zerodha;
         _marketData = marketData;
@@ -81,6 +92,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         _store = store;
         _userContext = userContext;
         _nseSymbolsResolver = nseSymbolsResolver;
+        _publicIp = publicIp;
         _zerodha.ConnectionChanged += OnZerodhaConnectionChanged;
         _settings.SettingsChanged += OnSettingsChanged;
         _ = EnsureBootstrappedAsync();
@@ -121,6 +133,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
 
             // Load NSE search universe even before Zerodha connects (public equity list).
             await RefreshSymbolsAsync();
+            await RefreshIpAddressAsync();
 
             if (_zerodha.IsConnected)
                 await RefreshDeployedAmountsAsync();
@@ -131,6 +144,21 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         finally
         {
             _bootstrapLock.Release();
+        }
+    }
+
+    public async Task RefreshIpAddressAsync()
+    {
+        IsRefreshingIp = true;
+        Notify();
+        try
+        {
+            await _publicIp.RefreshAsync();
+        }
+        finally
+        {
+            IsRefreshingIp = false;
+            Notify();
         }
     }
 
@@ -375,9 +403,20 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         Notify();
     }
 
+    public async Task ClearFailedEntriesAsync()
+    {
+        if (_failedEntries.Count == 0)
+            return;
+
+        _failedEntries.Clear();
+        await SaveAsync();
+        StatusMessage = "Cleared Auto Buy failed entry list.";
+        Notify();
+    }
+
     public async Task SaveAsync()
     {
-        var document = AutoBuyDocument.FromRuntime(MasterAutomationEnabled, _rows);
+        var document = AutoBuyDocument.FromRuntime(MasterAutomationEnabled, _rows, _failedEntries);
         await _store.SaveAsync(_userContext.UserId, document);
     }
 
@@ -403,8 +442,11 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         var document = await _store.LoadAsync(_userContext.UserId);
         MasterAutomationEnabled = document?.MasterAutomationEnabled ?? false;
         _rows.Clear();
+        _failedEntries.Clear();
 
-        var rows = document?.ToRuntime().Rows ?? new List<AutoBuyRow>();
+        var runtime = document?.ToRuntime();
+        var rows = runtime?.Rows ?? new List<AutoBuyRow>();
+        var failed = runtime?.FailedEntries ?? new List<AutoBuyFailedEntry>();
         var trimmed = rows.Count > AutoBuyDefaults.MaxSymbols;
 
         foreach (var row in rows.Take(AutoBuyDefaults.MaxSymbols))
@@ -416,10 +458,46 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             _rows.Add(row);
         }
 
+        foreach (var entry in failed.Take(AutoBuyDefaults.MaxFailedEntries))
+            _failedEntries.Add(AutoBuyFailedEntry.Clone(entry));
+
         if (trimmed)
             StatusMessage = $"List had more than {AutoBuyDefaults.MaxSymbols} symbols — loaded first {AutoBuyDefaults.MaxSymbols}.";
 
         return trimmed;
+    }
+
+    private async Task RecordFailedEntryAsync(AutoBuyRow row, string status, string? detail, int quantity)
+    {
+        // Keep IP fresh enough for Zerodha whitelist diagnostics when an entry fails.
+        if (string.IsNullOrWhiteSpace(_publicIp.CurrentIpAddress))
+        {
+            try
+            {
+                await _publicIp.RefreshAsync();
+            }
+            catch
+            {
+                // Best-effort — still record the failure without IP.
+            }
+        }
+
+        _failedEntries.Insert(0, new AutoBuyFailedEntry
+        {
+            Symbol = row.Symbol,
+            Exchange = row.Exchange,
+            Timeframe = row.Timeframe,
+            Quantity = Math.Max(0, quantity),
+            Status = status,
+            Detail = detail,
+            IpAddress = _publicIp.CurrentIpAddress,
+            FailedAt = DateTime.Now
+        });
+
+        while (_failedEntries.Count > AutoBuyDefaults.MaxFailedEntries)
+            _failedEntries.RemoveAt(_failedEntries.Count - 1);
+
+        await SaveAsync();
     }
 
     public async Task RefreshSettingsAsync()
@@ -699,12 +777,15 @@ public class AutoBuyService : IAutoBuyService, IDisposable
                 row.Status = "Order failed";
                 row.Detail = $"{error} — will not retry this bar (wait for next Sell→Buy cross)";
                 StatusMessage = $"Auto Buy: failed for {row.Symbol} — {row.Detail}";
+                await RecordFailedEntryAsync(row, row.Status, row.Detail, quantity);
             }
         }
         catch (Exception ex)
         {
             row.Status = "Error";
             row.Detail = ex.Message;
+            StatusMessage = $"Auto Buy: error for {row.Symbol} — {ex.Message}";
+            await RecordFailedEntryAsync(row, row.Status, row.Detail, row.Lots);
         }
     }
 

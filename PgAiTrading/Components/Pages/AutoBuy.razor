@@ -92,6 +92,23 @@
             <button type="button" class="btn btn-secondary" @onclick="RefreshSymbolsAsync" disabled="@ViewModel.IsLoadingSymbols">
                 @(ViewModel.IsLoadingSymbols ? "Loading symbols…" : "Refresh NSE list")
             </button>
+            <div class="auto-buy-ip-wrap">
+                <label for="auto-buy-ip">IP address</label>
+                <div class="auto-buy-ip-row">
+                    <input id="auto-buy-ip"
+                           class="form-input auto-buy-ip-input"
+                           readonly
+                           value="@(string.IsNullOrWhiteSpace(ViewModel.CurrentIpAddress) ? (ViewModel.IsRefreshingIp ? "Detecting…" : "Unavailable") : ViewModel.CurrentIpAddress)" />
+                    <button type="button"
+                            class="btn btn-secondary"
+                            @onclick="RefreshIpAsync"
+                            disabled="@ViewModel.IsRefreshingIp"
+                            title="Refresh public IP (for Zerodha API whitelist)">
+                        @(ViewModel.IsRefreshingIp ? "…" : "Refresh IP")
+                    </button>
+                </div>
+                <span class="text-secondary form-hint">Whitelist this IP in Zerodha developer console for API orders.</span>
+            </div>
         </div>
 
         @if (ViewModel.IsLoadingSymbols)
@@ -103,6 +120,59 @@
         {
             <div class="status-message">@ViewModel.StatusMessage</div>
         }
+
+        <div class="auto-buy-failed-block">
+            <div class="auto-buy-failed-header">
+                <div>
+                    <div class="framework-panel-title">Failed entries</div>
+                    <p class="text-secondary auto-buy-failed-hint">
+                        Entries that failed to place are listed here with the failure time and IP used.
+                        @(ViewModel.FailedEntries.Count == 0 ? "No failed entries yet." : $"{ViewModel.FailedEntries.Count} recorded.")
+                    </p>
+                </div>
+                @if (ViewModel.FailedEntries.Count > 0)
+                {
+                    <button type="button" class="btn btn-secondary btn-sm" @onclick="ClearFailedEntriesAsync">
+                        Clear list
+                    </button>
+                }
+            </div>
+
+            @if (ViewModel.FailedEntries.Count > 0)
+            {
+                <table class="data-table auto-buy-failed-table">
+                    <thead>
+                        <tr>
+                            <th>When failed</th>
+                            <th>Symbol</th>
+                            <th>TF</th>
+                            <th>Qty</th>
+                            <th>IP address</th>
+                            <th>Status</th>
+                            <th>Detail</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var failed in ViewModel.FailedEntries)
+                        {
+                            <tr>
+                                <td class="auto-buy-failed-when">@failed.FailedAt.ToString("dd MMM yyyy HH:mm:ss")</td>
+                                <td><strong>@failed.Symbol</strong></td>
+                                <td>@failed.Timeframe</td>
+                                <td>@(failed.Quantity > 0 ? failed.Quantity.ToString() : "—")</td>
+                                <td class="auto-buy-failed-ip">@(string.IsNullOrWhiteSpace(failed.IpAddress) ? "—" : failed.IpAddress)</td>
+                                <td class="sell">@failed.Status</td>
+                                <td class="auto-buy-detail">@failed.Detail</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <div class="empty-state auto-buy-failed-empty">No failed Auto Buy entries.</div>
+            }
+        </div>
 
         @if (ViewModel.Rows.Count >= AutoBuyDefaults.MaxSymbols)
         {
@@ -328,6 +398,10 @@
     }
 
     private async Task RefreshSymbolsAsync() => await ViewModel.RefreshSymbolsAsync();
+
+    private async Task RefreshIpAsync() => await ViewModel.RefreshIpAddressAsync();
+
+    private async Task ClearFailedEntriesAsync() => await ViewModel.ClearFailedEntriesAsync();
 
     private async Task RemoveRowAsync(string symbol) => await ViewModel.RemoveSymbolAsync(symbol);
 

@@ -67,6 +67,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IIntradayCprService, IntradayCprService>();
         builder.Services.AddSingleton<IEntryAlertService, EntryAlertService>();
         builder.Services.AddSingleton<IUserContext, LocalUserContext>();
+        builder.Services.AddSingleton<IPublicIpAddressService, PublicIpAddressService>();
         builder.Services.AddSingleton<IAutoBuyStore>(_ =>
             new LocalFileAutoBuyStore(
                 Microsoft.Maui.Storage.FileSystem.AppDataDirectory,

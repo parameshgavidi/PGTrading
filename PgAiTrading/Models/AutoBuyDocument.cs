@@ -3,25 +3,42 @@ namespace PgAiTrading.Models;
 /// <summary>
 /// Versioned Auto Buy document — portable across desktop file storage and future web APIs.
 /// Runtime-only fields (Status, Detail, DeployedAmount) are not persisted.
+/// Failed entry attempts are persisted so the Auto Buy tab can show recent failures.
 /// </summary>
 public sealed class AutoBuyDocument
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
     public int Version { get; set; } = CurrentVersion;
     public bool MasterAutomationEnabled { get; set; }
     public List<AutoBuyPersistedRow> Rows { get; set; } = new();
+    /// <summary>Recent failed Auto Buy entry attempts (newest first).</summary>
+    public List<AutoBuyFailedEntry> FailedEntries { get; set; } = new();
 
-    public static AutoBuyDocument FromRuntime(bool masterAutomationEnabled, IEnumerable<AutoBuyRow> rows) =>
+    public static AutoBuyDocument FromRuntime(
+        bool masterAutomationEnabled,
+        IEnumerable<AutoBuyRow> rows,
+        IEnumerable<AutoBuyFailedEntry>? failedEntries = null) =>
         new()
         {
             Version = CurrentVersion,
             MasterAutomationEnabled = masterAutomationEnabled,
-            Rows = rows.Select(AutoBuyPersistedRow.FromRuntime).ToList()
+            Rows = rows.Select(AutoBuyPersistedRow.FromRuntime).ToList(),
+            FailedEntries = (failedEntries ?? Enumerable.Empty<AutoBuyFailedEntry>())
+                .Select(AutoBuyFailedEntry.Clone)
+                .Take(AutoBuyDefaults.MaxFailedEntries)
+                .ToList()
         };
 
-    public (bool Master, List<AutoBuyRow> Rows) ToRuntime() =>
-        (MasterAutomationEnabled, Rows.Select(r => r.ToRuntime()).ToList());
+    public (bool Master, List<AutoBuyRow> Rows, List<AutoBuyFailedEntry> FailedEntries) ToRuntime() =>
+        (
+            MasterAutomationEnabled,
+            Rows.Select(r => r.ToRuntime()).ToList(),
+            (FailedEntries ?? new List<AutoBuyFailedEntry>())
+                .Select(AutoBuyFailedEntry.Clone)
+                .Take(AutoBuyDefaults.MaxFailedEntries)
+                .ToList()
+        );
 }
 
 /// <summary>Persisted Auto Buy row fields shared by local JSON and future per-user APIs.</summary>
