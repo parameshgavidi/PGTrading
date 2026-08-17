@@ -37,6 +37,9 @@ public class VolumeProfileService : IVolumeProfileService
         levels.PrevDayVah = prev.Vah;
         levels.PrevDayVal = prev.Val;
       }
+
+      levels.Pdh = prevSessionCandles.Max(c => c.High);
+      levels.Pdl = prevSessionCandles.Min(c => c.Low);
     }
 
     return levels;

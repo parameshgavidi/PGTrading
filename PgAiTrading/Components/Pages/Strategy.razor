@@ -99,10 +99,14 @@
                     <input type="number" step="0.1" @bind="ViewModel.IntradayConfig.AdxWeakThreshold" class="form-input" />
                 </div>
                 <div class="form-row">
+                    <label>Developing threshold</label>
+                    <input type="number" step="0.1" @bind="ViewModel.IntradayConfig.AdxDevelopingThreshold" class="form-input" />
+                </div>
+                <div class="form-row">
                     <label>Strong threshold</label>
                     <input type="number" step="0.1" @bind="ViewModel.IntradayConfig.AdxStrongThreshold" class="form-input" />
                 </div>
-                <p class="text-secondary">1H ADX(14): &lt;18 choppy, 18–25 moderate, &gt;25 strong trend.</p>
+                <p class="text-secondary">1H ADX(14): &lt;18 choppy (with RSI mid = strong chop / sweeps), &gt;22 developing (not auto-chop), &gt;25 strong trend.</p>
                 <div class="form-row">
                     <label>Minimum ADX</label>
                     <input type="number" @bind="ViewModel.IntradayConfig.MinimumAdx" class="form-input" />

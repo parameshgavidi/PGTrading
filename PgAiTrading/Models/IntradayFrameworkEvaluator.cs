@@ -4,15 +4,16 @@ public static class IntradayFrameworkEvaluator
 {
     public static IReadOnlyList<string> Conditions { get; } =
     [
-        "Step 1 — 1H SuperTrend (10,3) + current-day VWAP aligned",
-        "Step 2 — 15M SuperTrend (10,3) + ADX(14) 1H ≥ 20 + RSI(28) on 1H",
-        "POC — above POC = bull, below POC = bear",
-        "Step 3 — 5M SuperTrend (7,2.5) entry trigger",
-        "Step 4 — Footprint: Delta + imbalances, no opposing absorption",
-        "Step 5 — Targets: Prev POC / VAH / VAL; stop: 5M ST reversal",
-        "RSI(28) 45–55 on 1H = range-bound",
+        "1H market structure (HH/HL or LH/LL) — major direction",
+        "RSI(28) + ADX(1H) — regime (trend / strong chop / developing)",
+        "15M structure BOS aligned with 1H direction (setup)",
+        "Session Volume Profile — POC / VAH / VAL / PDH / PDL location",
+        "Liquidity sweep → reclaim → 5M BOS (esp. strong chop)",
+        "Footprint: delta + imbalances + absorption on sweep/entry",
+        "5M BOS entry (ST 7,2.5 remains trailing stop)",
         "5m RSI < 30 = expect reversal; WAIT only with bullish 5m pattern",
-        "MIS quantity sized to ~₹5,000 notional per stock"
+        "MIS quantity sized to ~₹5,000 notional per stock",
+        "Chart-only (not gates): Camarilla, CPR, TPO display"
     ];
 
     public static bool IsSatisfied(MultiTimeframeAnalysis analysis) =>
@@ -29,23 +30,29 @@ public static class IntradayFrameworkEvaluator
         if (analysis.ExpectReversal)
             return "Expect reversal";
 
+        if (analysis.Regime == MarketRegime.StrongChop)
+            return analysis.LiquiditySweep.IsConfirmedSetup ? "Sweep setup" : "Strong chop";
+
+        if (analysis.Regime == MarketRegime.DevelopingTrend)
+            return "Developing — await 15M BOS";
+
+        if (analysis.Regime == MarketRegime.SoftNeutral)
+            return "Soft neutral";
+
         if (analysis.IsRotationRegime)
             return "Rotation inside VA";
 
-        if (analysis.IsRangebound)
-            return "Range-bound";
-
         if (analysis.MarketBias == TrendDirection.Neutral)
-            return "No market bias";
+            return "No market structure bias";
 
         if (analysis.TradeDirection == TrendDirection.Neutral)
             return analysis.FrameworkStatus;
 
         if (!analysis.TpoConfirmed)
-            return "Await POC";
+            return "Await volume profile";
 
         if (!analysis.EntryTriggered)
-            return "Await entry ST";
+            return "Await 5M BOS";
 
         if (!analysis.FootprintConfirmed)
             return "Await footprint";

@@ -92,7 +92,8 @@ public static class FootprintDisplayHelper
     /// <summary>Step 4 sub-checks for AI panel when directional bias is set.</summary>
     public static IReadOnlyList<(string Label, string State)> GetStep4Checks(FootprintAnalysis fp, TrendDirection bias)
     {
-        if (fp.Summary is "Insufficient 5m data" or "No data")
+        if (fp.Summary is "Insufficient 5m data"
+            || (fp.Summary is "No data" && fp.Delta == 0 && !fp.PositiveDelta && !fp.NegativeDelta))
             return [(fp.Summary, "fail")];
 
         if (bias == TrendDirection.Buy)
@@ -124,7 +125,8 @@ public static class FootprintDisplayHelper
         if (footprintConfirmed || bias == TrendDirection.Neutral)
             return string.Empty;
 
-        if (fp.Summary is "Insufficient 5m data" or "No data")
+        if (fp.Summary is "Insufficient 5m data"
+            || (fp.Summary is "No data" && fp.Delta == 0 && !fp.PositiveDelta && !fp.NegativeDelta))
             return fp.Summary;
 
         if (bias == TrendDirection.Buy)
@@ -149,7 +151,8 @@ public static class FootprintDisplayHelper
     /// <summary>Explicit WAIT detail when Step 4 is the blocker.</summary>
     public static string GetStep4BlockingDetail(FootprintAnalysis fp, TrendDirection bias)
     {
-        if (fp.Summary is "Insufficient 5m data" or "No data")
+        if (fp.Summary is "Insufficient 5m data"
+            || (fp.Summary is "No data" && fp.Delta == 0 && !fp.PositiveDelta && !fp.NegativeDelta))
             return $"Step 4 — {fp.Summary}.";
 
         if (bias == TrendDirection.Buy)

@@ -24,6 +24,11 @@ public static class SupportResistanceLadderBuilder
       rows.Add(new("VAL prev", vp.PrevDayVal, "buy", "prev"));
     }
 
+    if (vp.Pdh > 0)
+      rows.Add(new("PDH", vp.Pdh, "sell", "prev"));
+    if (vp.Pdl > 0)
+      rows.Add(new("PDL", vp.Pdl, "buy", "prev"));
+
     if (analysis.CprPivot > 0)
     {
       rows.Add(new("Day TC", analysis.CprTc, "sell", "cpr"));

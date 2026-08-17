@@ -11,6 +11,13 @@ public class VolumeProfileLevels
   public decimal PrevDayPoc { get; set; }
   public decimal PrevDayVah { get; set; }
   public decimal PrevDayVal { get; set; }
+
+  /// <summary>Previous day high (PDH) — liquidity reference.</summary>
+  public decimal Pdh { get; set; }
+
+  /// <summary>Previous day low (PDL) — liquidity reference.</summary>
+  public decimal Pdl { get; set; }
+
   public bool HasData { get; set; }
 
   public bool IsInsideValueArea(decimal price) =>

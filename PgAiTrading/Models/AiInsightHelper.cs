@@ -44,26 +44,58 @@ public static class AiInsightHelper
             };
         }
 
-        if (analysis.IsRotationRegime)
+        if (analysis.Regime == MarketRegime.StrongChop && analysis.IsRangebound)
+        {
+            if (analysis.LiquiditySweep.IsConfirmedSetup && analysis.FrameworkReady)
+                return BuildReadyRecommendation(signal, analysis, probability, strength);
+
+            return new AiInsightRecommendation
+            {
+                Probability = Math.Min(probability, 48),
+                Strength = "Strong Chop",
+                ActionHeadline = analysis.LiquiditySweep.Detected ? "WAIT RECLAIM/BOS" : "SWEEP WATCH",
+                ActionDetail = analysis.LiquiditySweep.Detected
+                    ? FormatDetail(analysis.LiquiditySweep.Summary)
+                    : "RSI mid + ADX < 18 — wait liquidity sweep at VA / PDH / PDL, then reclaim + 5M BOS + footprint.",
+                ActionKind = "wait"
+            };
+        }
+
+        if (analysis.Regime == MarketRegime.SoftNeutral && analysis.IsRangebound)
+        {
+            return new AiInsightRecommendation
+            {
+                Probability = Math.Min(probability, 52),
+                Strength = "Soft Neutral",
+                ActionHeadline = "WAIT",
+                ActionDetail = "RSI(28) 45–55 with ADX not developing — stand aside until 1H structure clarifies.",
+                ActionKind = "wait"
+            };
+        }
+
+        if (analysis.Regime == MarketRegime.DevelopingTrend && !analysis.FrameworkReady)
+        {
+            return new AiInsightRecommendation
+            {
+                Probability = Math.Min(probability, 58),
+                Strength = "Developing",
+                ActionHeadline = "WAIT STRUCTURE",
+                ActionDetail = FormatDetail(
+                    analysis.FrameworkStatus.Contains("15M", StringComparison.OrdinalIgnoreCase)
+                        ? analysis.FrameworkStatus
+                        : "RSI mid but ADX > 22 — wait 1H structure + 15M BOS confirmation (not auto-chop)."),
+                ActionKind = "wait"
+            };
+        }
+
+        if (analysis.IsRotationRegime && analysis.Regime != MarketRegime.StrongChop)
         {
             return new AiInsightRecommendation
             {
                 Probability = Math.Min(probability, 48),
                 Strength = "Rotation",
-                ActionHeadline = "RANGE ONLY",
-                ActionDetail = "ADX choppy inside Value Area — fade extremes toward VWAP / Keltner mid, not breakout chase.",
-                ActionKind = "neutral"
-            };
-        }
-
-        if (analysis.IsRangebound)
-        {
-            return new AiInsightRecommendation
-            {
-                Probability = Math.Min(probability, 54),
-                Strength = "Range-bound",
-                ActionHeadline = "RANGE ONLY",
-                ActionDetail = $"1H RSI(28) {analysis.RsiTrend:N0} between 45–55 — prefer straddle / IC fade, not directional chase.",
+                ActionHeadline = "SWEEP WATCH",
+                ActionDetail = "ADX choppy inside Value Area — prefer liquidity sweeps at extremes, not breakout chase.",
                 ActionKind = "neutral"
             };
         }
@@ -130,19 +162,47 @@ public static class AiInsightHelper
         var vwapState = GetVwapCheckState(analysis);
         var st15MState = Get15MStCheckState(analysis);
 
+        var structureState = analysis.Structure.Structure1H.Bias switch
+        {
+            StructureBias.Bullish or StructureBias.Bearish => "pass",
+            StructureBias.Mixed => "warn",
+            _ => "fail"
+        };
+
+        var structure15State = analysis.Structure.Structure15M.Bias switch
+        {
+            StructureBias.Bullish or StructureBias.Bearish =>
+                primaryBias == TrendDirection.Neutral
+                || analysis.Structure.Structure15M.Confirms(primaryBias)
+                || (primaryBias == TrendDirection.Buy && analysis.Structure.Structure15M.BosBullish)
+                || (primaryBias == TrendDirection.Sell && analysis.Structure.Structure15M.BosBearish)
+                    ? "pass" : "warn",
+            StructureBias.Mixed => "warn",
+            _ => "warn"
+        };
+
+        var sweepState = analysis.LiquiditySweep.IsConfirmedSetup ? "pass"
+            : analysis.LiquiditySweep.Detected && analysis.LiquiditySweep.Reclaimed ? "warn"
+            : analysis.Regime == MarketRegime.StrongChop ? "fail"
+            : "warn";
+
         var footprintState = footprintPass ? "pass"
             : FootprintDisplayHelper.FootprintOpposesBias(analysis.Footprint, primaryBias) ? "fail"
             : "warn";
 
+        _ = st15MState; // retained for callers that still use Get15MStCheckState elsewhere
+
         var checks = new List<AiCheck>
         {
+            new($"1H structure {analysis.Structure.Structure1H.Summary}", structureState),
             new($"{TrendUi.GetIcon(analysis.Trend1H)} 1H ST {TrendUi.GetSuperTrendLabel(analysis.Trend1H)}", st1HState),
             new(analysis.AboveVwap ? "Above VWAP" : "Below VWAP", vwapState),
-            new($"{TrendUi.GetIcon(analysis.Trend15M)} 15M ST {TrendUi.GetSuperTrendLabel(analysis.Trend15M)}", st15MState),
+            new($"15M {analysis.Structure.Structure15M.Summary}", structure15State),
             new(analysis.Adx >= 25 ? "ADX Strong" : analysis.Adx >= 18 ? $"ADX Moderate {analysis.Adx:N0}" : $"ADX Choppy {analysis.Adx:N0}", adxState),
             new($"RSI(28) {analysis.RsiTrend:N0}", rsiState),
             new(tpoPass ? "POC Confirmed" : analysis.Tpo.Summary, tpoPass ? "pass" : analysis.IsRotationRegime ? "fail" : "warn"),
-            new($"{TrendUi.GetIcon(analysis.Trend5MEntry)} Entry ST {TrendUi.GetSuperTrendLabel(analysis.Trend5MEntry)}", entryPass ? "pass" : "warn")
+            new(analysis.LiquiditySweep.Detected ? analysis.LiquiditySweep.Summary : "No liquidity sweep", sweepState),
+            new($"{TrendUi.GetIcon(analysis.Trend5MEntry)} Entry 5M BOS/ST", entryPass ? "pass" : "warn")
         };
 
         if (footprintPass)

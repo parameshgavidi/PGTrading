@@ -24,6 +24,8 @@
     <Compile Include="../PgAiTrading/Services/IntradayCprService.cs" Link="Services/IntradayCprService.cs" />
     <Compile Include="../PgAiTrading/Services/IndicatorService.cs" Link="Services/IndicatorService.cs" />
     <Compile Include="../PgAiTrading/Services/ChartPatternService.cs" Link="Services/ChartPatternService.cs" />
+    <Compile Include="../PgAiTrading/Services/MarketStructureService.cs" Link="Services/MarketStructureService.cs" />
+    <Compile Include="../PgAiTrading/Services/VolumeProfileService.cs" Link="Services/VolumeProfileService.cs" />
     <Compile Include="../PgAiTrading/Services/SuperTrendService.cs" Link="Services/SuperTrendService.cs" />
     <Compile Include="../PgAiTrading/Services/SentimentTextHelper.cs" Link="Services/SentimentTextHelper.cs" />
     <Compile Include="../PgAiTrading/Services/LiveNewsImportance.cs" Link="Services/LiveNewsImportance.cs" />
