@@ -302,7 +302,7 @@ public class TradeFrameworkEvaluatorTests
     {
       WaitForReversal = true,
       Rsi5M = 24m,
-      ReversalReason = "5m RSI 24 < 30 + Hammer → WAIT",
+      ReversalReason = "5m RSI(28) 24 < 30 + Hammer → WAIT",
       OverallScore = 70,
       Strength = "Moderate Setup"
     };
@@ -323,7 +323,7 @@ public class TradeFrameworkEvaluatorTests
     {
       ExpectReversal = true,
       Rsi5M = 26m,
-      ReversalReason = "5m RSI 26 < 30 — expect reversal",
+      ReversalReason = "5m RSI(28) 26 < 30 — expect reversal",
       OverallScore = 70,
       Strength = "Moderate Setup"
     };

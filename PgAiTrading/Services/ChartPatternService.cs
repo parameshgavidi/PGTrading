@@ -12,7 +12,7 @@ public interface IChartPatternService
 
     /// <summary>
     /// True when any of the last <paramref name="lookbackBars"/> candles has a bullish pattern bias (Buy).
-    /// Used with 5m RSI oversold: RSI alone = expect reversal; RSI + bullish pattern = WAIT.
+    /// Used with 5m RSI(28) oversold: RSI alone = expect reversal; RSI + bullish pattern = WAIT.
     /// </summary>
     bool TryGetRecentBullishPattern(IReadOnlyList<Candle> candles, out string? label, int lookbackBars = 5);
 

@@ -25,7 +25,7 @@ public static class AiInsightHelper
                 ActionHeadline = "WAIT",
                 ActionDetail = FormatDetail(
                     analysis.ReversalReason
-                    ?? $"5m RSI {analysis.Rsi5M:N0} < 30 + bullish 5m pattern — WAIT, no new entry."),
+                    ?? $"5m RSI(28) {analysis.Rsi5M:N0} < 30 + bullish 5m pattern — WAIT, no new entry."),
                 ActionKind = "wait"
             };
         }
@@ -39,7 +39,7 @@ public static class AiInsightHelper
                 ActionHeadline = "EXPECT REVERSAL",
                 ActionDetail = FormatDetail(
                     analysis.ReversalReason
-                    ?? $"5m RSI {analysis.Rsi5M:N0} < 30 — expect reversal. If any bullish 5m pattern prints → WAIT."),
+                    ?? $"5m RSI(28) {analysis.Rsi5M:N0} < 30 — expect reversal. If any bullish 5m pattern prints → WAIT."),
                 ActionKind = "neutral"
             };
         }

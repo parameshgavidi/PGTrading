@@ -9,11 +9,11 @@ public static class FrameworkPlaybook
   private static readonly IReadOnlyList<FrameworkRule> GlobalGates =
   [
     Rule("G0", "5m RSI oversold — EXPECT REVERSAL",
-      "5m RSI(14) < 30 (no bullish 5m pattern yet)",
+      "5m RSI(28) < 30 (no bullish 5m pattern yet)",
       "EXPECT REVERSAL — advisory only; watch for bounce; framework can still proceed",
       "Present when oversold alone."),
     Rule("G0b", "5m RSI + bullish 5m pattern — WAIT",
-      "5m RSI(14) < 30 AND any bullish candlestick on recent 5m bars (Hammer, Bull Engulf, Morning Star, Piercing, 3 White Soldiers, Bull Marubozu — last 5 bars)",
+      "5m RSI(28) < 30 AND any bullish candlestick on recent 5m bars (Hammer, Bull Engulf, Morning Star, Piercing, 3 White Soldiers, Bull Marubozu — last 5 bars)",
       "WAIT — no new entry (hard block)",
       "Required upgrade from G0 when a bullish pattern prints into oversold."),
     Rule("R1", "Strong chop regime",
@@ -129,7 +129,7 @@ public static class FrameworkPlaybook
 
   private static readonly IReadOnlyList<FrameworkRule> ReadyRules =
   [
-    Rule("OK-1", "No WAIT guard", "NOT (5m RSI < 30 AND bullish pattern)", "✓", null),
+    Rule("OK-1", "No WAIT guard", "NOT (5m RSI(28) < 30 AND bullish pattern)", "✓", null),
     Rule("OK-2", "Regime allows trade", "Trending, developing (with structure), or strong-chop with confirmed sweep", "✓", null),
     Rule("OK-3", "1H structure directional (or sweep MR)", "HH/HL or LH/LL — or confirmed sweep path in strong chop", "✓", null),
     Rule("OK-4", "15M setup / sweep location", "BOS aligned or sweep at profile/session level", "✓", null),

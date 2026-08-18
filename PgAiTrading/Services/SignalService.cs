@@ -69,7 +69,7 @@ public class SignalService : ISignalService
 
         var structure = _structure.AnalyzeMulti(candles1H, candles15M, candles5M);
 
-        var rsi5M = _indicators.CalculateRsi(candles5M, config.RsiLength);
+        var rsi5M = _indicators.CalculateRsi(candles5M, config.RsiReversalLength);
         _patterns.ApplyPatterns(candles5M);
         var hasBullishPattern = _patterns.TryGetRecentBullishPattern(candles5M, out _, lookbackBars: 5);
         if (TradeFrameworkEvaluator.ShouldWaitForReversal(rsi5M, hasBullishPattern, config))
@@ -140,7 +140,8 @@ public class SignalService : ISignalService
         var rsiTrend = _indicators.CalculateRsi(candles1H, config.RsiTrendLength);
         var rsi = _indicators.CalculateRsi(candles1H, config.RsiLength);
         var rsi15M = _indicators.CalculateRsi(candles15M, config.RsiLength);
-        var rsi5M = _indicators.CalculateRsi(candles5M, config.RsiLength);
+        // G0/G0b uses 5m RSI(28), not the panel RSI(14) length.
+        var rsi5M = _indicators.CalculateRsi(candles5M, config.RsiReversalLength);
 
         var rsiBias = TradeFrameworkEvaluator.RsiConfirmsLong(rsiTrend, config) ? TrendDirection.Buy
             : TradeFrameworkEvaluator.RsiConfirmsShort(rsiTrend, config) ? TrendDirection.Sell
@@ -161,12 +162,12 @@ public class SignalService : ISignalService
         if (waitForReversal)
         {
             reversalReason = string.IsNullOrWhiteSpace(bullishPatternLabel)
-                ? $"5m RSI {rsi5M:0} < {config.RsiReversalThreshold:0} + bullish pattern → WAIT"
-                : $"5m RSI {rsi5M:0} < {config.RsiReversalThreshold:0} + {bullishPatternLabel} → WAIT";
+                ? $"5m RSI(28) {rsi5M:0} < {config.RsiReversalThreshold:0} + bullish pattern → WAIT"
+                : $"5m RSI(28) {rsi5M:0} < {config.RsiReversalThreshold:0} + {bullishPatternLabel} → WAIT";
         }
         else if (expectReversal)
         {
-            reversalReason = $"5m RSI {rsi5M:0} < {config.RsiReversalThreshold:0} — expect reversal";
+            reversalReason = $"5m RSI(28) {rsi5M:0} < {config.RsiReversalThreshold:0} — expect reversal";
         }
 
         var vwap5M = candles5M.Count > 0

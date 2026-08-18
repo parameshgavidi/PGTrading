@@ -15,6 +15,9 @@ public class StrategyConfig
     public int RsiTrendLength { get; set; } = 28;
     public decimal RsiBullThreshold { get; set; } = 55m;
     public decimal RsiBearThreshold { get; set; } = 45m;
+
+    // G0/G0b: 5m RSI(28) < threshold → EXPECT REVERSAL; + bullish 5m pattern → WAIT.
+    public int RsiReversalLength { get; set; } = 28;
     public decimal RsiReversalThreshold { get; set; } = 30m;
 
     // ADX(14) on 1H — <18 choppy, 18–25 moderate, >25 strong.
