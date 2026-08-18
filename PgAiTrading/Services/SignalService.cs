@@ -70,7 +70,8 @@ public class SignalService : ISignalService
         var structure = _structure.AnalyzeMulti(candles1H, candles15M, candles5M);
 
         var rsi5M = _indicators.CalculateRsi(candles5M, config.RsiLength);
-        var hasBullishPattern = _patterns.TryGetLatestBullishPattern(candles5M, out _);
+        _patterns.ApplyPatterns(candles5M);
+        var hasBullishPattern = _patterns.TryGetRecentBullishPattern(candles5M, out _, lookbackBars: 5);
         if (TradeFrameworkEvaluator.ShouldWaitForReversal(rsi5M, hasBullishPattern, config))
             return null;
 
@@ -151,15 +152,17 @@ public class SignalService : ISignalService
             : TrendStrength.Strong;
 
         string? reversalReason = null;
-        var hasBullishPattern = _patterns.TryGetLatestBullishPattern(candles5M, out var bullishPatternLabel);
+        // Ensure patterns are annotated on the 5m series used for the G0b WAIT gate.
+        _patterns.ApplyPatterns(candles5M);
+        var hasBullishPattern = _patterns.TryGetRecentBullishPattern(candles5M, out var bullishPatternLabel, lookbackBars: 5);
         var rsiOversold = TradeFrameworkEvaluator.IsRsiOversold(rsi5M, config);
         var waitForReversal = TradeFrameworkEvaluator.ShouldWaitForReversal(rsi5M, hasBullishPattern, config);
         var expectReversal = rsiOversold && !waitForReversal;
         if (waitForReversal)
         {
             reversalReason = string.IsNullOrWhiteSpace(bullishPatternLabel)
-                ? $"5m RSI {rsi5M:0} < {config.RsiReversalThreshold:0} + bullish pattern"
-                : $"5m RSI {rsi5M:0} < {config.RsiReversalThreshold:0} + {bullishPatternLabel}";
+                ? $"5m RSI {rsi5M:0} < {config.RsiReversalThreshold:0} + bullish pattern → WAIT"
+                : $"5m RSI {rsi5M:0} < {config.RsiReversalThreshold:0} + {bullishPatternLabel} → WAIT";
         }
         else if (expectReversal)
         {

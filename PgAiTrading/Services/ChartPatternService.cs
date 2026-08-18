@@ -11,8 +11,12 @@ public interface IChartPatternService
     void ApplyPatterns(IList<Candle> candles);
 
     /// <summary>
-    /// True when the latest candle has a bullish pattern bias (Buy).
+    /// True when any of the last <paramref name="lookbackBars"/> candles has a bullish pattern bias (Buy).
+    /// Used with 5m RSI oversold: RSI alone = expect reversal; RSI + bullish pattern = WAIT.
     /// </summary>
+    bool TryGetRecentBullishPattern(IReadOnlyList<Candle> candles, out string? label, int lookbackBars = 5);
+
+    /// <summary>True when the latest candle has a bullish pattern bias (Buy).</summary>
     bool TryGetLatestBullishPattern(IReadOnlyList<Candle> candles, out string? label);
 }
 
@@ -51,20 +55,29 @@ public sealed class ChartPatternService : IChartPatternService
         }
     }
 
-    public bool TryGetLatestBullishPattern(IReadOnlyList<Candle> candles, out string? label)
+    public bool TryGetLatestBullishPattern(IReadOnlyList<Candle> candles, out string? label) =>
+        TryGetRecentBullishPattern(candles, out label, lookbackBars: 1);
+
+    public bool TryGetRecentBullishPattern(IReadOnlyList<Candle> candles, out string? label, int lookbackBars = 5)
     {
         label = null;
-        if (candles.Count == 0)
+        if (candles.Count == 0 || lookbackBars <= 0)
             return false;
 
-        var latest = candles[^1];
-        if (!string.Equals(latest.PatternBias, ChartPatternBias.Buy, StringComparison.OrdinalIgnoreCase))
-            return false;
+        var start = Math.Max(0, candles.Count - lookbackBars);
+        for (var i = candles.Count - 1; i >= start; i--)
+        {
+            var c = candles[i];
+            if (!string.Equals(c.PatternBias, ChartPatternBias.Buy, StringComparison.OrdinalIgnoreCase))
+                continue;
 
-        label = !string.IsNullOrWhiteSpace(latest.PatternLabel)
-            ? latest.PatternLabel
-            : latest.PatternCode;
-        return true;
+            label = !string.IsNullOrWhiteSpace(c.PatternLabel)
+                ? c.PatternLabel
+                : c.PatternCode;
+            return true;
+        }
+
+        return false;
     }
 
     private static (string Code, string Label, string Bias)? DetectAt(IList<Candle> candles, int i)

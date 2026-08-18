@@ -85,7 +85,7 @@
                     <label>Reversal threshold (5m RSI)</label>
                     <input type="number" step="0.1" @bind="ViewModel.IntradayConfig.RsiReversalThreshold" class="form-input" />
                 </div>
-                <p class="text-secondary">5m RSI below this → expect reversal; WAIT only if a bullish 5m pattern also prints.</p>
+                <p class="text-secondary">5m RSI below this → EXPECT REVERSAL. RSI below this + any bullish 5m pattern (last 5 bars) → WAIT (no new entry).</p>
             </div>
 
             <div class="strategy-section">
