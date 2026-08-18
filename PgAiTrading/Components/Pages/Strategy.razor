@@ -82,10 +82,14 @@
                     <input type="number" step="0.1" @bind="ViewModel.IntradayConfig.RsiBearThreshold" class="form-input" />
                 </div>
                 <div class="form-row">
+                    <label>Reversal RSI length (5m)</label>
+                    <input type="number" @bind="ViewModel.IntradayConfig.RsiReversalLength" class="form-input" />
+                </div>
+                <div class="form-row">
                     <label>Reversal threshold (5m RSI)</label>
                     <input type="number" step="0.1" @bind="ViewModel.IntradayConfig.RsiReversalThreshold" class="form-input" />
                 </div>
-                <p class="text-secondary">5m RSI below this → expect reversal; WAIT only if a bullish 5m pattern also prints.</p>
+                <p class="text-secondary">5m RSI(28) below threshold → EXPECT REVERSAL. Same + any bullish 5m pattern (last 5 bars) → WAIT.</p>
             </div>
 
             <div class="strategy-section">

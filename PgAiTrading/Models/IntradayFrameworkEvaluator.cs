@@ -11,7 +11,7 @@ public static class IntradayFrameworkEvaluator
         "Liquidity sweep → reclaim → 5M BOS (esp. strong chop)",
         "Footprint: delta + imbalances + absorption on sweep/entry",
         "5M BOS entry (ST 7,2.5 remains trailing stop)",
-        "5m RSI < 30 = expect reversal; WAIT only with bullish 5m pattern",
+        "5m RSI(28) < 30 = EXPECT REVERSAL; RSI(28) < 30 + bullish 5m pattern = WAIT",
         "MIS quantity sized to ~₹5,000 notional per stock",
         "Chart-only (not gates): Camarilla, CPR, TPO display"
     ];

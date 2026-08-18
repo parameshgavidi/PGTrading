@@ -296,33 +296,13 @@ public class TradeFrameworkEvaluatorTests
   }
 
   [Fact]
-  public void Ai_expect_reversal_is_advisory_not_wait()
-  {
-    var analysis = new MultiTimeframeAnalysis
-    {
-      ExpectReversal = true,
-      Rsi5M = 24m,
-      ReversalReason = "5m RSI 24 < 30 — expect reversal",
-      OverallScore = 70,
-      Strength = "Moderate Setup"
-    };
-
-    var rec = AiInsightHelper.BuildRecommendation(
-      new Signal { Trend = TrendDirection.Neutral },
-      analysis);
-
-    Assert.Equal("EXPECT REVERSAL", rec.ActionHeadline);
-    Assert.Equal("neutral", rec.ActionKind);
-  }
-
-  [Fact]
   public void Ai_wait_for_reversal_blocks_entry()
   {
     var analysis = new MultiTimeframeAnalysis
     {
       WaitForReversal = true,
       Rsi5M = 24m,
-      ReversalReason = "5m RSI 24 < 30 + Hammer",
+      ReversalReason = "5m RSI(28) 24 < 30 + Hammer → WAIT",
       OverallScore = 70,
       Strength = "Moderate Setup"
     };
@@ -333,6 +313,28 @@ public class TradeFrameworkEvaluatorTests
 
     Assert.Equal("WAIT", rec.ActionHeadline);
     Assert.Equal("wait", rec.ActionKind);
+    Assert.Contains("Hammer", rec.ActionDetail, StringComparison.OrdinalIgnoreCase);
+  }
+
+  [Fact]
+  public void Ai_expect_reversal_is_advisory_not_wait()
+  {
+    var analysis = new MultiTimeframeAnalysis
+    {
+      ExpectReversal = true,
+      Rsi5M = 26m,
+      ReversalReason = "5m RSI(28) 26 < 30 — expect reversal",
+      OverallScore = 70,
+      Strength = "Moderate Setup"
+    };
+
+    var rec = AiInsightHelper.BuildRecommendation(
+      new Signal { Trend = TrendDirection.Neutral },
+      analysis);
+
+    Assert.Equal("EXPECT REVERSAL", rec.ActionHeadline);
+    Assert.Equal("neutral", rec.ActionKind);
+    Assert.Contains("expect reversal", rec.ActionDetail, StringComparison.OrdinalIgnoreCase);
   }
 
   [Fact]

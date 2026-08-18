@@ -34,6 +34,7 @@ public class StrategyService : IStrategyService
         _settings.Strategy.RsiTrendLength = config.RsiTrendLength;
         _settings.Strategy.RsiBullThreshold = config.RsiBullThreshold;
         _settings.Strategy.RsiBearThreshold = config.RsiBearThreshold;
+        _settings.Strategy.RsiReversalLength = config.RsiReversalLength;
         _settings.Strategy.RsiReversalThreshold = config.RsiReversalThreshold;
         _settings.Strategy.AdxLength = config.AdxLength;
         _settings.Strategy.AdxWeakThreshold = config.AdxWeakThreshold;

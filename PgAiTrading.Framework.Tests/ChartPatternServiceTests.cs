@@ -135,6 +135,24 @@ public class ChartPatternServiceTests
     }
 
     [Fact]
+    public void TryGetRecentBullishPattern_finds_pattern_within_lookback()
+    {
+        var candles = new List<Candle>
+        {
+            Bar(100, 101, 90, 100.5m), // hammer (bullish)
+            Bar(100.5m, 102, 100, 101),
+            Bar(101, 103, 100.5m, 102)
+        };
+
+        _sut.ApplyPatterns(candles);
+
+        // Latest bars are not hammer; lookback of 3 should still find it.
+        Assert.True(_sut.TryGetRecentBullishPattern(candles, out var label, lookbackBars: 3));
+        Assert.Equal("Hammer", label);
+        Assert.False(_sut.TryGetLatestBullishPattern(candles, out _));
+    }
+
+    [Fact]
     public void TryGetLatestBullishPattern_true_for_hammer()
     {
         var candles = new List<Candle>

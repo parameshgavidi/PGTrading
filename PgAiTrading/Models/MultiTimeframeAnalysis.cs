@@ -45,14 +45,15 @@ public class MultiTimeframeAnalysis
     public MultiTimeframeStructure Structure { get; set; } = new();
     public LiquiditySweepAnalysis LiquiditySweep { get; set; } = new();
 
-    // G0: 5m RSI below threshold → expect reversal (advisory).
+    // G0: 5m RSI(28) below threshold → expect reversal (advisory).
     public bool ExpectReversal { get; set; }
 
-    // G0 WAIT: 5m RSI below threshold + bullish 5m pattern → no new entries.
+    // G0b WAIT: 5m RSI(28) below threshold + bullish 5m pattern → no new entries.
     public bool WaitForReversal { get; set; }
     public string? ReversalReason { get; set; }
     public string? BullishPatternLabel { get; set; }
 
+    /// <summary>5m RSI(28) used for G0/G0b reversal gate.</summary>
     public decimal Rsi5M { get; set; }
     public decimal Rsi15M { get; set; }
 
