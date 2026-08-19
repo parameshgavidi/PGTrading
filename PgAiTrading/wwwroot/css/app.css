@@ -3109,7 +3109,7 @@ code {
 }
 .sr-empty { padding: 12px; font-size: 13px; }
 
-/* Multi Chart — side-by-side panels with independent timeframes */
+/* Multi Chart — side-by-side or stacked panels with independent timeframes */
 .multi-chart-page {
     padding: 0;
 }
@@ -3119,11 +3119,73 @@ code {
     min-width: 0;
 }
 
+.multi-chart-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.multi-chart-layout-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.multi-chart-layout-icon {
+    display: grid;
+    gap: 2px;
+    width: 12px;
+    height: 10px;
+    flex-shrink: 0;
+}
+
+.multi-chart-layout-icon::before,
+.multi-chart-layout-icon::after {
+    content: "";
+    display: block;
+    border: 1px solid currentColor;
+    border-radius: 1px;
+    min-height: 0;
+}
+
+.multi-chart-layout-icon.side-by-side {
+    grid-template-columns: 1fr 1fr;
+}
+
+.multi-chart-layout-icon.side-by-side::before,
+.multi-chart-layout-icon.side-by-side::after {
+    height: 100%;
+}
+
+.multi-chart-layout-icon.stacked {
+    grid-template-rows: 1fr 1fr;
+}
+
+.multi-chart-layout-icon.stacked::before,
+.multi-chart-layout-icon.stacked::after {
+    width: 100%;
+}
+
 .multi-chart-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
     gap: 12px;
     margin-top: 8px;
+}
+
+.multi-chart-grid.side-by-side {
+    grid-template-columns: 1fr 1fr;
+}
+
+.multi-chart-grid.stacked {
+    grid-template-columns: 1fr;
+}
+
+.multi-chart-grid.stacked .chart-area.multi {
+    height: 420px;
 }
 
 .multi-chart-panel {
@@ -3165,12 +3227,16 @@ code {
 }
 
 @media (max-width: 1280px) {
-    .multi-chart-grid {
+    .multi-chart-grid.side-by-side {
         grid-template-columns: 1fr;
     }
 
     .chart-area.multi {
         height: 320px;
+    }
+
+    .multi-chart-grid.stacked .chart-area.multi {
+        height: 360px;
     }
 }
 
