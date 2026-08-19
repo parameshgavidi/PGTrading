@@ -8,6 +8,7 @@ public interface IUiLayoutService
     bool IsWatchlistCollapsed { get; }
     bool IsNiftyAccordionOpen { get; }
     bool IsFocusChart { get; }
+    bool IsMultiChartStacked { get; }
     event Action? Changed;
 
     Task InitializeAsync();
@@ -18,10 +19,13 @@ public interface IUiLayoutService
     Task ToggleNiftyAccordionAsync();
     Task SetNiftyAccordionOpenAsync(bool open);
     Task ToggleFocusChartAsync();
+    Task ToggleMultiChartStackedAsync();
+    Task SetMultiChartStackedAsync(bool stacked);
 }
 
 /// <summary>
-/// Shared layout preferences for chart-first UX: nav collapse, Nifty accordion, focus mode.
+/// Shared layout preferences for chart-first UX: nav collapse, Nifty accordion, focus mode,
+/// and multi-chart stacked vs side-by-side.
 /// Persisted in localStorage so the desk feels the same on relaunch.
 /// </summary>
 public sealed class UiLayoutService : IUiLayoutService
@@ -30,6 +34,7 @@ public sealed class UiLayoutService : IUiLayoutService
     private const string WatchKey = "pgaitrading.layout.watchlistCollapsed";
     private const string NiftyAccKey = "pgaitrading.layout.niftyAccordionOpen";
     private const string FocusKey = "pgaitrading.layout.focusChart";
+    private const string MultiChartStackedKey = "pgaitrading.layout.multiChartStacked";
 
     private readonly IJSRuntime _js;
     private bool _ready;
@@ -40,6 +45,7 @@ public sealed class UiLayoutService : IUiLayoutService
     public bool IsWatchlistCollapsed { get; private set; } = true; // side panel retired; keep collapsed
     public bool IsNiftyAccordionOpen { get; private set; } = false;
     public bool IsFocusChart { get; private set; }
+    public bool IsMultiChartStacked { get; private set; }
     public event Action? Changed;
 
     public UiLayoutService(IJSRuntime js)
@@ -58,6 +64,7 @@ public sealed class UiLayoutService : IUiLayoutService
             IsWatchlistCollapsed = true; // always use nav accordion instead of side panel
             IsNiftyAccordionOpen = await GetBoolAsync(NiftyAccKey, defaultValue: false);
             IsFocusChart = await GetBoolAsync(FocusKey);
+            IsMultiChartStacked = await GetBoolAsync(MultiChartStackedKey);
 
             if (IsFocusChart)
                 IsNavCollapsed = true;
@@ -138,6 +145,18 @@ public sealed class UiLayoutService : IUiLayoutService
         Changed?.Invoke();
     }
 
+    public Task ToggleMultiChartStackedAsync() => SetMultiChartStackedAsync(!IsMultiChartStacked);
+
+    public async Task SetMultiChartStackedAsync(bool stacked)
+    {
+        if (IsMultiChartStacked == stacked && _ready)
+            return;
+
+        IsMultiChartStacked = stacked;
+        await PersistAsync();
+        Changed?.Invoke();
+    }
+
     private async Task PersistAsync()
     {
         try
@@ -146,6 +165,7 @@ public sealed class UiLayoutService : IUiLayoutService
             await SetBoolAsync(WatchKey, IsWatchlistCollapsed);
             await SetBoolAsync(NiftyAccKey, IsNiftyAccordionOpen);
             await SetBoolAsync(FocusKey, IsFocusChart);
+            await SetBoolAsync(MultiChartStackedKey, IsMultiChartStacked);
         }
         catch
         {

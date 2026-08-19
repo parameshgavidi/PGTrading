@@ -1,10 +1,11 @@
 @page "/multi-chart"
 @inject MultiChartViewModel ViewModel
+@inject IUiLayoutService Layout
 @implements IDisposable
 
 <div class="multi-chart-page">
     <div class="multi-chart-main card">
-        <div class="chart-header">
+        <div class="chart-header multi-chart-header">
             <div class="instrument-info">
                 <div class="instrument-title-row">
                     <h2>@ViewModel.SelectedDisplayName</h2>
@@ -19,6 +20,24 @@
                     </span>
                 </div>
             </div>
+            <div class="multi-chart-layout-switch" role="group" aria-label="Chart layout">
+                <button type="button"
+                        class="layout-toggle @(!Layout.IsMultiChartStacked ? "active" : "")"
+                        title="Side by side"
+                        aria-pressed="@(!Layout.IsMultiChartStacked)"
+                        @onclick="() => SetLayoutAsync(stacked: false)">
+                    <span class="multi-chart-layout-icon side-by-side" aria-hidden="true"></span>
+                    <span class="layout-toggle-label">Side by side</span>
+                </button>
+                <button type="button"
+                        class="layout-toggle @(Layout.IsMultiChartStacked ? "active" : "")"
+                        title="Stacked vertically"
+                        aria-pressed="@Layout.IsMultiChartStacked"
+                        @onclick="() => SetLayoutAsync(stacked: true)">
+                    <span class="multi-chart-layout-icon stacked" aria-hidden="true"></span>
+                    <span class="layout-toggle-label">Stacked</span>
+                </button>
+            </div>
         </div>
 
         @if (!string.IsNullOrEmpty(ViewModel.StartupError))
@@ -30,7 +49,7 @@
             <div class="chart-meta">Loading charts…</div>
         }
 
-        <div class="multi-chart-grid">
+        <div class="multi-chart-grid @(Layout.IsMultiChartStacked ? "stacked" : "side-by-side")">
             <ChartPanelCard Panel="ViewModel.Panel5m"
                             Analysis="ViewModel.Analysis"
                             ViewModel="ViewModel" />
@@ -47,6 +66,7 @@
     protected override void OnInitialized()
     {
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        Layout.Changed += OnLayoutChanged;
         _refreshCts = new CancellationTokenSource();
         _ = LoadAsync();
         _ = RunRefreshLoopAsync(_refreshCts.Token);
@@ -57,6 +77,9 @@
         await ViewModel.InitializeAsync();
         await InvokeAsync(StateHasChanged);
     }
+
+    private async Task SetLayoutAsync(bool stacked) =>
+        await Layout.SetMultiChartStackedAsync(stacked);
 
     private async Task RunRefreshLoopAsync(CancellationToken cancellationToken)
     {
@@ -78,10 +101,13 @@
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
         InvokeAsync(StateHasChanged);
 
+    private void OnLayoutChanged() => InvokeAsync(StateHasChanged);
+
     public void Dispose()
     {
         _refreshCts?.Cancel();
         _refreshCts?.Dispose();
         ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        Layout.Changed -= OnLayoutChanged;
     }
 }
