@@ -3177,7 +3177,7 @@ code {
 }
 
 .multi-chart-grid.side-by-side {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
 .multi-chart-grid.stacked {
@@ -3226,17 +3226,23 @@ code {
     font-size: 11px;
 }
 
-@media (max-width: 1280px) {
+/* Keep Side by side as two columns whenever the user selects it.
+   Only drop to one column on very narrow phones where two panes are unusable. */
+@media (max-width: 720px) {
     .multi-chart-grid.side-by-side {
         grid-template-columns: 1fr;
     }
 
     .chart-area.multi {
-        height: 320px;
+        height: 300px;
     }
 
     .multi-chart-grid.stacked .chart-area.multi {
-        height: 360px;
+        height: 340px;
+    }
+
+    .multi-chart-layout-switch .layout-toggle-label {
+        display: none;
     }
 }
 
