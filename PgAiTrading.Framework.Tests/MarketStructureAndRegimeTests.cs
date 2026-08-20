@@ -83,6 +83,31 @@ public class MarketStructureAndRegimeTests
   }
 
   [Fact]
+  public void Ai_developing_surfaces_structure_vs_st_conflict()
+  {
+    var analysis = new MultiTimeframeAnalysis
+    {
+      MarketBias = TrendDirection.Neutral,
+      TradeDirection = TrendDirection.Neutral,
+      Trend1H = TrendDirection.Buy,
+      AboveVwap = true,
+      Regime = MarketRegime.DevelopingTrend,
+      Structure = new MultiTimeframeStructure
+      {
+        Structure1H = new MarketStructureAnalysis { Bias = StructureBias.Bearish, Summary = "Bearish (LH+LL)" }
+      },
+      FrameworkReady = false,
+      FrameworkStatus = "Wait — 1H structure vs SuperTrend conflict",
+      OverallScore = 54,
+      Strength = "Developing"
+    };
+
+    var rec = AiInsightHelper.BuildRecommendation(new Signal(), analysis);
+    Assert.Equal("WAIT STRUCTURE", rec.ActionHeadline);
+    Assert.Contains("structure vs SuperTrend", rec.ActionDetail, StringComparison.OrdinalIgnoreCase);
+  }
+
+  [Fact]
   public void Detects_bullish_hh_hl_structure()
   {
     // Explicit fractal swings: L1, H1, L2(higher), H2(higher)
