@@ -223,6 +223,123 @@ public class AiInsightHelperTests
     }
 
     [Fact]
+    public void Structure_vs_st_conflict_marks_st_fail_not_pass()
+    {
+        var analysis = new MultiTimeframeAnalysis
+        {
+            Trend1H = TrendDirection.Buy,
+            MarketBias = TrendDirection.Neutral,
+            AboveVwap = true,
+            Regime = MarketRegime.DevelopingTrend,
+            Structure = new MultiTimeframeStructure
+            {
+                Structure1H = new MarketStructureAnalysis
+                {
+                    Bias = StructureBias.Bearish,
+                    Summary = "Bearish (LH+LL)",
+                    HasLowerHigh = true,
+                    HasLowerLow = true
+                },
+                Structure15M = new MarketStructureAnalysis
+                {
+                    Bias = StructureBias.Bullish,
+                    Summary = "Bullish (HH+HL)",
+                    HasHigherHigh = true,
+                    HasHigherLow = true
+                }
+            },
+            Tpo = new TpoConfirmationAnalysis { BuyConfirmed = true, Summary = "Bull — above POC" },
+            FrameworkReady = false,
+            FrameworkStatus = "Wait — 1H structure vs SuperTrend conflict",
+            Adx = 28m,
+            RsiTrend = 47m
+        };
+
+        var checks = AiInsightHelper.BuildChecks(analysis);
+        Assert.Equal("pass", checks[0].State); // 1H structure directional
+        Assert.Equal("fail", checks[1].State); // ST opposes structure
+        Assert.Equal("fail", checks[2].State); // Above VWAP vs bearish structure
+        Assert.Equal("fail", checks[3].State); // 15M bullish vs 1H bearish
+        Assert.Equal("pass", checks[4].State); // ADX strong
+        Assert.Equal("pass", checks[5].State); // RSI mid expected in Developing
+        Assert.Equal("fail", checks[6].State); // Bull POC vs bearish structure
+
+        var recommendation = AiInsightHelper.BuildRecommendation(new Signal(), analysis);
+        Assert.Equal("WAIT STRUCTURE", recommendation.ActionHeadline);
+        Assert.Contains("structure vs SuperTrend", recommendation.ActionDetail, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Perfect_aligned_long_marks_core_checks_pass()
+    {
+        var analysis = new MultiTimeframeAnalysis
+        {
+            Trend1H = TrendDirection.Buy,
+            Trend15M = TrendDirection.Buy,
+            Trend5MEntry = TrendDirection.Buy,
+            MarketBias = TrendDirection.Buy,
+            TradeDirection = TrendDirection.Buy,
+            AboveVwap = true,
+            Regime = MarketRegime.TrendingBullish,
+            Adx = 28m,
+            RsiTrend = 61m,
+            Structure = new MultiTimeframeStructure
+            {
+                Structure1H = new MarketStructureAnalysis
+                {
+                    Bias = StructureBias.Bullish,
+                    Summary = "Bullish (HH+HL)",
+                    HasHigherHigh = true,
+                    HasHigherLow = true
+                },
+                Structure15M = new MarketStructureAnalysis
+                {
+                    Bias = StructureBias.Bullish,
+                    Summary = "Bullish (HH+HL)",
+                    HasHigherHigh = true,
+                    HasHigherLow = true,
+                    BosBullish = true,
+                    LatestEvent = StructureEvent.BosBullish
+                },
+                Structure5M = new MarketStructureAnalysis
+                {
+                    Bias = StructureBias.Bullish,
+                    BosBullish = true,
+                    LatestEvent = StructureEvent.BosBullish
+                }
+            },
+            TpoConfirmed = true,
+            Tpo = new TpoConfirmationAnalysis { BuyConfirmed = true, Summary = "Bull — above POC" },
+            EntryTriggered = true,
+            FootprintConfirmed = true,
+            Footprint = new FootprintAnalysis
+            {
+                PositiveDelta = true,
+                StackedBuyImbalance = true,
+                VolumeSource = "futures",
+                FuturesSymbol = "NIFTY26AUGFUT"
+            },
+            FrameworkReady = true,
+            FrameworkStatus = "Ready",
+            OverallScore = 88,
+            Strength = "Ready"
+        };
+
+        var checks = AiInsightHelper.BuildChecks(analysis);
+        Assert.All(checks.Take(7), c => Assert.Equal("pass", c.State));
+        Assert.Equal("pass", checks[8].State); // entry
+        Assert.Contains(checks, c => c.State == "pass" && (
+            c.Label.Contains("Footprint", StringComparison.OrdinalIgnoreCase)
+            || c.Label.Contains("Bullish", StringComparison.OrdinalIgnoreCase)
+            || c.Label.Contains("delta", StringComparison.OrdinalIgnoreCase)));
+
+        var signal = new Signal { Trend = TrendDirection.Buy, Target = "VAH" };
+        Assert.True(AiInsightHelper.IsPerfectEntry(analysis, signal));
+        var recommendation = AiInsightHelper.BuildRecommendation(signal, analysis);
+        Assert.Equal("buy", recommendation.ActionKind);
+    }
+
+    [Fact]
     public void IsPerfectEntry_true_when_framework_ready_and_buy_signal()
     {
         var analysis = new MultiTimeframeAnalysis { FrameworkReady = true };
