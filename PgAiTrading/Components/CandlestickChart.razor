@@ -6,9 +6,9 @@
 
 <div class="chart-area @CssClass" style="height: @(Height)px">
     <div class="chart-zoom-controls">
-        <button type="button" class="zoom-btn" title="Zoom in (time) — scroll wheel also zooms" @onclick="ZoomIn">+</button>
-        <button type="button" class="zoom-btn" title="Zoom out (time) — scroll wheel also zooms" @onclick="ZoomOut">−</button>
-        <button type="button" class="zoom-btn" title="Reset to default view (recent bars)" @onclick="ResetZoom">⟳</button>
+        <button type="button" class="zoom-btn" title="Zoom in — mouse wheel / trackpad scroll also zooms" @onclick="ZoomIn">+</button>
+        <button type="button" class="zoom-btn" title="Zoom out — mouse wheel / trackpad scroll also zooms" @onclick="ZoomOut">−</button>
+        <button type="button" class="zoom-btn" title="Reset view — left-drag to pan (time + price)" @onclick="ResetZoom">⟳</button>
     </div>
     <canvas id="@CanvasId" width="@Width" height="@Height"></canvas>
 </div>
