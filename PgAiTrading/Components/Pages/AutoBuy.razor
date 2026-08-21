@@ -23,7 +23,8 @@
         </div>
 
         <p class="text-secondary">
-            <strong>BUY only</strong> when <strong>ST(7,2.5) triggers Buy</strong> on the last completed candle.
+            <strong>BUY only</strong> when <strong>ST(7,2.5) triggers Buy</strong> on the last completed candle
+            of the <strong>row timeframe</strong> (e.g. <strong>1m</strong> = each closed 1-minute bar).
             Otherwise <strong>wait</strong> for the buy signal. Long CNC hold — never sells.
             <strong>Multiple NSE equities</strong> — each row has its own timeframe (1m/5m/15m), quantity, and max deploy cap.
             Starts automatically when the app opens if <strong>Master automation</strong> is on (no need to stay on this tab).
@@ -49,7 +50,8 @@
         <div class="framework-panel auto-buy-readiness">
             <div class="framework-panel-title">System readiness (shared gates)</div>
             <p class="text-secondary auto-buy-readiness-hint">
-                When these pass, automation can place orders. <strong>Each stock enters on its own</strong> ST(7,2.5) buy signal — see Status in the table below.
+                When these pass, automation can place orders. <strong>Each stock enters on its own</strong>
+                ST(7,2.5) buy signal for that row’s selected timeframe — see Status in the table below.
             </p>
             <ul class="framework-conditions compact">
                 @foreach (var check in ViewModel.GetReadinessChecks())
@@ -255,18 +257,22 @@
             <div class="modal-body">
                 <p class="text-secondary modal-intro">
                     <strong>Long entry only</strong> — places <strong>BUY CNC</strong> when <strong>ST(7, 2.5)</strong>
-                    turns <span class="buy">Buy</span> on the last completed candle (buy trigger).
+                    turns <span class="buy">Buy</span> on the last completed candle of the
+                    <strong>selected timeframe</strong> below (buy trigger).
                     Otherwise waits for the signal. Never sells or shorts.
                 </p>
 
                 <div class="form-row">
-                    <label for="ab-timeframe">Timeframe</label>
+                    <label for="ab-timeframe">Timeframe (ST trigger)</label>
                     <select id="ab-timeframe" class="form-input" @bind="_editRow.Timeframe">
                         @foreach (var tf in AutoBuyTimeframes.All)
                         {
                             <option value="@tf">@tf</option>
                         }
                     </select>
+                    <span class="text-secondary form-hint">
+                        ST(7, 2.5) uses only this candle size — 1m polls every ~5s so closes are not missed.
+                    </span>
                 </div>
 
                 <div class="form-row">
@@ -304,7 +310,7 @@
 
                 <ul class="framework-conditions compact">
                     <li>Per row: timeframe (1m/5m/15m), quantity, and max deploy apply only to that stock</li>
-                    <li>BUY when ST(7,2.5) triggers Buy on last closed bar — otherwise wait</li>
+                    <li>BUY when ST(7,2.5) triggers Buy on last closed bar of this timeframe — otherwise wait</li>
                     <li>No SELL orders — automation never exits or shorts</li>
                     <li>Uses last closed bar (not the live forming candle)</li>
                     <li>NSE equity CNC delivery only — no F&amp;O</li>
