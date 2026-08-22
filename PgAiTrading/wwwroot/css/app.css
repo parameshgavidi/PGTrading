@@ -1437,7 +1437,7 @@ button.nav-item-button {
 
 .chart-area canvas {
     display: block;
-    cursor: crosshair;
+    cursor: grab;
     touch-action: none;
     user-select: none;
 }
