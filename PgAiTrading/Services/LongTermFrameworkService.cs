@@ -10,6 +10,9 @@ public interface ILongTermFrameworkService
 
 public class LongTermFrameworkService : ILongTermFrameworkService
 {
+    /// <summary>Trading days in ~1 year — Chartink "Yearly High" lookback.</summary>
+    public const int YearlyHighLookbackDays = LongTermChartinkMath.YearlyHighLookbackDays;
+
     private readonly IMarketDataService _marketData;
     private readonly ISuperTrendService _superTrend;
     private readonly IIndicatorService _indicators;
@@ -54,7 +57,7 @@ public class LongTermFrameworkService : ILongTermFrameworkService
         var fundamentals = _fundamentals.GetFundamentals(symbol);
         var conditions = new List<FrameworkConditionResult>();
 
-        // Fail fast — no candle fetch when fundamentals are missing (most of NSE today).
+        // Fail fast — no candle fetch when fundamentals are missing.
         if (fundamentals is null)
         {
             conditions.Add(Condition("Fundamental data", false, "Unavailable for this symbol"));
@@ -67,10 +70,13 @@ public class LongTermFrameworkService : ILongTermFrameworkService
             };
         }
 
+        // Chartink: Quarterly Close / Yearly Book value — use last price before candles.
+        var priceToBook = fundamentals.ResolvePriceToBook(lastPrice);
+
         conditions.Add(Condition("Yearly ROE % > 15", fundamentals.RoePercent > cfg.MinRoePercent, $"{fundamentals.RoePercent:0.#}%"));
         conditions.Add(Condition("Yearly ROCE % > 15", fundamentals.RocePercent > cfg.MinRocePercent, $"{fundamentals.RocePercent:0.#}%"));
         conditions.Add(Condition("Debt/Equity < 1", fundamentals.DebtEquityRatio < cfg.MaxDebtEquityRatio, $"{fundamentals.DebtEquityRatio:0.##}"));
-        conditions.Add(Condition("P/B < 5", fundamentals.PriceToBook < cfg.MaxPriceToBook, $"{fundamentals.PriceToBook:0.##}"));
+        conditions.Add(Condition("Close / Book < 5", priceToBook < cfg.MaxPriceToBook, $"{priceToBook:0.##}"));
         conditions.Add(Condition("Market Cap > 1000 Cr", fundamentals.MarketCapCr > cfg.MinMarketCapCr, $"₹{fundamentals.MarketCapCr:N0} Cr"));
 
         // Cheap fundamental gate before historical candles.
@@ -93,7 +99,16 @@ public class LongTermFrameworkService : ILongTermFrameworkService
         if (daily.Count > 0)
         {
             var close = daily[^1].Close;
-            var yearlyHigh = daily.Max(c => c.High);
+            // Re-check P/B with session close (matches Chartink quarterly/latest close).
+            priceToBook = fundamentals.ResolvePriceToBook(close);
+            var pbCondition = conditions.FirstOrDefault(c => c.Name.StartsWith("Close / Book", StringComparison.Ordinal));
+            if (pbCondition is not null)
+            {
+                pbCondition.Passed = priceToBook < cfg.MaxPriceToBook;
+                pbCondition.Detail = $"{priceToBook:0.##}";
+            }
+
+            var yearlyHigh = LongTermChartinkMath.YearlyHigh(daily);
             var lowerBand = yearlyHigh * cfg.YearlyHighLowerBand;
             var upperBand = yearlyHigh * cfg.YearlyHighUpperBand;
             var volumeSma = _indicators.CalculateSmaVolume(daily, 20);
@@ -121,6 +136,10 @@ public class LongTermFrameworkService : ILongTermFrameworkService
                 var (_, weeklyStValues) = _superTrend.Calculate(weekly, cfg.SuperTrendPeriod, cfg.SuperTrendMultiplier);
                 var weeklySuperTrend = weeklyStValues.Count > 0 ? weeklyStValues[^1] : 0m;
                 conditions.Add(Condition("Weekly Close > Weekly ST(10,3)", weeklyClose > weeklySuperTrend, $"{weeklyClose:N2} vs {weeklySuperTrend:N2}"));
+            }
+            else
+            {
+                conditions.Add(Condition("Weekly Close > Weekly ST(10,3)", false, "No weekly data"));
             }
 
             var stopLoss = dailySuperTrend > 0 ? $"₹{dailySuperTrend:N2} (1D SuperTrend 10,3)" : "1D SuperTrend (10,3)";
@@ -155,6 +174,9 @@ public class LongTermFrameworkService : ILongTermFrameworkService
     {
         if (conditions.Any(c => c.Name.StartsWith("Fundamental", StringComparison.Ordinal) && !c.Passed))
             return "Fundamentals";
+
+        if (conditions.Any(c => c.Name.Contains("Book", StringComparison.Ordinal) && !c.Passed))
+            return "P/B";
 
         if (conditions.Any(c => c.Name.Contains("Weekly", StringComparison.Ordinal) && !c.Passed))
             return "Weekly ST";

@@ -33,6 +33,11 @@
     <Compile Include="../PgAiTrading/Services/IAutoBuyStore.cs" Link="Services/IAutoBuyStore.cs" />
     <Compile Include="../PgAiTrading/Services/ILongTermScanStore.cs" Link="Services/ILongTermScanStore.cs" />
     <Compile Include="../PgAiTrading/Services/FundamentalDataService.cs" Link="Services/FundamentalDataService.cs" />
+    <Compile Include="../PgAiTrading/Services/LongTermChartinkMath.cs" Link="Services/LongTermChartinkMath.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../PgAiTrading/Data/fundamentals.csv" Link="Data/fundamentals.csv" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../PgAiTrading/Data/fundamentals.csv')" />
   </ItemGroup>
 
 </Project>
