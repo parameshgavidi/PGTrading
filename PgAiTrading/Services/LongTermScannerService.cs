@@ -33,6 +33,7 @@ public class LongTermScannerService : ILongTermScannerService
     private readonly IZerodhaService _zerodha;
     private readonly ILongTermFrameworkService _longTermFramework;
     private readonly IFundamentalDataService _fundamentals;
+    private readonly INiftyIndexService _niftyIndex;
     private readonly IOrderExecutionService _orders;
     private readonly ILongTermScanStore _store;
     private readonly IUserContext _user;
@@ -53,6 +54,7 @@ public class LongTermScannerService : ILongTermScannerService
         IZerodhaService zerodha,
         ILongTermFrameworkService longTermFramework,
         IFundamentalDataService fundamentals,
+        INiftyIndexService niftyIndex,
         IOrderExecutionService orders,
         ILongTermScanStore store,
         IUserContext user)
@@ -60,6 +62,7 @@ public class LongTermScannerService : ILongTermScannerService
         _zerodha = zerodha;
         _longTermFramework = longTermFramework;
         _fundamentals = fundamentals;
+        _niftyIndex = niftyIndex;
         _orders = orders;
         _store = store;
         _user = user;
@@ -128,7 +131,10 @@ public class LongTermScannerService : ILongTermScannerService
 
         try
         {
-            var universe = (await _zerodha.GetNseEquitySymbolsAsync()).ToList();
+            // Chartink parity: Nifty 500 universe (fallback to full NSE if index list unavailable).
+            var universe = (await _niftyIndex.GetNifty500SymbolsAsync()).ToList();
+            if (universe.Count == 0)
+                universe = (await _zerodha.GetNseEquitySymbolsAsync()).ToList();
 
             // Only symbols with fundamental coverage can ever pass — skip the rest before quotes/candles.
             var candidates = universe
@@ -140,7 +146,7 @@ public class LongTermScannerService : ILongTermScannerService
             if (candidates.Count == 0)
                 candidates = universe;
 
-            ProgressMessage = $"Fetching quotes for {candidates.Count} candidates (of {universe.Count} NSE)..."
+            ProgressMessage = $"Fetching quotes for {candidates.Count} candidates (of {universe.Count} Nifty 500)..."
                 + (Items.Count > 0 ? " — prior results still shown." : string.Empty);
             Notify();
 
@@ -197,8 +203,8 @@ public class LongTermScannerService : ILongTermScannerService
 
             var scannedAt = DateTime.UtcNow;
             var status = ordered.Count > 0
-                ? $"Found {ordered.Count} match(es) — scanned {scanned}/{candidates.Count} candidates ({universe.Count} NSE)."
-                : $"No matches — scanned {scanned}/{candidates.Count} candidates ({universe.Count} NSE).";
+                ? $"Found {ordered.Count} match(es) — scanned {scanned}/{candidates.Count} candidates ({universe.Count} Nifty 500)."
+                : $"No matches — scanned {scanned}/{candidates.Count} candidates ({universe.Count} Nifty 500).";
 
             Items = ordered;
             LastScannedAtUtc = scannedAt;
@@ -263,7 +269,7 @@ public class LongTermScannerService : ILongTermScannerService
 
         _lastProgressNotifyUtc = now;
         ProgressMessage =
-            $"Long-term scan {symbol} ({scanned}/{candidateCount} candidates, {universeCount} NSE)..."
+            $"Long-term scan {symbol} ({scanned}/{candidateCount} candidates, {universeCount} Nifty 500)..."
             + (Items.Count > 0 ? " — prior results still shown." : string.Empty);
         Notify();
     }
