@@ -402,7 +402,8 @@ window.pgAiTradingChart = (function () {
             lastX: 0,
             lastY: 0,
             pointerId: null,
-            moved: false
+            moved: false,
+            xAcc: 0
         };
 
         function setPanningClass(on) {
@@ -416,11 +417,22 @@ window.pgAiTradingChart = (function () {
             if (!st) return;
             e.preventDefault();
             e.stopPropagation();
-            // Smooth, continuous zoom — use delta magnitude when available.
-            var intensity = Math.min(Math.abs(e.deltaY) / 100, 2.5);
-            var step = Math.pow(WHEEL_ZOOM_FACTOR, Math.max(intensity, 0.35));
-            const factor = e.deltaY < 0 ? step : 1 / step;
-            if (e.shiftKey || isPriceAxisEvent(canvas, e)) {
+
+            // Normalize wheel/trackpad deltas (pixels / lines / pages).
+            var raw = e.deltaY;
+            if (e.deltaMode === 1) raw *= 16;
+            else if (e.deltaMode === 2) raw *= 100;
+            // Some trackpads send mostly deltaX while pinching/scrolling sideways.
+            if (Math.abs(raw) < 0.01 && Math.abs(e.deltaX) > Math.abs(e.deltaY))
+                raw = e.deltaX;
+
+            var intensity = Math.min(Math.abs(raw) / 100, 2.5);
+            var step = Math.pow(WHEEL_ZOOM_FACTOR, Math.max(intensity, 0.28));
+            // Wheel up / pinch-out → zoom in (Kite / TradingView).
+            const factor = raw < 0 ? step : 1 / step;
+            // Price-axis or Shift+wheel → vertical price zoom; else time zoom.
+            // Ctrl/Meta+wheel (trackpad pinch) also time-zooms.
+            if ((e.shiftKey || isPriceAxisEvent(canvas, e)) && !e.ctrlKey && !e.metaKey) {
                 scaleYAt(id, factor);
             } else {
                 zoomAt(id, factor, e.clientX);
@@ -467,21 +479,29 @@ window.pgAiTradingChart = (function () {
         function beginDrag(e) {
             const st = states[id];
             if (!st) return;
+            // Ignore zoom toolbar clicks (+ / − / reset).
+            if (e.target && e.target.closest && e.target.closest('.chart-zoom-controls'))
+                return;
             if (e.button != null && e.button !== 0 && e.button !== 1 && e.button !== 2)
                 return;
 
             interaction.dragging = true;
             interaction.moved = false;
+            interaction.xAcc = 0;
             interaction.pointerId = e.pointerId != null ? e.pointerId : null;
             interaction.lastX = e.clientX;
             interaction.lastY = e.clientY;
 
+            // Kite-like modes:
+            // - drag on price axis / Shift → vertical price scale
+            // - left-drag on plot → free pan (time + price, all directions)
+            // - middle / right / Alt → price-only pan
             if (isPriceAxisEvent(canvas, e) || e.shiftKey) {
                 interaction.mode = 'yScale';
-            } else if (e.button === 1 || e.button === 2 || e.altKey || e.ctrlKey) {
+            } else if (e.button === 1 || e.button === 2 || e.altKey) {
                 interaction.mode = 'yPan';
             } else {
-                interaction.mode = 'xPan';
+                interaction.mode = 'pan';
             }
 
             setPanningClass(true);
@@ -489,8 +509,9 @@ window.pgAiTradingChart = (function () {
                 : interaction.mode === 'yPan' ? 'ns-resize'
                 : 'grabbing';
 
-            if (canvas.setPointerCapture && interaction.pointerId != null) {
-                try { canvas.setPointerCapture(interaction.pointerId); } catch (_) { /* ignore */ }
+            var captureEl = surface.setPointerCapture ? surface : canvas;
+            if (captureEl.setPointerCapture && interaction.pointerId != null) {
+                try { captureEl.setPointerCapture(interaction.pointerId); } catch (_) { /* ignore */ }
             }
             e.preventDefault();
         }
@@ -500,7 +521,7 @@ window.pgAiTradingChart = (function () {
             if (!st) return;
 
             if (!interaction.dragging) {
-                canvas.style.cursor = isPriceAxisEvent(canvas, e) ? 'ns-resize' : 'crosshair';
+                canvas.style.cursor = isPriceAxisEvent(canvas, e) ? 'ns-resize' : 'grab';
                 return;
             }
 
@@ -526,15 +547,27 @@ window.pgAiTradingChart = (function () {
                 return;
             }
 
-            // TradingView-style: drag right reveals older bars (offset increases).
-            const chartW = Math.max(canvas.clientWidth - CHART_PADDING.left - CHART_PADDING.right, 1);
-            const perBar = chartW / Math.max(st.count, 1);
-            const deltaBars = Math.round(dx / perBar);
-            if (deltaBars !== 0) {
-                st.offset = clamp(st.offset + deltaBars, 0, Math.max(0, st.candles.length - st.count));
+            // Free pan (Kite): left-drag moves time (X) and price (Y) together.
+            var didPan = false;
+            if (dx !== 0) {
+                const chartW = Math.max(canvas.clientWidth - CHART_PADDING.left - CHART_PADDING.right, 1);
+                const perBar = chartW / Math.max(st.count, 1);
+                // Sub-pixel accumulation so slow/fine drags still move the chart.
+                interaction.xAcc = (interaction.xAcc || 0) + dx / perBar;
+                const deltaBars = Math.trunc(interaction.xAcc);
+                if (deltaBars !== 0) {
+                    st.offset = clamp(st.offset + deltaBars, 0, Math.max(0, st.candles.length - st.count));
+                    interaction.xAcc -= deltaBars;
+                    didPan = true;
+                }
                 interaction.lastX = e.clientX;
-                scheduleRender(id);
             }
+            if (dy !== 0) {
+                panYByPixels(id, dy);
+                interaction.lastY = e.clientY;
+                didPan = true;
+            }
+            if (didPan) scheduleRender(id);
         }
 
         function endDrag(e) {
@@ -546,15 +579,17 @@ window.pgAiTradingChart = (function () {
                 return;
             }
 
-            if (canvas.releasePointerCapture && interaction.pointerId != null) {
-                try { canvas.releasePointerCapture(interaction.pointerId); } catch (_) { /* ignore */ }
+            var captureEl = surface.releasePointerCapture ? surface : canvas;
+            if (captureEl.releasePointerCapture && interaction.pointerId != null) {
+                try { captureEl.releasePointerCapture(interaction.pointerId); } catch (_) { /* ignore */ }
             }
 
             interaction.dragging = false;
             interaction.mode = null;
             interaction.pointerId = null;
+            interaction.xAcc = 0;
             setPanningClass(false);
-            canvas.style.cursor = 'crosshair';
+            canvas.style.cursor = 'grab';
         }
 
         // Bind on chart surface so wheel/drag works across the full plot, not only
@@ -566,11 +601,13 @@ window.pgAiTradingChart = (function () {
         surface.addEventListener('touchend', onTouchEnd);
         surface.addEventListener('touchcancel', onTouchEnd);
 
-        canvas.addEventListener('pointerdown', beginDrag);
+        // Pointer on surface so pan starts anywhere in the chart area (not only bitmap).
+        surface.addEventListener('pointerdown', beginDrag);
         window.addEventListener('pointermove', moveDrag);
         window.addEventListener('pointerup', endDrag);
         window.addEventListener('pointercancel', endDrag);
-        canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+        surface.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+        canvas.style.cursor = 'grab';
 
         if (typeof ResizeObserver !== 'undefined') {
             var ro = new ResizeObserver(function () {
