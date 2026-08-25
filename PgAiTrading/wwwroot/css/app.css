@@ -1442,7 +1442,8 @@ button.nav-item-button {
     user-select: none;
 }
 
-.chart-area.panning canvas { cursor: grabbing; }
+.chart-area.panning,
+.chart-area.panning canvas { cursor: grabbing !important; }
 
 .chart-zoom-controls {
     position: absolute;

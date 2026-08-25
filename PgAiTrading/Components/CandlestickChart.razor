@@ -631,5 +631,13 @@
     {
         _retryCts?.Cancel();
         _retryCts?.Dispose();
+        try
+        {
+            await JS.InvokeVoidAsync("pgAiTradingChartDestroy", CanvasId);
+        }
+        catch
+        {
+            // Chart script may already be unloaded.
+        }
     }
 }

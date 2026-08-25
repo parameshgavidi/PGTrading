@@ -6,7 +6,9 @@ window.pgAiTradingChart = (function () {
     const Y_SCALE_MAX = 20;
     const DEFAULT_VISIBLE_BARS = 100;
     const MIN_VISIBLE_BARS = 5;
-    const CHART_PADDING = { top: 10, right: 52, bottom: 22, left: 6 };
+    /** Empty bar slots to the right of the latest candle (Kite-style breathing room). */
+    const DEFAULT_RIGHT_PAD_BARS = 14;
+    const CHART_PADDING = { top: 10, right: 64, bottom: 22, left: 6 };
     const WHEEL_ZOOM_FACTOR = 1.12;
     const BUTTON_ZOOM_FACTOR = 1.22;
 
@@ -271,14 +273,40 @@ window.pgAiTradingChart = (function () {
 
     function isPriceAxisEvent(canvas, e) {
         const rect = canvas.getBoundingClientRect();
-        return e.clientX - rect.left >= rect.width - PRICE_AXIS_WIDTH;
+        var x = e.clientX;
+        if (x == null && e.touches && e.touches[0]) x = e.touches[0].clientX;
+        if (x == null && e.changedTouches && e.changedTouches[0]) x = e.changedTouches[0].clientX;
+        if (x == null) return false;
+        return x - rect.left >= rect.width - PRICE_AXIS_WIDTH;
     }
 
     function getChartView(st) {
         const candles = st.candles;
-        const start = clamp(candles.length - st.offset - st.count, 0, Math.max(0, candles.length - 1));
-        const end = clamp(candles.length - st.offset, 1, candles.length);
+        if (!candles || candles.length === 0) return [];
+        const maxDataOffset = Math.max(0, candles.length - st.count);
+        const dataOffset = clamp(st.offset, 0, maxDataOffset);
+        const start = clamp(candles.length - dataOffset - st.count, 0, Math.max(0, candles.length - 1));
+        const end = clamp(candles.length - dataOffset, 1, candles.length);
         return candles.slice(start, end);
+    }
+
+    /** Left/right empty slots for overscroll + default right breathing room. */
+    function getHorizontalPads(st, viewLen) {
+        const maxDataOffset = Math.max(0, st.candles.length - st.count);
+        const leftPad = Math.max(0, Math.round(st.offset - maxDataOffset));
+        const rightPad = DEFAULT_RIGHT_PAD_BARS + Math.max(0, Math.round(-st.offset));
+        const slots = Math.max(viewLen + leftPad + rightPad, 1);
+        return { leftPad: leftPad, rightPad: rightPad, slots: slots };
+    }
+
+    function getOffsetLimits(st) {
+        const maxDataOffset = Math.max(0, st.candles.length - st.count);
+        const overscroll = Math.max(8, Math.floor(st.count * 0.45));
+        return {
+            min: -overscroll,
+            max: maxDataOffset + Math.max(6, Math.floor(st.count * 0.25)),
+            maxDataOffset: maxDataOffset
+        };
     }
 
     function collectViewExtents(st, view) {
@@ -378,32 +406,52 @@ window.pgAiTradingChart = (function () {
 
     function panYByPixels(id, deltaYPixels) {
         const st = states[id];
-        if (!st || deltaYPixels === 0) return;
+        if (!st || deltaYPixels === 0) return false;
         const view = getChartView(st);
-        if (view.length === 0) return;
+        if (view.length === 0) return false;
         const canvas = st.canvas;
         const container = canvas.parentElement;
         const cssH = Math.max((container ? container.clientHeight : canvas.clientHeight) - 4, 240);
-        const chartH = cssH - CHART_PADDING.top - CHART_PADDING.bottom;
+        const chartH = Math.max(cssH - CHART_PADDING.top - CHART_PADDING.bottom, 1);
         const { visibleRange } = getVisiblePriceBounds(st, view);
         const pricePerPixel = visibleRange / chartH;
+        // Drag down → chart content follows hand (prices move up on screen).
         st.yPan = (st.yPan || 0) + deltaYPixels * pricePerPixel;
-        scheduleRender(id);
+        return true;
     }
 
     function ensureInteractions(canvas, id) {
-        if (canvas.dataset.pgBound === '1') return;
+        // Keep existing bindings across live candle redraws — only rebind on new canvas.
+        if (canvas.dataset.pgBound === '1'
+            && canvas._pgAbort
+            && canvas._pgAbort.signal
+            && !canvas._pgAbort.signal.aborted) {
+            return;
+        }
+
+        // Rebind cleanly when Blazor recreates the canvas/@key surface.
+        if (canvas._pgAbort) {
+            try { canvas._pgAbort.abort(); } catch (_) { /* ignore */ }
+        }
+        var surface = canvas.parentElement || canvas;
+        if (surface._pgAbort && surface._pgAbort !== canvas._pgAbort) {
+            try { surface._pgAbort.abort(); } catch (_) { /* ignore */ }
+        }
+
+        var ac = new AbortController();
+        canvas._pgAbort = ac;
+        surface._pgAbort = ac;
         canvas.dataset.pgBound = '1';
 
-        const surface = canvas.parentElement || canvas;
-        const interaction = {
+        var interaction = {
             dragging: false,
             mode: null,
             lastX: 0,
             lastY: 0,
             pointerId: null,
             moved: false,
-            xAcc: 0
+            xAcc: 0,
+            yAcc: 0
         };
 
         function setPanningClass(on) {
@@ -412,26 +460,31 @@ window.pgAiTradingChart = (function () {
             }
         }
 
+        function eventPoint(e) {
+            if (e.touches && e.touches.length) {
+                return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+            if (e.changedTouches && e.changedTouches.length) {
+                return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+            }
+            return { x: e.clientX, y: e.clientY };
+        }
+
         function onWheel(e) {
-            const st = states[id];
+            var st = states[id];
             if (!st) return;
             e.preventDefault();
             e.stopPropagation();
 
-            // Normalize wheel/trackpad deltas (pixels / lines / pages).
             var raw = e.deltaY;
             if (e.deltaMode === 1) raw *= 16;
             else if (e.deltaMode === 2) raw *= 100;
-            // Some trackpads send mostly deltaX while pinching/scrolling sideways.
             if (Math.abs(raw) < 0.01 && Math.abs(e.deltaX) > Math.abs(e.deltaY))
                 raw = e.deltaX;
 
             var intensity = Math.min(Math.abs(raw) / 100, 2.5);
             var step = Math.pow(WHEEL_ZOOM_FACTOR, Math.max(intensity, 0.28));
-            // Wheel up / pinch-out → zoom in (Kite / TradingView).
-            const factor = raw < 0 ? step : 1 / step;
-            // Price-axis or Shift+wheel → vertical price zoom; else time zoom.
-            // Ctrl/Meta+wheel (trackpad pinch) also time-zooms.
+            var factor = raw < 0 ? step : 1 / step;
             if ((e.shiftKey || isPriceAxisEvent(canvas, e)) && !e.ctrlKey && !e.metaKey) {
                 scaleYAt(id, factor);
             } else {
@@ -439,7 +492,6 @@ window.pgAiTradingChart = (function () {
             }
         }
 
-        // Pinch-to-zoom (trackpad / touch) for flexible chart scaling.
         var pinch = { active: false, startDist: 0, lastFactor: 1 };
         function touchDistance(touches) {
             if (!touches || touches.length < 2) return 0;
@@ -451,22 +503,38 @@ window.pgAiTradingChart = (function () {
             return (touches[0].clientX + touches[1].clientX) / 2;
         }
         function onTouchStart(e) {
-            if (!e.touches || e.touches.length !== 2) return;
-            pinch.active = true;
-            pinch.startDist = touchDistance(e.touches);
-            pinch.lastFactor = 1;
-            e.preventDefault();
+            if (!e.touches) return;
+            if (e.touches.length === 2) {
+                pinch.active = true;
+                pinch.startDist = touchDistance(e.touches);
+                pinch.lastFactor = 1;
+                interaction.dragging = false;
+                e.preventDefault();
+                return;
+            }
+            // One-finger pan only when PointerEvent is missing (otherwise pointerdown handles it).
+            if (e.touches.length === 1 && !pinch.active && typeof window.PointerEvent !== 'function') {
+                beginDrag(e);
+            }
         }
         function onTouchMove(e) {
-            if (!pinch.active || !e.touches || e.touches.length !== 2) return;
-            var dist = touchDistance(e.touches);
-            if (pinch.startDist < 8 || dist < 8) return;
-            var totalFactor = dist / pinch.startDist;
-            var step = totalFactor / pinch.lastFactor;
-            if (Math.abs(step - 1) < 0.01) return;
-            pinch.lastFactor = totalFactor;
-            zoomAt(id, step, pinchMidX(e.touches));
-            e.preventDefault();
+            if (pinch.active && e.touches && e.touches.length === 2) {
+                var dist = touchDistance(e.touches);
+                if (pinch.startDist >= 8 && dist >= 8) {
+                    var totalFactor = dist / pinch.startDist;
+                    var step = totalFactor / pinch.lastFactor;
+                    if (Math.abs(step - 1) >= 0.01) {
+                        pinch.lastFactor = totalFactor;
+                        zoomAt(id, step, pinchMidX(e.touches));
+                    }
+                }
+                e.preventDefault();
+                return;
+            }
+            if (interaction.dragging) {
+                moveDrag(e);
+                e.preventDefault();
+            }
         }
         function onTouchEnd(e) {
             if (!e.touches || e.touches.length < 2) {
@@ -474,28 +542,31 @@ window.pgAiTradingChart = (function () {
                 pinch.startDist = 0;
                 pinch.lastFactor = 1;
             }
+            if (!e.touches || e.touches.length === 0) {
+                endDrag(e);
+            }
         }
 
         function beginDrag(e) {
-            const st = states[id];
+            var st = states[id];
             if (!st) return;
-            // Ignore zoom toolbar clicks (+ / − / reset).
             if (e.target && e.target.closest && e.target.closest('.chart-zoom-controls'))
                 return;
-            if (e.button != null && e.button !== 0 && e.button !== 1 && e.button !== 2)
-                return;
+            // Ignore non-primary mouse buttons except middle/right (price pan).
+            if (e.pointerType === 'mouse' || e.type === 'mousedown') {
+                if (e.button != null && e.button !== 0 && e.button !== 1 && e.button !== 2)
+                    return;
+            }
 
+            var pt = eventPoint(e);
             interaction.dragging = true;
             interaction.moved = false;
             interaction.xAcc = 0;
-            interaction.pointerId = e.pointerId != null ? e.pointerId : null;
-            interaction.lastX = e.clientX;
-            interaction.lastY = e.clientY;
+            interaction.yAcc = 0;
+            interaction.pointerId = e.pointerId != null ? e.pointerId : 'mouse';
+            interaction.lastX = pt.x;
+            interaction.lastY = pt.y;
 
-            // Kite-like modes:
-            // - drag on price axis / Shift → vertical price scale
-            // - left-drag on plot → free pan (time + price, all directions)
-            // - middle / right / Alt → price-only pan
             if (isPriceAxisEvent(canvas, e) || e.shiftKey) {
                 interaction.mode = 'yScale';
             } else if (e.button === 1 || e.button === 2 || e.altKey) {
@@ -505,115 +576,137 @@ window.pgAiTradingChart = (function () {
             }
 
             setPanningClass(true);
-            canvas.style.cursor = interaction.mode === 'yScale' ? 'ns-resize'
-                : interaction.mode === 'yPan' ? 'ns-resize'
+            canvas.style.cursor = interaction.mode === 'yScale' || interaction.mode === 'yPan'
+                ? 'ns-resize'
                 : 'grabbing';
+            if (surface.style) surface.style.cursor = canvas.style.cursor;
 
-            var captureEl = surface.setPointerCapture ? surface : canvas;
-            if (captureEl.setPointerCapture && interaction.pointerId != null) {
-                try { captureEl.setPointerCapture(interaction.pointerId); } catch (_) { /* ignore */ }
-            }
-            e.preventDefault();
+            if (e.cancelable) e.preventDefault();
         }
 
         function moveDrag(e) {
-            const st = states[id];
+            var st = states[id];
             if (!st) return;
 
+            var pt = eventPoint(e);
             if (!interaction.dragging) {
                 canvas.style.cursor = isPriceAxisEvent(canvas, e) ? 'ns-resize' : 'grab';
                 return;
             }
 
-            const dx = e.clientX - interaction.lastX;
-            const dy = e.clientY - interaction.lastY;
-            if (dx !== 0 || dy !== 0) interaction.moved = true;
-
-            if (interaction.mode === 'yScale') {
-                if (dy !== 0) {
-                    const yScale = st.yScale != null ? st.yScale : 1;
-                    st.yScale = clamp(yScale * Math.pow(1.008, dy), Y_SCALE_MIN, Y_SCALE_MAX);
-                    interaction.lastY = e.clientY;
-                    scheduleRender(id);
-                }
-                return;
-            }
-
-            if (interaction.mode === 'yPan') {
-                if (dy !== 0) {
-                    panYByPixels(id, dy);
-                    interaction.lastY = e.clientY;
-                }
-                return;
-            }
-
-            // Free pan (Kite): left-drag moves time (X) and price (Y) together.
-            var didPan = false;
-            if (dx !== 0) {
-                const chartW = Math.max(canvas.clientWidth - CHART_PADDING.left - CHART_PADDING.right, 1);
-                const perBar = chartW / Math.max(st.count, 1);
-                // Sub-pixel accumulation so slow/fine drags still move the chart.
-                interaction.xAcc = (interaction.xAcc || 0) + dx / perBar;
-                const deltaBars = Math.trunc(interaction.xAcc);
-                if (deltaBars !== 0) {
-                    st.offset = clamp(st.offset + deltaBars, 0, Math.max(0, st.candles.length - st.count));
-                    interaction.xAcc -= deltaBars;
-                    didPan = true;
-                }
-                interaction.lastX = e.clientX;
-            }
-            if (dy !== 0) {
-                panYByPixels(id, dy);
-                interaction.lastY = e.clientY;
-                didPan = true;
-            }
-            if (didPan) scheduleRender(id);
-        }
-
-        function endDrag(e) {
-            if (!interaction.dragging) return;
-            if (interaction.pointerId != null
-                && e
-                && e.pointerId != null
+            // Ignore other pointers while one is dragging.
+            if (e.pointerId != null
+                && interaction.pointerId != null
+                && interaction.pointerId !== 'mouse'
                 && e.pointerId !== interaction.pointerId) {
                 return;
             }
 
-            var captureEl = surface.releasePointerCapture ? surface : canvas;
-            if (captureEl.releasePointerCapture && interaction.pointerId != null) {
-                try { captureEl.releasePointerCapture(interaction.pointerId); } catch (_) { /* ignore */ }
+            var dx = pt.x - interaction.lastX;
+            var dy = pt.y - interaction.lastY;
+            if (dx !== 0 || dy !== 0) interaction.moved = true;
+
+            if (interaction.mode === 'yScale') {
+                if (dy !== 0) {
+                    var yScale = st.yScale != null ? st.yScale : 1;
+                    st.yScale = clamp(yScale * Math.pow(1.008, dy), Y_SCALE_MIN, Y_SCALE_MAX);
+                    interaction.lastY = pt.y;
+                    scheduleRender(id);
+                }
+                if (e.cancelable) e.preventDefault();
+                return;
+            }
+
+            if (interaction.mode === 'yPan') {
+                if (dy !== 0 && panYByPixels(id, dy)) {
+                    interaction.lastY = pt.y;
+                    scheduleRender(id);
+                }
+                if (e.cancelable) e.preventDefault();
+                return;
+            }
+
+            // Free pan: time (X) + price (Y), with overscroll past live edge.
+            var didPan = false;
+            var container = canvas.parentElement;
+            var cssW = Math.max((container ? container.clientWidth : canvas.clientWidth) - 4, 320);
+            var chartW = Math.max(cssW - CHART_PADDING.left - CHART_PADDING.right, 1);
+            var pads = getHorizontalPads(st, Math.min(st.count, st.candles.length));
+            var perBar = chartW / Math.max(pads.slots, 1);
+
+            if (dx !== 0) {
+                interaction.xAcc += dx / Math.max(perBar, 0.001);
+                var deltaBars = Math.trunc(interaction.xAcc);
+                if (deltaBars !== 0) {
+                    var limits = getOffsetLimits(st);
+                    st.offset = clamp(st.offset + deltaBars, limits.min, limits.max);
+                    interaction.xAcc -= deltaBars;
+                    didPan = true;
+                }
+                interaction.lastX = pt.x;
+            }
+            if (dy !== 0 && panYByPixels(id, dy)) {
+                interaction.lastY = pt.y;
+                didPan = true;
+            }
+            if (didPan) scheduleRender(id);
+            if (e.cancelable) e.preventDefault();
+        }
+
+        function endDrag(e) {
+            if (!interaction.dragging) return;
+            if (e
+                && e.pointerId != null
+                && interaction.pointerId != null
+                && interaction.pointerId !== 'mouse'
+                && e.pointerId !== interaction.pointerId) {
+                return;
             }
 
             interaction.dragging = false;
             interaction.mode = null;
             interaction.pointerId = null;
             interaction.xAcc = 0;
+            interaction.yAcc = 0;
             setPanningClass(false);
             canvas.style.cursor = 'grab';
+            if (surface.style) surface.style.cursor = 'grab';
         }
 
-        // Bind on chart surface so wheel/drag works across the full plot, not only
-        // when the pointer is exactly on the canvas bitmap.
-        surface.addEventListener('wheel', onWheel, { passive: false });
-        canvas.addEventListener('wheel', onWheel, { passive: false });
-        surface.addEventListener('touchstart', onTouchStart, { passive: false });
-        surface.addEventListener('touchmove', onTouchMove, { passive: false });
-        surface.addEventListener('touchend', onTouchEnd);
-        surface.addEventListener('touchcancel', onTouchEnd);
+        var bindOpts = { signal: ac.signal, passive: false, capture: true };
 
-        // Pointer on surface so pan starts anywhere in the chart area (not only bitmap).
-        surface.addEventListener('pointerdown', beginDrag);
-        window.addEventListener('pointermove', moveDrag);
-        window.addEventListener('pointerup', endDrag);
-        window.addEventListener('pointercancel', endDrag);
-        surface.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+        surface.addEventListener('wheel', onWheel, bindOpts);
+        canvas.addEventListener('wheel', onWheel, bindOpts);
+
+        // Prefer PointerEvent only — binding mouse+pointer together doubles pan deltas in WebView2.
+        var usePointer = typeof window.PointerEvent === 'function';
+        if (usePointer) {
+            surface.addEventListener('pointerdown', beginDrag, bindOpts);
+            document.addEventListener('pointermove', moveDrag, bindOpts);
+            document.addEventListener('pointerup', endDrag, bindOpts);
+            document.addEventListener('pointercancel', endDrag, bindOpts);
+        } else {
+            surface.addEventListener('mousedown', beginDrag, bindOpts);
+            document.addEventListener('mousemove', moveDrag, bindOpts);
+            document.addEventListener('mouseup', endDrag, bindOpts);
+        }
+
+        // Touch: pinch zoom (2-finger) + one-finger pan when PointerEvent is unavailable.
+        surface.addEventListener('touchstart', onTouchStart, bindOpts);
+        surface.addEventListener('touchmove', onTouchMove, bindOpts);
+        surface.addEventListener('touchend', onTouchEnd, bindOpts);
+        surface.addEventListener('touchcancel', onTouchEnd, bindOpts);
+
+        surface.addEventListener('contextmenu', function (e) { e.preventDefault(); }, bindOpts);
         canvas.style.cursor = 'grab';
+        if (surface.style) surface.style.cursor = 'grab';
 
         if (typeof ResizeObserver !== 'undefined') {
             var ro = new ResizeObserver(function () {
                 if (states[id]) scheduleRender(id);
             });
             ro.observe(surface);
+            ac.signal.addEventListener('abort', function () { try { ro.disconnect(); } catch (_) { /* ignore */ } });
         }
     }
 
@@ -665,13 +758,15 @@ window.pgAiTradingChart = (function () {
             // Bars from the right edge to the anchor point before zoom.
             const barsFromRight = st.offset + oldCount * (1 - frac);
             st.count = newCount;
+            var limits = getOffsetLimits(st);
             st.offset = clamp(
                 Math.round(barsFromRight - newCount * (1 - frac)),
-                0,
-                Math.max(0, st.candles.length - newCount));
+                limits.min,
+                limits.max);
         } else {
             st.count = newCount;
-            st.offset = clamp(st.offset, 0, Math.max(0, st.candles.length - st.count));
+            var limits2 = getOffsetLimits(st);
+            st.offset = clamp(st.offset, limits2.min, limits2.max);
         }
         scheduleRender(id);
     }
@@ -1059,12 +1154,15 @@ window.pgAiTradingChart = (function () {
 
         let count, offset, yScale, yPan;
         if (prev && prev.timeframe === timeframe) {
-            count = clamp(prev.count, MIN_VISIBLE_BARS, normalized.length);
-            offset = clamp(prev.offset, 0, Math.max(0, normalized.length - count));
+            count = clamp(prev.count, MIN_VISIBLE_BARS, Math.max(MIN_VISIBLE_BARS, normalized.length));
             yScale = prev.yScale != null ? prev.yScale : 1;
             yPan = prev.yPan != null ? prev.yPan : 0;
+            // Preserve pan including negative overscroll (right empty space).
+            var tmp = { candles: normalized, count: count, offset: prev.offset };
+            var lim = getOffsetLimits(tmp);
+            offset = clamp(prev.offset, lim.min, lim.max);
         } else {
-            // Start zoomed to recent bars so mouse pan works immediately (TradingView-like).
+            // Start zoomed to recent bars with right-side breathing room.
             count = Math.min(normalized.length, DEFAULT_VISIBLE_BARS);
             offset = 0;
             yScale = 1;
@@ -1101,12 +1199,21 @@ window.pgAiTradingChart = (function () {
     function resetZoom(canvasId) {
         const st = states[canvasId];
         if (!st) return;
-        // TradingView-like: snap back to recent bars, not the entire history.
+        // TradingView-like: snap back to recent bars with right-side padding.
         st.count = Math.min(st.candles.length, DEFAULT_VISIBLE_BARS);
         st.offset = 0;
         st.yScale = 1;
         st.yPan = 0;
         scheduleRender(canvasId);
+    }
+
+    function destroy(canvasId) {
+        const st = states[canvasId];
+        if (st && st.canvas && st.canvas._pgAbort) {
+            try { st.canvas._pgAbort.abort(); } catch (_) { /* ignore */ }
+            delete st.canvas.dataset.pgBound;
+        }
+        delete states[canvasId];
     }
 
     function render(id) {
@@ -1142,11 +1249,12 @@ window.pgAiTradingChart = (function () {
         if (view.length === 0) return;
 
         const { visibleMax, visibleMin, visibleRange } = getVisiblePriceBounds(st, view);
-        const slot = chartW / view.length;
+        const pads = getHorizontalPads(st, view.length);
+        const slot = chartW / pads.slots;
         const candleWidth = Math.max(1.5, slot - 2);
 
         const toY = (price) => padding.top + ((visibleMax - price) / visibleRange) * chartH;
-        const toX = (i) => padding.left + slot * i + slot / 2;
+        const toX = (i) => padding.left + slot * (pads.leftPad + i) + slot / 2;
 
         if (st.showPoc && st.pocToday && !st.showIntradaCpr) {
             drawPocBackground(ctx, st.pocToday, padding, width, chartH, toY, true);
@@ -1458,7 +1566,8 @@ window.pgAiTradingChart = (function () {
         hasState: hasState,
         refreshAll: refreshAll,
         zoom: zoom,
-        resetZoom: resetZoom
+        resetZoom: resetZoom,
+        destroy: destroy
     };
 })();
 
@@ -1468,6 +1577,15 @@ window.pgAiTradingChartReady = function () {
 
 window.pgAiTradingChartHasState = function (canvasId) {
     return window.pgAiTradingChart && window.pgAiTradingChart.hasState(canvasId);
+};
+
+window.pgAiTradingChartDestroy = function (canvasId) {
+    try {
+        if (window.pgAiTradingChart && typeof window.pgAiTradingChart.destroy === 'function')
+            window.pgAiTradingChart.destroy(canvasId);
+    } catch (err) {
+        console.error('pgAiTradingChartDestroy failed', err);
+    }
 };
 
 window.pgAiTradingSetSt725Overlay = function (canvasId, show) {
