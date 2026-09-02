@@ -42,10 +42,10 @@ public static class AutoBuyReadiness
                 : "Enable automation on at least one row"));
 
         checks.Add(new("Long only — BUY CNC", true,
-            $"Each row: ST(7,2.5) Buy trigger → {AutoBuyDefaults.EntrySide} only · never sell"));
+            $"Each row: ST(7,2.5) Buy on its timeframe → {AutoBuyDefaults.EntrySide} only · never sell"));
 
         checks.Add(new("Per-stock entry", true,
-            "Each enabled row places BUY when that stock's ST(7,2.5) turns Buy on its timeframe — other rows do not block it"));
+            "Each enabled row places BUY when that stock's selected-TF ST(7,2.5) turns Buy — other rows do not block it"));
 
         if (enabledCount == 0)
         {

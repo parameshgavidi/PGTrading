@@ -14,9 +14,9 @@ public static class SuperTrendFlipHelper
     };
 
     /// <summary>
-    /// Index of the last fully closed candle. When the final candle is still forming
-    /// (market open and bar end &gt; now), excludes it. Outside market hours the last
-    /// candle from Zerodha is already closed — do not skip it, or overnight flips are missed.
+    /// Index of the last fully closed candle for the given timeframe. When the final candle is
+    /// still forming (market open and bar end &gt; now), excludes it. Outside market hours the
+    /// last candle from Zerodha is already closed — do not skip it, or overnight flips are missed.
     /// </summary>
     public static int GetLastClosedBarIndex(
         IReadOnlyList<Candle> candles,
@@ -58,7 +58,7 @@ public static class SuperTrendFlipHelper
     }
 
     /// <summary>
-    /// Bullish flip on the last completed candle.
+    /// Bullish flip on the last completed candle for the given timeframe.
     /// Long entry only: previous closed bar Sell, last closed bar Buy.
     /// </summary>
     public static bool DetectBullishFlipOnLastClosedBar(

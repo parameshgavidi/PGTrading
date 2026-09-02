@@ -36,8 +36,8 @@ public interface IAutoBuyService
 
 public class AutoBuyService : IAutoBuyService, IDisposable
 {
-    private const int MonitorIntervalSeconds = 20;
-    private const int CandleFetchCount = 120;
+    private const int DefaultMonitorIntervalSeconds = 20;
+    private const int CandleFetchCount = 200;
 
     private readonly IZerodhaService _zerodha;
     private readonly IMarketDataService _marketData;
@@ -332,6 +332,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             await RefreshDeployedAmountsAsync();
 
         existing.Exchange = "NSE";
+        var previousTimeframe = existing.Timeframe;
         existing.Timeframe = AutoBuyTimeframes.Normalize(row.Timeframe);
         existing.Lots = Math.Max(1, row.Lots);
         existing.MaxDeployAmount = Math.Max(0, row.MaxDeployAmount);
@@ -343,9 +344,24 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         else
             existing.AutomationEnabled = row.AutomationEnabled;
 
+        var timeframeChanged = !string.Equals(
+            previousTimeframe, existing.Timeframe, StringComparison.OrdinalIgnoreCase);
+        if (timeframeChanged)
+            ClearSymbolBarKeys(existing.Symbol);
+
         await SaveAsync();
-        StatusMessage = $"Updated {existing.Symbol}.";
+        StatusMessage = timeframeChanged
+            ? $"Updated {existing.Symbol} — ST(7,2.5) now on {existing.Timeframe} closed bars."
+            : $"Updated {existing.Symbol}.";
+
+        // Restart monitor so 1m rows poll faster immediately.
+        if (MasterAutomationEnabled)
+            EnsureMonitorRunning(forceRestart: timeframeChanged);
+
         Notify();
+
+        if (MasterAutomationEnabled && existing.AutomationEnabled)
+            await EvaluateAllRowsAsync();
     }
 
     public async Task SetRowAutomationAsync(string symbol, bool enabled)
@@ -525,15 +541,31 @@ public class AutoBuyService : IAutoBuyService, IDisposable
         _ = MonitorLoopAsync(_monitorCts.Token);
     }
 
-    private void EnsureMonitorRunning()
+    private void EnsureMonitorRunning(bool forceRestart = false)
     {
         if (!MasterAutomationEnabled)
             return;
 
-        if (_monitorCts is not null && !_monitorCts.IsCancellationRequested)
+        if (!forceRestart
+            && _monitorCts is not null
+            && !_monitorCts.IsCancellationRequested)
             return;
 
         StartMonitorLoop();
+    }
+
+    private int GetMonitorIntervalSeconds()
+    {
+        // Poll faster than the tightest enabled timeframe so 1m closes are not missed.
+        var enabled = _rows.Where(r => r.AutomationEnabled).Select(r => r.Timeframe).ToList();
+        if (enabled.Count == 0)
+            return DefaultMonitorIntervalSeconds;
+
+        if (enabled.Any(tf => tf == "1m"))
+            return 5;
+        if (enabled.Any(tf => tf == "5m"))
+            return 10;
+        return DefaultMonitorIntervalSeconds;
     }
 
     private async Task MonitorLoopAsync(CancellationToken cancellationToken)
@@ -543,7 +575,8 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             while (!cancellationToken.IsCancellationRequested)
             {
                 await EvaluateAllRowsAsync();
-                await Task.Delay(TimeSpan.FromSeconds(MonitorIntervalSeconds), cancellationToken);
+                var delaySeconds = GetMonitorIntervalSeconds();
+                await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
             }
         }
         catch (OperationCanceledException)
@@ -626,45 +659,49 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             if (await TryDisableAutomationForMaxAsync(row))
                 return;
 
+            var timeframe = AutoBuyTimeframes.Normalize(row.Timeframe);
+            row.Timeframe = timeframe;
+
             var instrument = InstrumentMapper.ToZerodhaKey(row.Symbol, row.Exchange);
             var candles = await _marketData.GetCandlesAsync(
                 instrument,
-                row.Timeframe,
+                timeframe,
                 CandleFetchCount);
 
             if (candles.Count < TrailingStopDefaults.Period + 4)
             {
                 row.Status = "No data";
-                row.Detail = $"Need more {row.Timeframe} candles for ST(7,2.5)";
+                row.Detail = $"Need more {timeframe} candles for ST(7,2.5)";
                 return;
             }
 
             var stPeriod = TrailingStopDefaults.Period;
             var stMult = TrailingStopDefaults.Multiplier;
             var getTrend = _superTrend.GetTrend;
+            // Zerodha candles are IST wall-clock — keep forming-bar checks in IST.
             var istNow = MarketHours.GetIstNow();
 
-            // Only the last completed bar: Sell→Buy cross (e.g. 5m candle close).
-            var lastBarTime = SuperTrendFlipHelper.GetLastClosedBarTime(candles, row.Timeframe, istNow);
+            // Only the last completed bar: Sell→Buy cross on the row timeframe.
+            var lastBarTime = SuperTrendFlipHelper.GetLastClosedBarTime(candles, timeframe, istNow);
             if (!lastBarTime.HasValue)
             {
                 row.Status = "No data";
-                row.Detail = "No closed candle for ST(7,2.5)";
+                row.Detail = $"No closed {timeframe} candle for ST(7,2.5)";
                 return;
             }
 
-            var barKey = BuildBarKey(row.Symbol, row.Timeframe, lastBarTime.Value);
+            var barKey = BuildBarKey(row.Symbol, timeframe, lastBarTime.Value);
             var stBuyTrigger = SuperTrendFlipHelper.IsBuyTriggerOnLastClosedBar(
-                candles, stPeriod, stMult, getTrend, row.Timeframe, istNow);
+                candles, stPeriod, stMult, getTrend, timeframe, istNow);
 
             // Drop pending from older bars once a new candle has closed.
-            ClearStalePendingBuys(row.Symbol, row.Timeframe, barKey);
+            ClearStalePendingBuys(row.Symbol, timeframe, barKey);
 
             if (_orderedBarKeys.Contains(barKey))
             {
                 _pendingBuyBarKeys.Remove(barKey);
                 row.Status = "Ordered";
-                row.Detail = "BUY already sent for this ST(7,2.5) cross — wait for next Sell→Buy";
+                row.Detail = $"BUY already sent for this {timeframe} ST(7,2.5) cross — wait for next Sell→Buy";
                 return;
             }
 
@@ -673,7 +710,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
                 _pendingBuyBarKeys.Remove(barKey);
 
                 var stNow = SuperTrendFlipHelper.GetTrendOnLastClosedBar(
-                    candles, stPeriod, stMult, getTrend, row.Timeframe, istNow);
+                    candles, stPeriod, stMult, getTrend, timeframe, istNow);
 
                 var deployNote = row.MaxDeployAmount > 0
                     ? $" · deployed ₹{row.DeployedAmount:N0} / ₹{row.MaxDeployAmount:N0}"
@@ -681,8 +718,8 @@ public class AutoBuyService : IAutoBuyService, IDisposable
 
                 row.Status = "Waiting";
                 row.Detail = stNow == TrendDirection.Buy
-                    ? $"{row.Timeframe} ST(7,2.5) already Buy — waiting for next Sell→Buy cross{deployNote}"
-                    : $"{row.Timeframe} ST(7,2.5) is {TrendUi.GetBiasLabel(stNow)} — waiting for Buy cross{deployNote}";
+                    ? $"{timeframe} ST(7,2.5) already Buy — waiting for next Sell→Buy cross{deployNote}"
+                    : $"{timeframe} ST(7,2.5) is {TrendUi.GetBiasLabel(stNow)} — waiting for Buy cross{deployNote}";
                 return;
             }
 
@@ -692,7 +729,7 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             var quantity = Math.Max(1, row.Lots);
             var limitPrice = await _zerodha.GetLtpAsync(instrument);
             if (limitPrice <= 0)
-                limitPrice = SuperTrendFlipHelper.GetLastClosedBarClose(candles, row.Timeframe, istNow);
+                limitPrice = SuperTrendFlipHelper.GetLastClosedBarClose(candles, timeframe, istNow);
 
             if (!AutoBuyReadiness.CanPlaceOrder(
                     row,
@@ -736,8 +773,8 @@ public class AutoBuyService : IAutoBuyService, IDisposable
                 return;
             }
 
-            // Claim this bar BEFORE placing so the 20s monitor loop cannot fire again
-            // while this cross is still the last closed bar (~until next 5m close).
+            // Claim this bar BEFORE placing so the monitor loop cannot fire again
+            // while this cross is still the last closed bar (~until next TF close).
             _orderedBarKeys.Add(barKey);
             _pendingBuyBarKeys.Remove(barKey);
 
@@ -758,8 +795,8 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             if (outcome.Success)
             {
                 row.Status = "Order placed";
-                row.Detail = $"BUY {quantity} CNC @ LIMIT {limitPrice:N2} — ST(7,2.5) cross · order {outcome.OrderId}";
-                StatusMessage = $"Auto Buy: order placed for {row.Symbol}";
+                row.Detail = $"BUY {quantity} CNC @ LIMIT {limitPrice:N2} — {timeframe} ST(7,2.5) cross · order {outcome.OrderId}";
+                StatusMessage = $"Auto Buy: order placed for {row.Symbol} ({timeframe})";
 
                 row.DeployedAmount = AutoBuyDeployHelper.GetDeployedAmount(
                     row.Symbol,
@@ -804,10 +841,23 @@ public class AutoBuyService : IAutoBuyService, IDisposable
             && !string.Equals(k, currentBarKey, StringComparison.OrdinalIgnoreCase));
     }
 
+    private void ClearSymbolBarKeys(string symbol)
+    {
+        var prefix = $"{symbol.ToUpperInvariant()}|";
+        _orderedBarKeys.RemoveWhere(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+        _pendingBuyBarKeys.RemoveWhere(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+    }
+
     private void LastRefreshMessage()
     {
         if (string.IsNullOrEmpty(StatusMessage) || StatusMessage.StartsWith("Auto Buy:", StringComparison.Ordinal))
-            StatusMessage = $"Monitoring {_rows.Count(r => r.AutomationEnabled)} symbol(s) — BUY when ST(7,2.5) turns Buy.";
+        {
+            var enabled = _rows.Where(r => r.AutomationEnabled).ToList();
+            var tfs = string.Join(", ", enabled.Select(r => $"{r.Symbol}@{r.Timeframe}").Distinct());
+            StatusMessage = enabled.Count == 0
+                ? "Master on — enable automation on a row to watch ST(7,2.5)."
+                : $"Monitoring {enabled.Count} symbol(s) on selected TF — BUY on Sell→Buy ({tfs}).";
+        }
     }
 
     private void Notify() => Updated?.Invoke();
