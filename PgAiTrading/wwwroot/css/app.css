@@ -2689,6 +2689,51 @@ button.symbol-chart-link.scanner-symbol-btn.active {
     border: 1px solid rgba(255, 82, 82, 0.45);
 }
 
+/* Chart-only market structure label (toggle) — not part of Analysis framework table */
+.market-structure-label {
+    margin: 0 0 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    background: var(--surface-inset, rgba(0, 0, 0, 0.18));
+    display: grid;
+    gap: 4px;
+}
+
+.market-structure-label-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+}
+
+.market-structure-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.market-structure-key {
+    flex-shrink: 0;
+    min-width: 28px;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.market-structure-val {
+    text-align: right;
+    color: var(--text);
+    min-width: 0;
+}
+
+.market-structure-val.buy { color: var(--buy); }
+.market-structure-val.sell { color: var(--sell); }
+
 .cpr-levels-strip {
     display: flex;
     flex-wrap: wrap;

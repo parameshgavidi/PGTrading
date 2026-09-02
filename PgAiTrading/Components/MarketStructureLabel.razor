@@ -1,0 +1,28 @@
+@namespace PgAiTrading.Components
+@using PgAiTrading.Models
+
+@if (Visible && Structure is not null)
+{
+    <div class="market-structure-label" title="Market structure (chart display only — not a framework gate)">
+        <div class="market-structure-label-title">Market structure</div>
+        <div class="market-structure-row">
+            <span class="market-structure-key">1H</span>
+            <span class="market-structure-val @TrendUi.GetClass(Structure.MajorDirection)">
+                @Structure.Structure1H.Summary
+            </span>
+        </div>
+        <div class="market-structure-row">
+            <span class="market-structure-key">15M</span>
+            <span class="market-structure-val">@Structure.Structure15M.Summary</span>
+        </div>
+        <div class="market-structure-row">
+            <span class="market-structure-key">5M</span>
+            <span class="market-structure-val">@Structure.Structure5M.Summary</span>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public MultiTimeframeStructure? Structure { get; set; }
+}

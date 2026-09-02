@@ -51,6 +51,8 @@ public class DashboardViewModel : INotifyPropertyChanged
     public bool ShowEma200Overlay { get; private set; } = false;
     public bool ShowVwapOverlay { get; private set; } = false;
     public bool ShowPatternsOverlay { get; private set; } = false;
+    /// <summary>Chart-only 1H/15M/5M structure label — not part of the Analysis framework table.</summary>
+    public bool ShowStructureLabel { get; private set; } = false;
     /// <summary>EMA / VWAP study toggles stay visible on every chart timeframe.</summary>
     public bool Supports5mStudyToggles => true;
     /// <summary>SuperTrend overlays stay visible on every chart timeframe.</summary>
@@ -442,6 +444,15 @@ public class DashboardViewModel : INotifyPropertyChanged
         Notify(nameof(OverlayVersion));
     }
 
+    public void SetShowStructureLabel(bool show)
+    {
+        if (ShowStructureLabel == show)
+            return;
+
+        ShowStructureLabel = show;
+        Notify(nameof(ShowStructureLabel));
+    }
+
     private async Task LoadChartAsync()
     {
         try
@@ -765,6 +776,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowEma200Overlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowVwapOverlay)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowPatternsOverlay)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowStructureLabel)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Supports5mStudyToggles)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SupportsIntradayStOverlays)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CprSegments)));

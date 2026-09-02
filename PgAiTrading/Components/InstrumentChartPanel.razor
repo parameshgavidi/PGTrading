@@ -24,6 +24,7 @@
                          ShowEma200="ViewModel.ShowEma200Overlay"
                          ShowVwap="ViewModel.ShowVwapOverlay"
                          ShowPatterns="ViewModel.ShowPatternsOverlay"
+                         ShowStructure="ViewModel.ShowStructureLabel"
                          ShowPocChanged="v => ViewModel.SetShowPocOverlay(v)"
                          ShowDayCprChanged="v => ViewModel.SetShowPivotOverlay(v)"
                          ShowCamarillaChanged="v => ViewModel.SetShowCamarillaOverlay(v)"
@@ -36,8 +37,11 @@
                          ShowEma50Changed="v => ViewModel.SetShowEma50Overlay(v)"
                          ShowEma200Changed="v => ViewModel.SetShowEma200Overlay(v)"
                          ShowVwapChanged="v => ViewModel.SetShowVwapOverlay(v)"
-                         ShowPatternsChanged="v => ViewModel.SetShowPatternsOverlay(v)" />
+                         ShowPatternsChanged="v => ViewModel.SetShowPatternsOverlay(v)"
+                         ShowStructureChanged="v => ViewModel.SetShowStructureLabel(v)" />
 </div>
+<MarketStructureLabel Visible="ViewModel.ShowStructureLabel"
+                      Structure="ViewModel.Analysis.Structure" />
 <CandlestickChart @key="@ChartSurfaceKey"
                   CanvasId="@CanvasId"
                   Candles="ViewModel.ChartCandles"

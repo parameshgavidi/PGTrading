@@ -67,6 +67,12 @@
             @onclick="TogglePatternsAsync">
         All patterns
     </button>
+    <button type="button"
+            class="btn overlay-toggle @(ShowStructure ? "active" : "")"
+            title="Show 1H / 15M / 5M market structure (display only — not a framework gate)"
+            @onclick="ToggleStructureAsync">
+        Structure
+    </button>
 </div>
 
 @code {
@@ -83,6 +89,7 @@
     [Parameter] public bool ShowEma200 { get; set; }
     [Parameter] public bool ShowVwap { get; set; }
     [Parameter] public bool ShowPatterns { get; set; }
+    [Parameter] public bool ShowStructure { get; set; }
     [Parameter] public EventCallback<bool> ShowPocChanged { get; set; }
     [Parameter] public EventCallback<bool> ShowDayCprChanged { get; set; }
     [Parameter] public EventCallback<bool> ShowCamarillaChanged { get; set; }
@@ -96,6 +103,7 @@
     [Parameter] public EventCallback<bool> ShowEma200Changed { get; set; }
     [Parameter] public EventCallback<bool> ShowVwapChanged { get; set; }
     [Parameter] public EventCallback<bool> ShowPatternsChanged { get; set; }
+    [Parameter] public EventCallback<bool> ShowStructureChanged { get; set; }
 
     private async Task TogglePocAsync() => await ShowPocChanged.InvokeAsync(!ShowPoc);
 
@@ -122,4 +130,6 @@
     private async Task ToggleVwapAsync() => await ShowVwapChanged.InvokeAsync(!ShowVwap);
 
     private async Task TogglePatternsAsync() => await ShowPatternsChanged.InvokeAsync(!ShowPatterns);
+
+    private async Task ToggleStructureAsync() => await ShowStructureChanged.InvokeAsync(!ShowStructure);
 }

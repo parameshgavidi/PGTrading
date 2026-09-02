@@ -22,6 +22,8 @@ public class ChartPanelModel
     public bool ShowEma200Overlay { get; set; } = false;
     public bool ShowVwapOverlay { get; set; } = false;
     public bool ShowPatternsOverlay { get; set; } = false;
+    /// <summary>Chart-only 1H/15M/5M structure label — not a framework gate.</summary>
+    public bool ShowStructureLabel { get; set; } = false;
     public IReadOnlyList<IntradayCprSegment> CprSegments { get; set; } = Array.Empty<IntradayCprSegment>();
     public bool AboveCpr { get; set; }
     public string? ChartDataMessage { get; set; }

@@ -234,6 +234,15 @@ public class MultiChartViewModel : INotifyPropertyChanged
         NotifyPanels();
     }
 
+    public void SetPanelShowStructure(ChartPanelModel panel, bool show)
+    {
+        if (panel.ShowStructureLabel == show)
+            return;
+
+        panel.ShowStructureLabel = show;
+        NotifyPanels();
+    }
+
     public async Task RefreshAsync()
     {
         await UpdatePriceAsync();

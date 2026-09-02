@@ -35,6 +35,7 @@
                              ShowEma200="Panel.ShowEma200Overlay"
                              ShowVwap="Panel.ShowVwapOverlay"
                              ShowPatterns="Panel.ShowPatternsOverlay"
+                             ShowStructure="Panel.ShowStructureLabel"
                              ShowPocChanged="v => OnShowPoc(v)"
                              ShowDayCprChanged="v => OnShowPivot(v)"
                              ShowCamarillaChanged="v => OnShowCamarilla(v)"
@@ -47,8 +48,11 @@
                              ShowEma50Changed="v => OnShowEma50(v)"
                              ShowEma200Changed="v => OnShowEma200(v)"
                              ShowVwapChanged="v => OnShowVwap(v)"
-                             ShowPatternsChanged="v => OnShowPatterns(v)" />
+                             ShowPatternsChanged="v => OnShowPatterns(v)"
+                             ShowStructureChanged="v => OnShowStructure(v)" />
     </div>
+    <MarketStructureLabel Visible="Panel.ShowStructureLabel"
+                          Structure="Analysis.Structure" />
     <CandlestickChart @key="@($"{Panel.CanvasId}|{Panel.SelectedTimeframe}")"
                       CanvasId="@Panel.CanvasId"
                       Candles="Panel.ChartCandles"
@@ -158,4 +162,5 @@
     private void OnShowEma200(bool v) => ViewModel.SetPanelShowEma200(Panel, v);
     private void OnShowVwap(bool v) => ViewModel.SetPanelShowVwap(Panel, v);
     private void OnShowPatterns(bool v) => ViewModel.SetPanelShowPatterns(Panel, v);
+    private void OnShowStructure(bool v) => ViewModel.SetPanelShowStructure(Panel, v);
 }
