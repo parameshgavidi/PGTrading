@@ -130,6 +130,115 @@ public static class CamarillaCalculator
   }
 
   /// <summary>
+  /// TradingView-style historical Camarilla: stepped levels per pivot period (default ~15 lookback).
+  /// Each segment uses the previous completed period H/L/C and spans the following period.
+  /// </summary>
+  public static IReadOnlyList<CamarillaSegment> BuildHistory(
+      string? chartTimeframe,
+      IReadOnlyList<Candle> chartCandles,
+      IReadOnlyList<Candle> dailyCandles,
+      decimal referencePrice,
+      DateTime? asOfDate = null,
+      int lookbackPeriods = 15)
+  {
+    var pivotTf = ResolvePivotTimeframe(chartTimeframe);
+    var asOf = (asOfDate ?? DateTime.Today).Date;
+    var periodBars = GetPeriodBars(chartTimeframe, chartCandles, dailyCandles, pivotTf);
+    if (periodBars.Count < 2)
+      return Array.Empty<CamarillaSegment>();
+
+    var usable = periodBars
+        .Where(b => b.High > b.Low && b.Close > 0)
+        .Where(b => referencePrice <= 0 || IsLooseHistoryBar(b, referencePrice))
+        .OrderBy(b => b.Timestamp)
+        .ToList();
+
+    if (usable.Count < 2)
+      return Array.Empty<CamarillaSegment>();
+
+    var segments = new List<CamarillaSegment>();
+    var startIndex = Math.Max(0, usable.Count - lookbackPeriods - 1);
+
+    for (var i = startIndex; i < usable.Count - 1; i++)
+    {
+      var source = usable[i];
+      var active = usable[i + 1];
+      var levels = FromPreviousDay(source, pivotTf);
+      if (!levels.HasData)
+        continue;
+
+      var start = PeriodStart(active.Timestamp, pivotTf);
+      var end = i + 2 < usable.Count
+          ? PeriodStart(usable[i + 2].Timestamp, pivotTf)
+          : PeriodEnd(start, pivotTf);
+
+      // Current (possibly incomplete) period: extend far enough to cover live candles.
+      if (i == usable.Count - 2 && !IsCompletedPeriodBar(active, pivotTf, asOf))
+        end = PeriodEnd(asOf, pivotTf);
+
+      if (end <= start)
+        end = PeriodEnd(start, pivotTf);
+
+      segments.Add(new CamarillaSegment(
+          start,
+          end,
+          levels.H4,
+          levels.H3,
+          levels.Pivot,
+          levels.L3,
+          levels.L4));
+    }
+
+    return segments;
+  }
+
+  private static List<Candle> GetPeriodBars(
+      string? chartTimeframe,
+      IReadOnlyList<Candle> chartCandles,
+      IReadOnlyList<Candle> dailyCandles,
+      string pivotTf)
+  {
+    if (pivotTf == "1D")
+      return (dailyCandles.Count > 0 ? dailyCandles : chartCandles)
+          .OrderBy(c => c.Timestamp)
+          .ToList();
+
+    if (pivotTf == "1W")
+    {
+      if (string.Equals(chartTimeframe, "1W", StringComparison.OrdinalIgnoreCase)
+          && chartCandles.Count >= 2)
+        return chartCandles.OrderBy(c => c.Timestamp).ToList();
+
+      return ToWeeklyBars(dailyCandles.Count > 0 ? dailyCandles : chartCandles);
+    }
+
+    return ToMonthlyBars(dailyCandles.Count > 0 ? dailyCandles : chartCandles);
+  }
+
+  /// <summary>Wider than session plausibility so historical steps survive mild price drift.</summary>
+  private static bool IsLooseHistoryBar(Candle bar, decimal referencePrice)
+  {
+    var ratio = bar.Close / referencePrice;
+    return ratio >= 0.55m && ratio <= 1.85m;
+  }
+
+  private static DateTime PeriodStart(DateTime timestamp, string pivotTf) =>
+      pivotTf switch
+      {
+          "1W" => GetWeekStart(timestamp),
+          "1M" => new DateTime(timestamp.Year, timestamp.Month, 1),
+          _ => timestamp.Date
+      };
+
+  private static DateTime PeriodEnd(DateTime timestamp, string pivotTf) =>
+      pivotTf switch
+      {
+          "1W" => PeriodStart(timestamp, pivotTf).AddDays(7),
+          "1M" => PeriodStart(timestamp, pivotTf).AddMonths(1),
+          _ => timestamp.Date.AddDays(1)
+      };
+
+  /// <summary>
   /// Build Camarilla from the best available previous session bar (daily pivot period).
   /// Prefers completed daily candles near <paramref name="referencePrice"/>;
   /// falls back to aggregating the prior intraday session — never a single 1H bar.

@@ -335,6 +335,11 @@ window.pgAiTradingChart = (function () {
                 intradayPrices.push(Number(s.tc), Number(s.pivot), Number(s.bc));
             });
         }
+        if (st.showCamarilla && st.camarillaSegments) {
+            st.camarillaSegments.forEach(function (s) {
+                intradayPrices.push(Number(s.r4), Number(s.r3), Number(s.pivot), Number(s.s3), Number(s.s4));
+            });
+        }
         intradayPrices = intradayPrices.filter(function (v) {
             return !Number.isNaN(v) && v > 0 && Math.abs(v - candleMid) / candleMid <= 0.35;
         });
@@ -895,6 +900,19 @@ window.pgAiTradingChart = (function () {
         };
     }
 
+    function normalizeCamarillaSegment(raw) {
+        if (!raw) return raw;
+        return {
+            start: field(raw, 'start'),
+            end: field(raw, 'end'),
+            r4: num(field(raw, 'r4') ?? field(raw, 'R4')),
+            r3: num(field(raw, 'r3') ?? field(raw, 'R3')),
+            pivot: num(field(raw, 'pivot')),
+            s3: num(field(raw, 's3') ?? field(raw, 'S3')),
+            s4: num(field(raw, 's4') ?? field(raw, 'S4'))
+        };
+    }
+
     function utcDayStartMs(date) {
         return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
     }
@@ -1000,6 +1018,81 @@ window.pgAiTradingChart = (function () {
             ctx.lineTo(x0, padding.top + chartH);
             ctx.stroke();
             ctx.setLineDash([]);
+        });
+    }
+
+    function formatCamPrice(price) {
+        if (!(price > 0)) return '';
+        return price >= 100 ? price.toFixed(1) : price.toFixed(2);
+    }
+
+    function drawCamarillaStyleLine(ctx, x0, x1, y, label) {
+        var color = 'rgba(255, 150, 110, 0.95)';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(x0, y);
+        ctx.lineTo(x1, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        if (label)
+            drawLevelLabel(ctx, x0 + 2, y, label, color);
+    }
+
+    /** TradingView Pivots Camarilla Auto — stepped R4/R3/PP/S3/S4 per pivot period. */
+    function drawCamarillaSegments(ctx, view, segments, padding, chartH, slot, toY, toX) {
+        if (!segments || segments.length === 0 || !view.length) return;
+
+        var lastR4 = null;
+        var lastR3 = null;
+        var lastPivot = null;
+        var lastS3 = null;
+        var lastS4 = null;
+        var top = padding.top;
+        var bottom = padding.top + chartH;
+
+        segments.forEach(function (seg) {
+            var start = parseTime(seg.start);
+            var end = parseTime(seg.end);
+            if (!start || !end) return;
+
+            var iStart = -1, iEnd = -1;
+            view.forEach(function (candle, i) {
+                var t = parseTime(candle.time);
+                if (!t) return;
+                if (t >= start && t < end) {
+                    if (iStart < 0) iStart = i;
+                    iEnd = i;
+                }
+            });
+
+            if (iStart < 0 || iEnd < 0) return;
+
+            var x0 = toX(iStart) - slot / 2;
+            var x1 = toX(iEnd) + slot / 2;
+            var r4 = Number(seg.r4);
+            var r3 = Number(seg.r3);
+            var pivot = Number(seg.pivot);
+            var s3 = Number(seg.s3);
+            var s4 = Number(seg.s4);
+
+            function maybeDraw(price, prev, labelBase) {
+                if (Number.isNaN(price) || !(price > 0)) return prev;
+                var y = toY(price);
+                if (y < top - 4 || y > bottom + 4) return prev;
+                var label = cprLevelChanged(prev, price)
+                    ? (labelBase + ' (' + formatCamPrice(price) + ')')
+                    : null;
+                drawCamarillaStyleLine(ctx, x0, x1, y, label);
+                return price;
+            }
+
+            lastR4 = maybeDraw(r4, lastR4, 'R4');
+            lastR3 = maybeDraw(r3, lastR3, 'R3');
+            lastPivot = maybeDraw(pivot, lastPivot, 'PP');
+            lastS3 = maybeDraw(s3, lastS3, 'S3');
+            lastS4 = maybeDraw(s4, lastS4, 'S4');
         });
     }
 
@@ -1146,6 +1239,7 @@ window.pgAiTradingChart = (function () {
         const showPivot = overlayFlag(opts, 'showPivot', true);
         const showCamarilla = overlayFlag(opts, 'showCamarilla', true);
         const intradayCprSegments = (opts.intradayCpr || opts.IntradayCpr || []).map(normalizeCprSegment);
+        const camarillaSegments = (opts.camarillaSegments || opts.CamarillaSegments || []).map(normalizeCamarillaSegment);
         const showIntradaCpr = overlayFlag(opts, 'showIntradaCpr', false)
             && intradayCprSegments.length > 0;
         const showKeltner = overlayFlag(opts, 'showKeltner', false);
@@ -1195,6 +1289,7 @@ window.pgAiTradingChart = (function () {
             showCamarilla: showCamarilla,
             showIntradaCpr: showIntradaCpr,
             intradayCprSegments: intradayCprSegments,
+            camarillaSegments: camarillaSegments,
             showKeltner: showKeltner,
             showVwap: showVwap,
             showSuperTrend: showSuperTrend,
@@ -1414,6 +1509,11 @@ window.pgAiTradingChart = (function () {
             drawIntradaCprLevels(ctx, view, st.intradayCprSegments, padding, chartH, slot, toY, toX);
         }
 
+        // TradingView Camarilla Auto — stepped historical periods
+        if (st.showCamarilla && st.camarillaSegments && st.camarillaSegments.length > 0) {
+            drawCamarillaSegments(ctx, view, st.camarillaSegments, padding, chartH, slot, toY, toX);
+        }
+
         // Study overlays drawn after candles so lines stay visible on top of bodies.
         if (st.showKeltner) {
             drawLine('keltnerUpperOuter', 'rgba(120,144,255,0.55)');
@@ -1464,6 +1564,10 @@ window.pgAiTradingChart = (function () {
         st.showCamarilla = overlayFlag(opts, 'showCamarilla', st.showCamarilla);
         st.showIntradaCpr = overlayFlag(opts, 'showIntradaCpr', false)
             && (opts.intradayCpr || opts.IntradayCpr || st.intradayCprSegments || []).length > 0;
+        if (opts.camarillaSegments || opts.CamarillaSegments) {
+            st.camarillaSegments = (opts.camarillaSegments || opts.CamarillaSegments || [])
+                .map(normalizeCamarillaSegment);
+        }
         st.showKeltner = overlayFlag(opts, 'showKeltner', false);
         st.showVwap = overlayFlag(opts, 'showVwap', false);
         st.showSuperTrend = overlayFlag(opts, 'showSuperTrend', false);
