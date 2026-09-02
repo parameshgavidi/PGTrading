@@ -6,8 +6,8 @@ window.pgAiTradingChart = (function () {
     const Y_SCALE_MAX = 20;
     const DEFAULT_VISIBLE_BARS = 100;
     const MIN_VISIBLE_BARS = 5;
-    /** Empty bar slots to the right of the latest candle (Kite-style breathing room). */
-    const DEFAULT_RIGHT_PAD_BARS = 14;
+    /** Static pixel gap between the last candle and the price axis (does not grow on zoom). */
+    const RIGHT_EDGE_PAD_PX = 5;
     const CHART_PADDING = { top: 10, right: 64, bottom: 22, left: 6 };
     const WHEEL_ZOOM_FACTOR = 1.12;
     const BUTTON_ZOOM_FACTOR = 1.22;
@@ -290,13 +290,19 @@ window.pgAiTradingChart = (function () {
         return candles.slice(start, end);
     }
 
-    /** Left/right empty slots for overscroll + default right breathing room. */
+    /** Left/right empty slots for overscroll only (no default right bar padding). */
     function getHorizontalPads(st, viewLen) {
         const maxDataOffset = Math.max(0, st.candles.length - st.count);
         const leftPad = Math.max(0, Math.round(st.offset - maxDataOffset));
-        const rightPad = DEFAULT_RIGHT_PAD_BARS + Math.max(0, Math.round(-st.offset));
+        // Empty right slots only when the user pans past the live edge.
+        const rightPad = Math.max(0, Math.round(-st.offset));
         const slots = Math.max(viewLen + leftPad + rightPad, 1);
         return { leftPad: leftPad, rightPad: rightPad, slots: slots };
+    }
+
+    /** Plot width inside the pane, after reserving the static right-edge gap. */
+    function getPlotWidth(chartW) {
+        return Math.max(chartW - RIGHT_EDGE_PAD_PX, 1);
     }
 
     function getOffsetLimits(st) {
@@ -632,7 +638,7 @@ window.pgAiTradingChart = (function () {
             var cssW = Math.max((container ? container.clientWidth : canvas.clientWidth) - 4, 320);
             var chartW = Math.max(cssW - CHART_PADDING.left - CHART_PADDING.right, 1);
             var pads = getHorizontalPads(st, Math.min(st.count, st.candles.length));
-            var perBar = chartW / Math.max(pads.slots, 1);
+            var perBar = getPlotWidth(chartW) / Math.max(pads.slots, 1);
 
             if (dx !== 0) {
                 interaction.xAcc += dx / Math.max(perBar, 0.001);
@@ -751,20 +757,30 @@ window.pgAiTradingChart = (function () {
             Math.max(MIN_VISIBLE_BARS, st.candles.length));
         if (newCount === oldCount) return;
 
+        st.count = newCount;
+
+        // Stay pinned to the live edge so zoom never invents right-side whitespace.
+        // Overscroll empty space is only created by explicit pan past the live edge.
+        if (st.offset === 0) {
+            scheduleRender(id);
+            return;
+        }
+
         if (anchorClientX != null && st.canvas) {
             const rect = st.canvas.getBoundingClientRect();
             const chartW = Math.max(rect.width - CHART_PADDING.left - CHART_PADDING.right, 1);
-            const frac = clamp((anchorClientX - rect.left - CHART_PADDING.left) / chartW, 0, 1);
+            const plotW = getPlotWidth(chartW);
+            const frac = clamp((anchorClientX - rect.left - CHART_PADDING.left) / plotW, 0, 1);
             // Bars from the right edge to the anchor point before zoom.
             const barsFromRight = st.offset + oldCount * (1 - frac);
-            st.count = newCount;
             var limits = getOffsetLimits(st);
+            // If we were not overscrolled, do not introduce overscroll via zoom.
+            var minOff = st.offset > 0 ? 0 : limits.min;
             st.offset = clamp(
                 Math.round(barsFromRight - newCount * (1 - frac)),
-                limits.min,
+                minOff,
                 limits.max);
         } else {
-            st.count = newCount;
             var limits2 = getOffsetLimits(st);
             st.offset = clamp(st.offset, limits2.min, limits2.max);
         }
@@ -1162,7 +1178,7 @@ window.pgAiTradingChart = (function () {
             var lim = getOffsetLimits(tmp);
             offset = clamp(prev.offset, lim.min, lim.max);
         } else {
-            // Start zoomed to recent bars with right-side breathing room.
+            // Start zoomed to recent bars with static right-edge padding.
             count = Math.min(normalized.length, DEFAULT_VISIBLE_BARS);
             offset = 0;
             yScale = 1;
@@ -1199,7 +1215,7 @@ window.pgAiTradingChart = (function () {
     function resetZoom(canvasId) {
         const st = states[canvasId];
         if (!st) return;
-        // TradingView-like: snap back to recent bars with right-side padding.
+        // TradingView-like: snap back to recent bars with static right-edge padding.
         st.count = Math.min(st.candles.length, DEFAULT_VISIBLE_BARS);
         st.offset = 0;
         st.yScale = 1;
@@ -1239,6 +1255,7 @@ window.pgAiTradingChart = (function () {
         const padding = CHART_PADDING;
         const chartW = width - padding.left - padding.right;
         const chartH = height - padding.top - padding.bottom;
+        const plotW = getPlotWidth(chartW);
 
         const theme = chartTheme();
         ctx.clearRect(0, 0, width, height);
@@ -1250,7 +1267,7 @@ window.pgAiTradingChart = (function () {
 
         const { visibleMax, visibleMin, visibleRange } = getVisiblePriceBounds(st, view);
         const pads = getHorizontalPads(st, view.length);
-        const slot = chartW / pads.slots;
+        const slot = plotW / pads.slots;
         const candleWidth = Math.max(1.5, slot - 2);
 
         const toY = (price) => padding.top + ((visibleMax - price) / visibleRange) * chartH;
