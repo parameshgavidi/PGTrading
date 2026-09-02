@@ -196,9 +196,9 @@ public class AiInsightHelperTests
         };
 
         var checks = AiInsightHelper.BuildChecks(analysis);
-        // [0]=1H structure, [1]=1H ST, [2]=VWAP
-        Assert.Equal("pass", checks[1].State);
-        Assert.Equal("fail", checks[2].State);
+        // [0]=1H ST, [1]=VWAP
+        Assert.Equal("pass", checks[0].State);
+        Assert.Equal("fail", checks[1].State);
 
         var recommendation = AiInsightHelper.BuildRecommendation(new Signal(), analysis);
         Assert.Equal("WAIT", recommendation.ActionHeadline);
@@ -218,55 +218,42 @@ public class AiInsightHelperTests
         };
 
         var checks = AiInsightHelper.BuildChecks(analysis);
-        Assert.Equal("pass", checks[1].State);
-        Assert.Equal("fail", checks[2].State);
+        Assert.Equal("pass", checks[0].State);
+        Assert.Equal("fail", checks[1].State);
     }
 
     [Fact]
-    public void Structure_vs_st_conflict_marks_st_fail_not_pass()
+    public void BuildChecks_omits_1h_structure_row()
     {
         var analysis = new MultiTimeframeAnalysis
         {
             Trend1H = TrendDirection.Buy,
-            MarketBias = TrendDirection.Neutral,
+            MarketBias = TrendDirection.Buy,
             AboveVwap = true,
-            Regime = MarketRegime.DevelopingTrend,
+            Regime = MarketRegime.TrendingBullish,
             Structure = new MultiTimeframeStructure
             {
                 Structure1H = new MarketStructureAnalysis
                 {
                     Bias = StructureBias.Bearish,
-                    Summary = "Bearish (LH+LL)",
-                    HasLowerHigh = true,
-                    HasLowerLow = true
+                    Summary = "Bearish (LH+LL)"
                 },
                 Structure15M = new MarketStructureAnalysis
                 {
                     Bias = StructureBias.Bullish,
                     Summary = "Bullish (HH+HL)",
-                    HasHigherHigh = true,
-                    HasHigherLow = true
+                    BosBullish = true
                 }
             },
-            Tpo = new TpoConfirmationAnalysis { BuyConfirmed = true, Summary = "Bull — above POC" },
-            FrameworkReady = false,
-            FrameworkStatus = "Wait — 1H structure vs SuperTrend conflict",
             Adx = 28m,
-            RsiTrend = 47m
+            RsiTrend = 58m
         };
 
         var checks = AiInsightHelper.BuildChecks(analysis);
-        Assert.Equal("pass", checks[0].State); // 1H structure directional
-        Assert.Equal("fail", checks[1].State); // ST opposes structure
-        Assert.Equal("fail", checks[2].State); // Above VWAP vs bearish structure
-        Assert.Equal("fail", checks[3].State); // 15M bullish vs 1H bearish
-        Assert.Equal("pass", checks[4].State); // ADX strong
-        Assert.Equal("pass", checks[5].State); // RSI mid expected in Developing
-        Assert.Equal("fail", checks[6].State); // Bull POC vs bearish structure
-
-        var recommendation = AiInsightHelper.BuildRecommendation(new Signal(), analysis);
-        Assert.Equal("WAIT STRUCTURE", recommendation.ActionHeadline);
-        Assert.Contains("structure vs SuperTrend", recommendation.ActionDetail, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(checks, c => c.Label.Contains("1H structure", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("pass", checks[0].State); // 1H ST
+        Assert.Equal("pass", checks[1].State); // VWAP
+        Assert.Equal("pass", checks[2].State); // 15M
     }
 
     [Fact]
@@ -326,8 +313,9 @@ public class AiInsightHelperTests
         };
 
         var checks = AiInsightHelper.BuildChecks(analysis);
-        Assert.All(checks.Take(7), c => Assert.Equal("pass", c.State));
-        Assert.Equal("pass", checks[8].State); // entry
+        // Without 1H structure row: ST, VWAP, 15M, ADX, RSI, POC are first six
+        Assert.All(checks.Take(6), c => Assert.Equal("pass", c.State));
+        Assert.Equal("pass", checks[7].State); // entry
         Assert.Contains(checks, c => c.State == "pass" && (
             c.Label.Contains("Footprint", StringComparison.OrdinalIgnoreCase)
             || c.Label.Contains("Bullish", StringComparison.OrdinalIgnoreCase)

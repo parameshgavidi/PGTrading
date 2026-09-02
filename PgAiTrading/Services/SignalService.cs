@@ -9,7 +9,7 @@ public interface ISignalService
     Task<MultiTimeframeAnalysis> AnalyzeAsync(string instrument = "NIFTY", string? chartTimeframe = null);
     Task<MultiTimeframeAnalysis> AnalyzeForFrameworkAsync(string instrument);
     /// <summary>
-    /// Phase-1 intraday screen: 1H structure + regime gates (also loads 15m for structure).
+    /// Phase-1 intraday screen: regime + 1H ST/VWAP bias gates (also loads 15m for structure).
     /// Trending path requires bullish bias; StrongChop passes through for sweep evaluation in phase 2.
     /// </summary>
     Task<IntradayPrefetch?> TryScreenIntradayPhase1Async(string instrument);
@@ -86,9 +86,6 @@ public class SignalService : ISignalService
         // Strong chop: pass to phase 2 for liquidity-sweep mean-reversion (may be long after reclaim).
         if (regime != MarketRegime.StrongChop)
         {
-            if (structure.MajorDirection != TrendDirection.Buy)
-                return null;
-
             var trend1H = _superTrend.GetTrend(candles1H, config.SuperTrend1HPeriod, config.SuperTrend1HMultiplier);
             var vwap5M = candles5M.Count > 0
                 ? candles5M[^1].Vwap ?? candles5M.LastOrDefault(c => c.Vwap.HasValue)?.Vwap ?? 0m
@@ -366,7 +363,7 @@ public class SignalService : ISignalService
 
         var reasons = new List<string>
         {
-            $"Structure — 1H {analysis.Structure.Structure1H.Summary}",
+            $"Bias — 1H ST {TrendUi.GetSuperTrendLabel(analysis.Trend1H)} · {(analysis.AboveVwap ? "Above" : "Below")} VWAP",
             $"Regime — {TradeFrameworkEvaluator.RegimeLabel(analysis.Regime)} (RSI {analysis.RsiTrend:0}, ADX {analysis.Adx:0})",
             $"15M — {analysis.Structure.Structure15M.Summary}",
             $"Volume profile — {analysis.Tpo.Summary}",
@@ -405,7 +402,7 @@ public class SignalService : ISignalService
 
         if (analysis.Regime == MarketRegime.SoftNeutral)
         {
-            reasons.Insert(0, "Soft neutral — RSI mid + ADX not developing; wait 1H structure");
+            reasons.Insert(0, "Soft neutral — RSI mid + ADX not developing; wait regime");
             return new Signal
             {
                 Instrument = instrument,

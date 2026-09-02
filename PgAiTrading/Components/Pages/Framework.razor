@@ -9,28 +9,11 @@
 
         <p class="text-secondary framework-intro">
             Read every morning before the session. Rules below are enforced for Dashboard, Live Signals,
-            Scanner, and Intraday Scan. Camarilla, CPR, and TPO remain chart show/hide overlays only.
+            Scanner, and Intraday Scan. 1H market structure, Camarilla, CPR, and TPO remain chart show/hide
+            overlays only (use the Structure button on charts).
         </p>
 
-        <div class="framework-band-grid framework-band-grid-3">
-            <div class="card framework-subcard">
-                <h3>Market structure (1H priority)</h3>
-                <table class="framework-table framework-band-table">
-                    <thead>
-                        <tr><th>Bias</th><th>Pattern</th><th>Meaning</th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var band in FrameworkPlaybook.StructureBands)
-                        {
-                            <tr class="@band.Css">
-                                <td><strong>@band.Band</strong></td>
-                                <td>@band.Range</td>
-                                <td>@band.Meaning</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+        <div class="framework-band-grid framework-band-grid-2">
             <div class="card framework-subcard">
                 <h3>ADX (14) — 1 Hour</h3>
                 <table class="framework-table framework-band-table">
@@ -74,13 +57,13 @@
             <ol class="framework-steps">
                 <li><span class="tag wait">G0</span> 5m RSI(28) &lt; 30 → <strong>EXPECT REVERSAL</strong></li>
                 <li><span class="tag wait">G0b</span> 5m RSI(28) &lt; 30 + any bullish 5m pattern → <strong>WAIT</strong> (no new entry)</li>
-                <li><span class="tag step">1</span> <strong>Market structure</strong> — 1H HH/HL or LH/LL (direction); never from 5M</li>
+                <li><span class="tag step">1</span> <strong>Bias</strong> — 1H SuperTrend + VWAP (direction)</li>
                 <li><span class="tag step">2</span> <strong>Regime</strong> — RSI(28) + ADX (trend / strong chop / developing)</li>
                 <li><span class="tag step">3</span> <strong>Volume Profile</strong> — POC / VAH / VAL / PDH / PDL location</li>
                 <li><span class="tag step">4</span> <strong>Liquidity sweep</strong> — sweep → reclaim (esp. strong chop)</li>
                 <li><span class="tag step">5</span> <strong>Footprint</strong> — absorption / delta confirmation</li>
                 <li><span class="tag step">6</span> <strong>5M BOS</strong> entry (+ ST 7,2.5 trailing stop)</li>
-                <li><span class="tag range">note</span> Camarilla / CPR / TPO = <strong>chart toggles only</strong> (not gates)</li>
+                <li><span class="tag range">note</span> 1H structure / Camarilla / CPR / TPO = <strong>chart toggles only</strong> (not gates)</li>
                 <li><span class="tag wait">AI</span> Dashboard AI — WAIT until FrameworkReady</li>
             </ol>
         </div>
@@ -164,29 +147,28 @@
 @code {
     private static readonly IReadOnlyList<(string Name, string Timeframe, string Settings, string Purpose)> IndicatorRows =
     [
-        ("Market structure", "1 Hour", "HH/HL · LH/LL", "Major direction (top priority)"),
-        ("Market structure", "15 Minutes", "BOS / swings", "Setup confirmation"),
-        ("Market structure", "5 Minutes", "BOS / CHOCH", "Entry only — not overall bias"),
         ("RSI", "1 Hour", "Length 28", "Regime with ADX (>55 / 45–55 / <45)"),
         ("RSI", "5 Minutes", "Length 28", "G0 EXPECT REVERSAL (<30); G0b WAIT with bullish pattern"),
         ("ADX", "1 Hour", "Length 14", "<18 chop · >22 developing · >25 strong"),
         ("Session Volume Profile", "Session", "POC / VAH / VAL / PDH / PDL", "Location + liquidity levels"),
         ("Liquidity sweep", "5 Minutes", "Sweep → reclaim", "Setup at profile/session levels"),
         ("Footprint", "5 Minutes", "Delta + absorption", "Confirm reaction at level"),
-        ("SuperTrend", "1H / 15M / 5M", "(10,3) / (10,3) / (7,2.5)", "Alignment + trailing stop"),
-        ("VWAP", "5m session", "Session-anchored", "Soft alignment with structure"),
+        ("SuperTrend", "1H / 15M / 5M", "(10,3) / (10,3) / (7,2.5)", "Bias + alignment + trailing stop"),
+        ("VWAP", "5m session", "Session-anchored", "Soft alignment with 1H ST"),
+        ("15M / 5M structure", "15M / 5M", "BOS / CHOCH", "Setup + entry triggers"),
+        ("1H market structure", "Chart only", "Structure toggle", "Display — not a framework gate"),
         ("Camarilla / CPR / TPO", "Chart only", "Show/hide toggles", "Display — not framework gates")
     ];
 
     private static readonly IReadOnlyList<string> PriorityItems =
     [
-        "1H market structure (HH/HL or LH/LL)",
+        "1H SuperTrend + VWAP bias",
         "RSI(28) + ADX regime on 1H",
-        "15M structure BOS with 1H",
+        "15M structure BOS with bias",
         "Session Volume Profile (POC / VAH / VAL / PDH / PDL)",
         "Liquidity sweep → reclaim",
         "Footprint absorption / delta confirmation",
         "5M BOS entry (ST 7,2.5 trailing stop)",
-        "Chart-only: Camarilla, CPR, TPO display toggles"
+        "Chart-only: 1H Structure label, Camarilla, CPR, TPO display toggles"
     ];
 }

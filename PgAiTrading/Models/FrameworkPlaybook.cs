@@ -2,7 +2,7 @@ namespace PgAiTrading.Models;
 
 /// <summary>
 /// Static playbook content for the Framework page — kept in sync with TradeFrameworkEvaluator.
-/// Chart-only overlays (Camarilla, CPR, TPO display) are documented as display-only, not gates.
+/// Chart-only overlays (1H structure, Camarilla, CPR, TPO display) are documented as display-only, not gates.
 /// </summary>
 public static class FrameworkPlaybook
 {
@@ -21,38 +21,35 @@ public static class FrameworkPlaybook
       "Strong NO-TRADE for breakouts — switch to liquidity-sweep mean-reversion at VA/PDH/PDL",
       "RSI mid alone is not enough to call chop."),
     Rule("R2", "Developing / soft neutral",
-      "1H RSI(28) 45–55 AND ADX > 22 → developing (wait 1H structure + 15M BOS). ADX 18–22 → soft neutral stand aside.",
+      "1H RSI(28) 45–55 AND ADX > 22 → developing (wait 15M BOS with ST+VWAP bias). ADX 18–22 → soft neutral stand aside.",
       "Do NOT auto-label RSI 45–55 as chop when ADX is developing.",
       null)
   ];
 
-  private static readonly IReadOnlyList<FrameworkRule> StructureRules =
+  private static readonly IReadOnlyList<FrameworkRule> SetupStructureRules =
   [
-    Rule("MS-1", "1H = major market structure (direction)",
-      "HH + HL → bullish | LH + LL → bearish | Mixed → consolidation/chop",
-      "Top priority for direction — never decide overall structure from 5M",
-      "1H alone if you pick only one TF for structure."),
-    Rule("MS-2", "15M = trading structure (setup)",
-      "Look for BOS in the same direction as 1H (e.g. 1H bullish → 15M breaks prior swing high)",
+    Rule("MS-15", "15M = trading structure (setup)",
+      "Look for BOS in the same direction as 1H ST + VWAP bias",
       "Setup confirmation", null),
-    Rule("MS-3", "5M = entry / execution only",
-      "Pullback → HL/LH → 5M BOS/CHOCH back with 1H/15M trend",
+    Rule("MS-5", "5M = entry / execution only",
+      "Pullback → HL/LH → 5M BOS/CHOCH back with bias",
       "Entry trigger (alongside ST 7,2.5 as stop)",
-      "5M HH/HL noise must not override 1H direction."),
-    Rule("MS-4", "Alignment with SuperTrend + VWAP",
-      "1H structure preferred; block when ST/VWAP hard-opposes structure",
-      "Soft alignment layer", "Existing 1H ST → 15M → 5M stack still used as confirmation.")
+      "5M HH/HL noise must not override 1H ST + VWAP bias."),
+    Rule("MS-ALIGN", "Alignment with SuperTrend + VWAP",
+      "1H ST + session VWAP set market bias; block when they hard-oppose",
+      "Soft alignment layer", "1H HH/HL structure is chart-only (Structure toggle) — not a gate.")
   ];
 
-  private static readonly IReadOnlyList<FrameworkRule> RegimeRules =
+  private static readonly IReadOnlyList<FrameworkRule> BiasAndRegimeRules =
   [
-    Rule("RG-1", "Trending bullish", "1H RSI(28) > 55", "Long setups / bullish spreads with structure"),
-    Rule("RG-2", "Trending bearish", "1H RSI(28) < 45", "Short setups / bearish spreads with structure"),
+    Rule("BIAS-1", "Market bias", "1H SuperTrend + session VWAP aligned", "Sets long/short/neutral bias", "1H HH/HL structure is chart-only — use Structure toggle."),
+    Rule("RG-1", "Trending bullish", "1H RSI(28) > 55", "Long setups / bullish spreads with ST+VWAP bias"),
+    Rule("RG-2", "Trending bearish", "1H RSI(28) < 45", "Short setups / bearish spreads with ST+VWAP bias"),
     Rule("RG-3", "Strong chop", "RSI 45–55 + ADX < 18", "Liquidity sweeps at profile extremes — not breakout chase"),
-    Rule("RG-4", "Developing", "RSI 45–55 + ADX > 22", "Wait 1H structure + 15M confirmation — not auto-chop"),
+    Rule("RG-4", "Developing", "RSI 45–55 + ADX > 22", "Wait 15M BOS with ST+VWAP bias — not auto-chop"),
     Rule("RG-5", "Soft neutral", "RSI 45–55 + ADX 18–22", "Stand aside"),
     Rule("RG-6", "Confirm chop with",
-      "1H structure mixed + ADX < 18 + 15M BOS failures + price oscillating around VWAP",
+      "ADX < 18 + 15M BOS failures + price oscillating around VWAP",
       "Higher-confidence range call", null)
   ];
 
@@ -103,7 +100,7 @@ public static class FrameworkPlaybook
 
   private static readonly IReadOnlyList<FrameworkRule> PipelineRules =
   [
-    Rule("P1", "Market Structure", "1H direction → 15M BOS setup", "Top priority", null),
+    Rule("P1", "Bias", "1H SuperTrend + session VWAP", "Market / trade direction", null),
     Rule("P2", "Regime", "RSI(28) + ADX on 1H", "Trend vs strong chop vs developing", null),
     Rule("P3", "Volume Profile", "POC / VAH / VAL / PDH / PDL", "Important location", null),
     Rule("P4", "Liquidity Sweep", "Sweep at reference level", "Setup", null),
@@ -113,8 +110,8 @@ public static class FrameworkPlaybook
 
   private static readonly IReadOnlyList<FrameworkRule> TrendingRules =
   [
-    Rule("T1", "Bias", "1H HH/HL (or LH/LL) + RSI >55 / <45", "Trade with structure", null),
-    Rule("T2", "Setup", "15M BOS with 1H", "Required", null),
+    Rule("T1", "Bias", "1H ST + VWAP + RSI >55 / <45", "Trade with ST+VWAP bias", null),
+    Rule("T2", "Setup", "15M BOS with bias", "Required", null),
     Rule("T3", "Location", "POC confirms direction; ADX≥25 prefers outside VA", "Required", null),
     Rule("T4", "Entry", "5M pullback → BOS (+ footprint)", "Execute", null),
     Rule("T5", "Stop", "5M SuperTrend (7, 2.5) candle close through", "Trailing", null)
@@ -122,6 +119,7 @@ public static class FrameworkPlaybook
 
   private static readonly IReadOnlyList<FrameworkRule> ChartOnlyRules =
   [
+    Rule("CH-0", "1H market structure", "Structure button on charts — HH/HL display only, not a framework gate", "Display", "Do not use for FrameworkReady or AI checklist."),
     Rule("CH-1", "Camarilla pivot", "Show/hide on chart only — not a framework gate", "Display", "Do not use for FrameworkReady."),
     Rule("CH-2", "CPR (day / 1m)", "Show/hide on chart only — not a framework gate", "Display", null),
     Rule("CH-3", "TPO display", "Existing chart/POC overlay — do not remove; not a separate framework gate", "Display", "Volume Profile is the primary location tool.")
@@ -130,8 +128,8 @@ public static class FrameworkPlaybook
   private static readonly IReadOnlyList<FrameworkRule> ReadyRules =
   [
     Rule("OK-1", "No WAIT guard", "NOT (5m RSI(28) < 30 AND bullish pattern)", "✓", null),
-    Rule("OK-2", "Regime allows trade", "Trending, developing (with structure), or strong-chop with confirmed sweep", "✓", null),
-    Rule("OK-3", "1H structure directional (or sweep MR)", "HH/HL or LH/LL — or confirmed sweep path in strong chop", "✓", null),
+    Rule("OK-2", "Regime allows trade", "Trending, developing (with 15M BOS), or strong-chop with confirmed sweep", "✓", null),
+    Rule("OK-3", "1H ST + VWAP bias (or sweep MR)", "Aligned SuperTrend/VWAP — or confirmed sweep path in strong chop", "✓", null),
     Rule("OK-4", "15M setup / sweep location", "BOS aligned or sweep at profile/session level", "✓", null),
     Rule("OK-5", "Volume profile location OK", "POC / VA rules for regime", "✓", null),
     Rule("OK-6", "5M BOS (or entry ST) triggered", "Entry", "✓", null),
@@ -141,18 +139,18 @@ public static class FrameworkPlaybook
 
   private static readonly IReadOnlyList<FrameworkRule> DoNotRules =
   [
-    Rule("N1", "Decide structure from 5M", "5M swings are noise for overall bias", null, null),
+    Rule("N1", "Decide bias from 5M swings", "5M swings are noise for overall bias — use 1H ST + VWAP", null, null),
     Rule("N2", "Treat RSI 45–55 alone as chop", "Require ADX < 18 for strong chop; ADX > 22 = developing", null, null),
     Rule("N3", "Enter on sweep wick alone", "Need reclaim + 5M BOS + footprint", null, null),
-    Rule("N4", "Enter on footprint delta alone", "Never without structure/regime/location", null, null),
-    Rule("N5", "Use Camarilla/CPR/TPO as gates", "Chart display only for now", null, null)
+    Rule("N4", "Enter on footprint delta alone", "Never without regime/location/bias", null, null),
+    Rule("N5", "Use 1H structure / Camarilla / CPR / TPO as gates", "Chart display only", null, null)
   ];
 
   public static readonly IReadOnlyList<(string Band, string Range, string Meaning, string Css)> AdxBands =
   [
     ("Choppy", "< 18", "With RSI mid → strong chop / sweep MR", "sell"),
     ("Moderate", "18 – 22", "With RSI mid → soft neutral", "neutral"),
-    ("Developing", "> 22", "With RSI mid → wait structure (not auto-chop)", "neutral"),
+    ("Developing", "> 22", "With RSI mid → wait 15M BOS (not auto-chop)", "neutral"),
     ("Strong", "> 25", "Trend day — prefer outside value area", "buy")
   ];
 
@@ -160,7 +158,7 @@ public static class FrameworkPlaybook
   [
     ("Long", "> 55", "Bullish momentum on 1H", "buy"),
     ("Short", "< 45", "Bearish momentum on 1H", "sell"),
-    ("Mid", "45 – 55", "Neutral momentum — combine with ADX + structure", "neutral")
+    ("Mid", "45 – 55", "Neutral momentum — combine with ADX + ST/VWAP", "neutral")
   ];
 
   public static readonly IReadOnlyList<(string Band, string Range, string Meaning, string Css)> VaBiasBands =
@@ -170,19 +168,12 @@ public static class FrameworkPlaybook
     ("Neutral", "Between levels", "Inside VA or mixed", "neutral")
   ];
 
-  public static readonly IReadOnlyList<(string Band, string Range, string Meaning, string Css)> StructureBands =
-  [
-    ("Bullish", "HH + HL", "Major bullish structure (1H)", "buy"),
-    ("Bearish", "LH + LL", "Major bearish structure (1H)", "sell"),
-    ("Mixed", "Conflicting swings", "Consolidation / chop", "neutral")
-  ];
-
   public static readonly IReadOnlyList<FrameworkRuleGroup> Groups =
   [
     new("pipeline", "Decision pipeline (top → bottom)", "Enforce in this order every session.", PipelineRules),
     new("global", "Global gates", "Check before directional or sweep trades.", GlobalGates),
-    new("structure", "1. Market structure (top priority)", "1H direction · 15M setup · 5M entry only.", StructureRules),
-    new("regime", "2. RSI(28) + ADX — regime", "Momentum + trend strength together.", RegimeRules),
+    new("regime", "1. Bias + RSI(28)/ADX — direction & regime", "ST+VWAP bias, then momentum + trend strength.", BiasAndRegimeRules),
+    new("setup", "2. 15M / 5M structure — setup & entry", "BOS with ST+VWAP bias. 1H HH/HL is chart-only.", SetupStructureRules),
     new("vp", "3. Session Volume Profile — location", "Primary liquidity/reference levels.", VolumeProfileRules),
     new("sweep", "4. Liquidity sweep — setup", "Price-action event at profile/session levels.", SweepRules),
     new("footprint", "5. Footprint — confirmation", "What happened inside the level.", FootprintRules),

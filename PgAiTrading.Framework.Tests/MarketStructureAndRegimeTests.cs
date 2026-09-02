@@ -71,7 +71,7 @@ public class MarketStructureAndRegimeTests
       Regime = MarketRegime.DevelopingTrend,
       TpoConfirmed = false,
       FrameworkReady = false,
-      FrameworkStatus = "Developing — wait 15M BOS with 1H structure",
+      FrameworkStatus = "Developing — wait 15M BOS with ST+VWAP bias",
       OverallScore = 55,
       Strength = "Developing"
     };
@@ -83,28 +83,33 @@ public class MarketStructureAndRegimeTests
   }
 
   [Fact]
-  public void Ai_developing_surfaces_structure_vs_st_conflict()
+  public void Ai_developing_surfaces_15m_bos_wait_not_1h_structure()
   {
     var analysis = new MultiTimeframeAnalysis
     {
-      MarketBias = TrendDirection.Neutral,
+      MarketBias = TrendDirection.Buy,
       TradeDirection = TrendDirection.Neutral,
       Trend1H = TrendDirection.Buy,
       AboveVwap = true,
       Regime = MarketRegime.DevelopingTrend,
       Structure = new MultiTimeframeStructure
       {
-        Structure1H = new MarketStructureAnalysis { Bias = StructureBias.Bearish, Summary = "Bearish (LH+LL)" }
+        Structure1H = new MarketStructureAnalysis { Bias = StructureBias.Bearish, Summary = "Bearish (LH+LL)" },
+        Structure15M = new MarketStructureAnalysis { Bias = StructureBias.Mixed, Summary = "Mixed/chop" }
       },
       FrameworkReady = false,
-      FrameworkStatus = "Wait — 1H structure vs SuperTrend conflict",
+      FrameworkStatus = "Developing — wait 15M BOS with ST+VWAP bias",
       OverallScore = 54,
       Strength = "Developing"
     };
 
     var rec = AiInsightHelper.BuildRecommendation(new Signal(), analysis);
     Assert.Equal("WAIT STRUCTURE", rec.ActionHeadline);
-    Assert.Contains("structure vs SuperTrend", rec.ActionDetail, StringComparison.OrdinalIgnoreCase);
+    Assert.Contains("15M BOS", rec.ActionDetail, StringComparison.OrdinalIgnoreCase);
+    Assert.DoesNotContain("1H structure", rec.ActionDetail, StringComparison.OrdinalIgnoreCase);
+
+    var checks = AiInsightHelper.BuildChecks(analysis);
+    Assert.DoesNotContain(checks, c => c.Label.Contains("1H structure", StringComparison.OrdinalIgnoreCase));
   }
 
   [Fact]

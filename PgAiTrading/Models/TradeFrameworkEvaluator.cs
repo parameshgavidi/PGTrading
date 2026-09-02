@@ -2,8 +2,8 @@ namespace PgAiTrading.Models;
 
 /// <summary>
 /// Intraday trade framework:
-/// Market Structure → RSI+ADX regime → Volume Profile → Liquidity Sweep → Footprint → 5M BOS.
-/// Chart-only (not framework gates): TPO display, Camarilla, CPR.
+/// Bias (1H ST+VWAP) → RSI+ADX regime → Volume Profile → Liquidity Sweep → Footprint → 5M BOS.
+/// Chart-only (not framework gates): 1H HH/HL structure (Structure toggle), TPO, Camarilla, CPR.
 /// </summary>
 public static class TradeFrameworkEvaluator
 {
@@ -36,31 +36,19 @@ public static class TradeFrameworkEvaluator
   };
 
   /// <summary>
-  /// Direction from 1H market structure (primary), optionally aligned with 1H ST + VWAP.
+  /// Market bias from 1H SuperTrend + session VWAP.
+  /// 1H HH/HL structure is chart-only (Structure toggle) — not a framework gate.
   /// </summary>
   public static TrendDirection GetMarketBias(
     MultiTimeframeStructure structure,
     TrendDirection trend1H,
     bool aboveVwap)
   {
-    var fromStructure = structure.MajorDirection;
-    if (fromStructure == TrendDirection.Neutral)
-      return TrendDirection.Neutral;
-
-    // Prefer structure when ST/VWAP agree or ST is neutral; block when they hard-oppose.
-    if (trend1H == TrendDirection.Buy && !aboveVwap && fromStructure == TrendDirection.Buy)
-      return TrendDirection.Neutral;
-
-    if (trend1H == TrendDirection.Sell && aboveVwap && fromStructure == TrendDirection.Sell)
-      return TrendDirection.Neutral;
-
-    if (trend1H != TrendDirection.Neutral && trend1H != fromStructure)
-      return TrendDirection.Neutral;
-
-    return fromStructure;
+    _ = structure;
+    return GetSuperTrendVwapBias(trend1H, aboveVwap);
   }
 
-  /// <summary>Legacy ST+VWAP bias kept for display / soft alignment.</summary>
+  /// <summary>1H ST + VWAP bias used for framework direction.</summary>
   public static TrendDirection GetSuperTrendVwapBias(TrendDirection trend1H, bool aboveVwap) =>
     trend1H switch
     {
@@ -124,7 +112,7 @@ public static class TradeFrameworkEvaluator
     if (regime == MarketRegime.SoftNeutral)
       return TrendDirection.Neutral;
 
-    // Developing (RSI mid + ADX > 22): require 1H structure + 15M BOS alignment.
+    // Developing (RSI mid + ADX > 22): require ST+VWAP bias + 15M BOS alignment.
     if (regime == MarketRegime.DevelopingTrend)
     {
       if (marketBias == TrendDirection.Neutral)
@@ -265,26 +253,20 @@ public static class TradeFrameworkEvaluator
   {
     var score = 25;
 
-    if (structure.Structure1H.Bias is StructureBias.Bullish or StructureBias.Bearish)
-      score += 12;
-    else if (structure.Structure1H.Bias == StructureBias.Mixed)
-      score += 3;
-
-    if (marketBias != TrendDirection.Neutral) score += 8;
+    if (marketBias != TrendDirection.Neutral) score += 12;
     if (tradeDirection != TrendDirection.Neutral) score += 12;
 
     var alignment = tradeDirection != TrendDirection.Neutral ? tradeDirection : marketBias;
     if (alignment != TrendDirection.Neutral)
     {
-      if (structure.Structure1H.Confirms(alignment)) score += 8;
       if (HasAligned15MBos(structure.Structure15M, alignment) || structure.Structure15M.Confirms(alignment))
         score += 10;
       if (EntryTriggered(alignment, structure.Structure5M, trend5MEntry)) score += 10;
 
-      if (alignment == TrendDirection.Buy && aboveVwap) score += 4;
-      if (alignment == TrendDirection.Sell && !aboveVwap) score += 4;
+      if (alignment == TrendDirection.Buy && aboveVwap) score += 6;
+      if (alignment == TrendDirection.Sell && !aboveVwap) score += 6;
 
-      if (trend1H == alignment) score += 3;
+      if (trend1H == alignment) score += 8;
       if (trend15M == alignment) score += 3;
     }
 
@@ -408,33 +390,21 @@ public static class TradeFrameworkEvaluator
     if (regime == MarketRegime.SoftNeutral)
       return "Soft neutral — RSI mid + ADX not developing";
 
-    if (structure.Structure1H.Bias == StructureBias.Insufficient)
-      return "Wait — 1H market structure insufficient";
-
-    if (structure.Structure1H.Bias == StructureBias.Mixed
-        && regime is not MarketRegime.DevelopingTrend)
-      return "Wait — 1H structure mixed/chop";
-
     if (marketBias == TrendDirection.Neutral)
     {
-      if (structure.MajorDirection != TrendDirection.Neutral
-          && trend1H != TrendDirection.Neutral
-          && trend1H != structure.MajorDirection)
-        return "Wait — 1H structure vs SuperTrend conflict";
+      if (trend1H == TrendDirection.Buy && !aboveVwap)
+        return "Step 1 — 1H ST bullish but price below session VWAP";
 
-      if (structure.MajorDirection == TrendDirection.Buy && trend1H == TrendDirection.Buy && !aboveVwap)
-        return "Step 1 — bullish structure but price below session VWAP";
+      if (trend1H == TrendDirection.Sell && aboveVwap)
+        return "Step 1 — 1H ST bearish but price above session VWAP";
 
-      if (structure.MajorDirection == TrendDirection.Sell && trend1H == TrendDirection.Sell && aboveVwap)
-        return "Step 1 — bearish structure but price above session VWAP";
-
-      return "Wait — 1H market structure not directional";
+      return "Wait — 1H SuperTrend + VWAP not aligned";
     }
 
     if (regime == MarketRegime.DevelopingTrend
         && !HasAligned15MBos(structure.Structure15M, marketBias)
         && !structure.Structure15M.Confirms(marketBias))
-      return "Developing — wait 15M BOS with 1H structure";
+      return "Developing — wait 15M BOS with ST+VWAP bias";
 
     if (adx1H < config.AdxWeakThreshold && regime != MarketRegime.StrongChop)
       return $"Wait — ADX {adx1H:0} choppy (<{config.AdxWeakThreshold:0})";

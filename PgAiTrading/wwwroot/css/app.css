@@ -2970,8 +2970,13 @@ code {
     grid-template-columns: repeat(3, 1fr);
 }
 
+.framework-band-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
 @media (max-width: 1100px) {
-    .framework-band-grid-3 {
+    .framework-band-grid-3,
+    .framework-band-grid-2 {
         grid-template-columns: 1fr;
     }
 }

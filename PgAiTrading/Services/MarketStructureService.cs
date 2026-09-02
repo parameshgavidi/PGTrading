@@ -12,7 +12,8 @@ public interface IMarketStructureService
 }
 
 /// <summary>
-/// Fractal swing + HH/HL/LH/LL structure. 1H for direction, 15M for setup BOS, 5M for entry only.
+/// Fractal swing + HH/HL/LH/LL structure.
+/// 1H is chart-only (Structure toggle); 15M for setup BOS; 5M for entry only.
 /// </summary>
 public sealed class MarketStructureService : IMarketStructureService
 {

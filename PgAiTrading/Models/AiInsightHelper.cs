@@ -68,7 +68,7 @@ public static class AiInsightHelper
                 Probability = Math.Min(probability, 52),
                 Strength = "Soft Neutral",
                 ActionHeadline = "WAIT",
-                ActionDetail = "RSI(28) 45–55 with ADX not developing — stand aside until 1H structure clarifies.",
+                ActionDetail = "RSI(28) 45–55 with ADX not developing — stand aside until regime clarifies.",
                 ActionKind = "wait"
             };
         }
@@ -144,9 +144,8 @@ public static class AiInsightHelper
         var entryPass = analysis.EntryTriggered;
         var footprintPass = analysis.FootprintConfirmed;
 
-        // Trade → market bias → 1H structure. Structure is the reference when ST/VWAP blocked bias.
+        // Trade → market bias (ST+VWAP). 1H HH/HL structure is chart-only — not an AI check.
         var primaryBias = ResolvePrimaryBias(analysis);
-        var structureBias = analysis.Structure.MajorDirection;
 
         var adxState = analysis.Adx >= 25 ? "pass"
             : analysis.Adx >= 18 ? "warn"
@@ -158,20 +157,13 @@ public static class AiInsightHelper
             : analysis.RsiTrend < 30 || analysis.RsiTrend > 70 ? "fail"
             : "warn";
 
-        var st1HState = Get1HStCheckState(analysis, structureBias);
-        var vwapState = GetVwapCheckState(analysis, primaryBias, structureBias);
+        var st1HState = Get1HStCheckState(analysis, primaryBias);
+        var vwapState = GetVwapCheckState(analysis, primaryBias);
         var st15MState = Get15MStCheckState(analysis);
 
-        var structureState = analysis.Structure.Structure1H.Bias switch
-        {
-            StructureBias.Bullish or StructureBias.Bearish => "pass",
-            StructureBias.Mixed => "warn",
-            _ => "fail"
-        };
+        var structure15State = Get15MStructureCheckState(analysis, primaryBias);
 
-        var structure15State = Get15MStructureCheckState(analysis, primaryBias, structureBias);
-
-        var pocState = GetPocCheckState(analysis, primaryBias, structureBias, tpoPass);
+        var pocState = GetPocCheckState(analysis, primaryBias, tpoPass);
         var pocLabel = tpoPass ? "POC Confirmed" : analysis.Tpo.Summary;
 
         // Sweep is required only in strong chop; elsewhere optional unless already confirmed.
@@ -194,7 +186,6 @@ public static class AiInsightHelper
 
         var checks = new List<AiCheck>
         {
-            new($"1H structure {analysis.Structure.Structure1H.Summary}", structureState),
             new($"{TrendUi.GetIcon(analysis.Trend1H)} 1H ST {TrendUi.GetSuperTrendLabel(analysis.Trend1H)}", st1HState),
             new(analysis.AboveVwap ? "Above VWAP" : "Below VWAP", vwapState),
             new($"15M {analysis.Structure.Structure15M.Summary}", structure15State),
@@ -224,7 +215,7 @@ public static class AiInsightHelper
         return checks;
     }
 
-    /// <summary>Trade direction, else market bias, else 1H structure direction.</summary>
+    /// <summary>Trade direction, else market bias (ST+VWAP). 1H structure is not a fallback.</summary>
     public static TrendDirection ResolvePrimaryBias(MultiTimeframeAnalysis analysis)
     {
         if (analysis.TradeDirection != TrendDirection.Neutral)
@@ -233,30 +224,25 @@ public static class AiInsightHelper
         if (analysis.MarketBias != TrendDirection.Neutral)
             return analysis.MarketBias;
 
-        return analysis.Structure.MajorDirection;
+        return TrendDirection.Neutral;
     }
 
-    private static string Get1HStCheckState(MultiTimeframeAnalysis analysis, TrendDirection structureBias)
+    private static string Get1HStCheckState(MultiTimeframeAnalysis analysis, TrendDirection primaryBias)
     {
         if (analysis.Trend1H == TrendDirection.Neutral)
             return "fail";
 
-        // Hard conflict with 1H structure — never a green pass.
-        if (structureBias != TrendDirection.Neutral && analysis.Trend1H != structureBias)
+        if (primaryBias != TrendDirection.Neutral && analysis.Trend1H != primaryBias)
             return "fail";
 
-        if (structureBias == TrendDirection.Neutral)
-            return "pass";
-
-        return analysis.Trend1H == structureBias ? "pass" : "warn";
+        return "pass";
     }
 
     private static string Get15MStructureCheckState(
         MultiTimeframeAnalysis analysis,
-        TrendDirection primaryBias,
-        TrendDirection structureBias)
+        TrendDirection primaryBias)
     {
-        var reference = primaryBias != TrendDirection.Neutral ? primaryBias : structureBias;
+        var reference = primaryBias;
         var s15 = analysis.Structure.Structure15M;
 
         if (s15.Bias is StructureBias.Mixed or StructureBias.Insufficient)
@@ -272,7 +258,6 @@ public static class AiInsightHelper
         if (aligned)
             return "pass";
 
-        // Opposing 15M vs 1H / trade bias.
         if (s15.Bias is StructureBias.Bullish or StructureBias.Bearish
             && !s15.Confirms(reference))
             return "fail";
@@ -283,20 +268,18 @@ public static class AiInsightHelper
     private static string GetPocCheckState(
         MultiTimeframeAnalysis analysis,
         TrendDirection primaryBias,
-        TrendDirection structureBias,
         bool tpoPass)
     {
         if (tpoPass)
             return "pass";
 
-        var reference = primaryBias != TrendDirection.Neutral ? primaryBias : structureBias;
+        var reference = primaryBias;
         if (reference == TrendDirection.Neutral)
             return analysis.IsRotationRegime ? "fail" : "warn";
 
         if (analysis.Tpo.Confirms(reference))
             return analysis.TradeDirection != TrendDirection.Neutral ? "pass" : "warn";
 
-        // Location opposes the structure/trade bias (e.g. Bull above POC on a bearish 1H).
         if (analysis.Tpo.Bias != TrendDirection.Neutral && analysis.Tpo.Bias != reference)
             return "fail";
 
@@ -305,10 +288,9 @@ public static class AiInsightHelper
 
     private static string GetVwapCheckState(
         MultiTimeframeAnalysis analysis,
-        TrendDirection primaryBias,
-        TrendDirection structureBias)
+        TrendDirection primaryBias)
     {
-        var reference = primaryBias != TrendDirection.Neutral ? primaryBias : structureBias;
+        var reference = primaryBias;
 
         if (reference == TrendDirection.Buy)
             return analysis.AboveVwap ? "pass" : "fail";
@@ -316,7 +298,7 @@ public static class AiInsightHelper
         if (reference == TrendDirection.Sell)
             return analysis.AboveVwap ? "fail" : "pass";
 
-        // No structure/trade bias — fall back to ST vs VWAP hard-oppose rules.
+        // No trade/market bias — fall back to ST vs VWAP hard-oppose rules.
         if (analysis.Trend1H == TrendDirection.Buy && !analysis.AboveVwap)
             return "fail";
 
@@ -333,10 +315,10 @@ public static class AiInsightHelper
             || status.Equals("Ready", StringComparison.OrdinalIgnoreCase)
             || status.Equals("Wait", StringComparison.OrdinalIgnoreCase))
         {
-            return "RSI mid but ADX > 22 — wait 1H structure + 15M BOS confirmation (not auto-chop).";
+            return "RSI mid but ADX > 22 — wait 15M BOS with ST+VWAP bias (not auto-chop).";
         }
 
-        // Always surface evaluator reasons (structure vs ST, VWAP, 15M, BOS, POC, etc.).
+        // Always surface evaluator reasons (VWAP, 15M, BOS, POC, etc.).
         return status;
     }
 
@@ -436,10 +418,10 @@ public static class AiInsightHelper
         if (analysis.MarketBias == TrendDirection.Neutral && analysis.Trend1H != TrendDirection.Neutral)
         {
             if (analysis.Trend1H == TrendDirection.Buy && !analysis.AboveVwap)
-                return "Step 1 incomplete — bullish structure/ST but price is below session VWAP. Wait for reclaim above VWAP.";
+                return "Step 1 incomplete — bullish 1H ST but price is below session VWAP. Wait for reclaim above VWAP.";
 
             if (analysis.Trend1H == TrendDirection.Sell && analysis.AboveVwap)
-                return "Step 1 incomplete — bearish structure/ST but price is above session VWAP. Wait for rejection below VWAP.";
+                return "Step 1 incomplete — bearish 1H ST but price is above session VWAP. Wait for rejection below VWAP.";
         }
 
         if (analysis.TradeDirection == TrendDirection.Neutral && analysis.MarketBias != TrendDirection.Neutral)

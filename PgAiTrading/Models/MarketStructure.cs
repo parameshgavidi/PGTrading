@@ -27,7 +27,7 @@ public sealed class SwingPoint
 
 /// <summary>
 /// HH/HL or LH/LL market structure for one timeframe.
-/// 1H = major direction; 15M = setup; 5M = entry only (not overall bias).
+/// 1H = chart-only display (Structure toggle); 15M = setup; 5M = entry only.
 /// </summary>
 public sealed class MarketStructureAnalysis
 {
@@ -65,7 +65,7 @@ public sealed class MultiTimeframeStructure
     public MarketStructureAnalysis Structure15M { get; set; } = new();
     public MarketStructureAnalysis Structure5M { get; set; } = new();
 
-    /// <summary>Major direction from 1H only — never from 5M.</summary>
+    /// <summary>1H HH/HL bias for chart Structure label only — not a framework gate.</summary>
     public TrendDirection MajorDirection => Structure1H.AsTrendDirection;
 
     public string Summary =>
