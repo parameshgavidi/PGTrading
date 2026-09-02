@@ -760,8 +760,11 @@ window.pgAiTradingChart = (function () {
         st.count = newCount;
 
         // Stay pinned to the live edge so zoom never invents right-side whitespace.
-        // Overscroll empty space is only created by explicit pan past the live edge.
-        if (st.offset === 0) {
+        // Overscroll (offset < 0) uses empty *bar slots*; those slots widen on zoom-in and
+        // look like growing right padding — especially on narrow Multi Chart panes. Clear
+        // overscroll on zoom; only explicit pan recreates empty space past the live edge.
+        if (st.offset <= 0) {
+            st.offset = 0;
             scheduleRender(id);
             return;
         }
@@ -774,15 +777,14 @@ window.pgAiTradingChart = (function () {
             // Bars from the right edge to the anchor point before zoom.
             const barsFromRight = st.offset + oldCount * (1 - frac);
             var limits = getOffsetLimits(st);
-            // If we were not overscrolled, do not introduce overscroll via zoom.
-            var minOff = st.offset > 0 ? 0 : limits.min;
+            // Never introduce overscroll via zoom (min clamp is 0 while panned into history).
             st.offset = clamp(
                 Math.round(barsFromRight - newCount * (1 - frac)),
-                minOff,
+                0,
                 limits.max);
         } else {
             var limits2 = getOffsetLimits(st);
-            st.offset = clamp(st.offset, limits2.min, limits2.max);
+            st.offset = clamp(st.offset, 0, limits2.max);
         }
         scheduleRender(id);
     }

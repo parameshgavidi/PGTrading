@@ -10,7 +10,9 @@
         <button type="button" class="zoom-btn" title="Zoom out (time) — scroll wheel also zooms" @onclick="ZoomOut">−</button>
         <button type="button" class="zoom-btn" title="Reset view — drag chart to pan like Kite (all directions)" @onclick="ResetZoom">⟳</button>
     </div>
-    <canvas id="@CanvasId" width="@Width" height="@Height"></canvas>
+    @* Do not set canvas width/height attributes — Blazor re-renders would reset them and
+       clear the bitmap (worse on Multi Chart with frequent price-tick re-renders). JS owns sizing. *@
+    <canvas id="@CanvasId"></canvas>
 </div>
 
 @code {

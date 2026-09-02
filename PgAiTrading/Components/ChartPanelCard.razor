@@ -49,7 +49,8 @@
                              ShowVwapChanged="v => OnShowVwap(v)"
                              ShowPatternsChanged="v => OnShowPatterns(v)" />
     </div>
-    <CandlestickChart CanvasId="@Panel.CanvasId"
+    <CandlestickChart @key="@($"{Panel.CanvasId}|{Panel.SelectedTimeframe}")"
+                      CanvasId="@Panel.CanvasId"
                       Candles="Panel.ChartCandles"
                       ChartVersion="Panel.ChartVersion"
                       OverlayVersion="Panel.OverlayVersion"
